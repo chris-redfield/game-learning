@@ -7,6 +7,9 @@ class Grass:
         self.width = 32  # Size of the grass tile
         self.height = 32
         
+        # Create collision rect
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        
         # Load spritesheet
         try:
             self.spritesheet = pygame.image.load('assets/world-tiles-1.png').convert_alpha()
@@ -22,6 +25,10 @@ class Grass:
         sprite = pygame.Surface((width, height), pygame.SRCALPHA)
         sprite.blit(self.spritesheet, (0, 0), (x, y, width, height))
         return pygame.transform.scale(sprite, (self.width, self.height))
+    
+    def get_rect(self):
+        """Return the collision rectangle"""
+        return self.rect
         
     def draw(self, surface):
         """Draw the grass"""

@@ -81,8 +81,8 @@ class Player:
         else:
             self.frame = 0
     
-    def move(self, dx, dy):
-        """Move player and update animation state"""
+    def move(self, dx, dy, obstacles):
+        """Move player and update animation state with collision detection"""
         if dx != 0 or dy != 0:
             self.moving = True
             
@@ -96,15 +96,31 @@ class Player:
             elif dy < 0:
                 self.facing = 'up'
             
-            # Update position
-            self.x += dx
-            self.y += dy
+            # Create a test rect for collision detection
+            test_rect = pygame.Rect(self.x + dx, self.y + dy, self.width, self.height)
             
-            # Keep player on screen
-            self.x = max(0, min(self.x, SCREEN_WIDTH - self.width))
-            self.y = max(0, min(self.y, SCREEN_HEIGHT - self.height))
+            # Check for collisions with obstacles
+            collision = False
+            for obstacle in obstacles:
+                if test_rect.colliderect(obstacle.get_rect()):
+                    collision = True
+                    break
+            
+            # Only move if there's no collision
+            if not collision:
+                # Update position
+                self.x += dx
+                self.y += dy
+                
+                # Keep player on screen
+                self.x = max(0, min(self.x, SCREEN_WIDTH - self.width))
+                self.y = max(0, min(self.y, SCREEN_HEIGHT - self.height))
         else:
             self.moving = False
+            
+    def get_rect(self):
+        """Return player collision rectangle"""
+        return pygame.Rect(self.x, self.y, self.width, self.height)
     
     def draw(self, surface):
         """Draw the player with appropriate animation frame"""
