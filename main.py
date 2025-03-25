@@ -57,7 +57,11 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-    
+        # Check for space key press to trigger sword swing
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                player.start_swing()
+                
     # Handle player movement
     keys = pygame.key.get_pressed()
     dx, dy = 0, 0
@@ -83,6 +87,8 @@ while running:
         show_collision_boxes = True
     else:
         show_collision_boxes = False
+    
+    # Process events
         
     player.move(dx, dy, grass_patches)
     player.update()
