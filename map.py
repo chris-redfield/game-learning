@@ -6,8 +6,8 @@ class Map:
         """Initialize the map with a reference to the world"""
         self.world = world
         self.visible = False
-        self.cell_size = 50  # Size of each block on the map
-        self.grid_size = 11  # Number of cells in each direction (odd number to center player)
+        self.cell_size = 28  # Reduced cell size to fit more cells on screen
+        self.grid_size = 20  # Increased to 20x20 grid
         self.colors = {
             'background': (20, 20, 40),
             'grid': (60, 60, 80),
@@ -42,6 +42,11 @@ class Map:
         # Draw title
         title = self.title_font.render("WORLD MAP", True, self.colors['text'])
         screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 20))
+        
+        # Draw current coordinates info
+        curr_x, curr_y = self.world.current_block_coords
+        coords_text = self.font.render(f"Current Position: ({curr_x}, {curr_y})", True, self.colors['text'])
+        screen.blit(coords_text, (SCREEN_WIDTH // 2 - coords_text.get_width() // 2, 50))
         
         # Calculate map center position
         center_x = SCREEN_WIDTH // 2
@@ -95,14 +100,17 @@ class Map:
                 pygame.draw.rect(screen, color, cell_rect)
                 pygame.draw.rect(screen, self.colors['grid'], cell_rect, 1)
                 
-                # Draw coordinates in the cell
+                # Draw coordinates in the cell if cell is large enough
                 coord_text = f"({world_x},{world_y})"
                 text_surf = self.font.render(coord_text, True, self.colors['text'])
-                text_pos = (
-                    screen_x + self.cell_size // 2 - text_surf.get_width() // 2,
-                    screen_y + self.cell_size // 2 - text_surf.get_height() // 2
-                )
-                screen.blit(text_surf, text_pos)
+                
+                # Only draw text if it fits in the cell
+                if text_surf.get_width() < self.cell_size - 4:
+                    text_pos = (
+                        screen_x + self.cell_size // 2 - text_surf.get_width() // 2,
+                        screen_y + self.cell_size // 2 - text_surf.get_height() // 2
+                    )
+                    screen.blit(text_surf, text_pos)
         
         # Draw player marker (centered in current block)
         current_screen_x = offset_x + (self.grid_size // 2) * self.cell_size
@@ -112,7 +120,7 @@ class Map:
         player_color = self.colors['player']
         center_x = current_screen_x + self.cell_size // 2
         center_y = current_screen_y + self.cell_size // 2
-        marker_size = self.cell_size // 4
+        marker_size = max(self.cell_size // 5, 5)  # Ensure marker is visible even with small cells
         
         # Draw player position
         pygame.draw.circle(screen, player_color, (center_x, center_y), marker_size)
