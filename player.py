@@ -21,8 +21,8 @@ class Player:
         self.swinging = False
         self.swing_frame = 0
         self.swing_animation_counter = 0
-        self.swing_animation_speed = 0.15
-        self.swing_frames_total = 4  # Reduced to 4 frames for a 90-degree arc
+        self.swing_animation_speed = 0.1  # Adjusted for full 360-degree spin
+        self.swing_frames_total = 8  # Increased to 8 frames for a full 360-degree spin
         
         # Load spritesheet
         try:
@@ -165,51 +165,56 @@ class Player:
         return self.swinging
     
     def draw_sword(self, surface):
-        """Draw sword based on player's facing direction and swing animation state"""
+        """Draw sword spinning around the player's center like a full rotation"""
         if not self.swinging:
             return
             
-        # Calculate sword position based on player position and facing direction
-        # This creates a 90-degree arc centered on player's facing direction
-        # Map the swing_frame (0-3) to an angle range of 45 degrees each side of center
-        angle_offset = (self.swing_animation_counter / self.swing_frames_total) * math.pi/2 - math.pi/4
+        # Player center point (handle position)
+        player_center_x = self.x + self.width / 2
+        player_center_y = self.y + self.height / 2
         
-        # Configure sword position and rotation based on facing direction
-        sword_configs = {
-            'right': {
-                'base_angle': 0,
-                'rotation': -90
-            },
-            'left': {
-                'base_angle': math.pi,
-                'rotation': 90
-            },
-            'up': {
-                'base_angle': -math.pi/2,
-                'rotation': 0
-            },
-            'down': {
-                'base_angle': math.pi/2,
-                'rotation': 180
-            }
+        # Calculate rotation angle based on swing animation progress
+        # For a full 360 degree spin, multiply by 2*pi
+        rotation_angle = (self.swing_animation_counter / self.swing_frames_total) * 2 * math.pi
+        
+        # Default sword length (distance from handle to tip)
+        sword_length = 24
+        
+        # Initial rotation offset based on facing direction
+        initial_rotations = {
+            'right': 0,
+            'left': math.pi,
+            'up': -math.pi/2,
+            'down': math.pi/2
         }
         
-        config = sword_configs[self.facing]
-        base_angle = config['base_angle']
+        # Add initial rotation based on player direction
+        rotation_angle += initial_rotations[self.facing]
         
-        # Calculate sword position based on arc swing
-        sword_x = self.x + self.width/2 + math.cos(base_angle + angle_offset) * 30
-        sword_y = self.y + self.height/2 + math.sin(base_angle + angle_offset) * 30 + 10  # Add 10px to y
+        # Calculate sword position based on rotation angle
+        sword_x = player_center_x + math.cos(rotation_angle) * sword_length
+        sword_y = player_center_y + math.sin(rotation_angle) * sword_length
         
-        # Rotate sword sprite based on direction
-        rotated_sword = pygame.transform.rotate(self.sword_sprite, config['rotation'])
+        # Calculate display rotation angle in degrees for pygame
+        display_angle = -math.degrees(rotation_angle) - 90  # -90 to adjust for sword sprite orientation
         
-        # Get the new rect for the rotated sword to properly center it
+        # Rotate sword sprite
+        rotated_sword = pygame.transform.rotate(self.sword_sprite, display_angle)
+        
+        # Get the new rect for the rotated sword to properly position it
         sword_rect = rotated_sword.get_rect()
-        sword_rect.center = (sword_x, sword_y)
+        
+        # Set the sword position so that the handle (not the center) is at the rotation point
+        # We need to offset from the calculated position to account for handle placement
+        handle_offset_x = sword_rect.width * 0.5  # Adjust based on where the handle is in your sprite
+        handle_offset_y = sword_rect.height * 0.2  # Assume handle is at 20% of the sprite height
+        
+        # Calculate the offset position for the sprite
+        offset_x = sword_x - handle_offset_x
+        offset_y = sword_y - handle_offset_y
         
         # Draw the sword
-        surface.blit(rotated_sword, sword_rect.topleft)
+        surface.blit(rotated_sword, (offset_x, offset_y))
     
     def draw(self, surface):
         """Draw the player with appropriate animation frame"""
