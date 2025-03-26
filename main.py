@@ -1,8 +1,8 @@
 import pygame
 import sys
 import random
-from player import Player
-from grass import Grass
+from entities.player import Player
+from entities.grass import Grass
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GREEN
 
 # Initialize pygame
