@@ -8,7 +8,7 @@ class Skeleton:
         self.x = x
         self.y = y
         self.width = 48  # Increased width to better match the sprite proportions
-        self.height = 48  # Increased height to better match the sprite proportions
+        self.height = 52  # Increased height to better match the sprite proportions
         self.speed = 1
         
         # Animation and state properties
@@ -54,7 +54,7 @@ class Skeleton:
                 575,   # Frame 7 start x-position
             ]
             
-            frame_width = 64   # Approximate width of each frame
+            frame_width = 42   # Approximate width of each frame
             frame_height = idle_img.get_height()
             
             print(f"DEBUG: Loaded idle sprite image: {idle_img.get_width()}x{frame_height}")
@@ -84,7 +84,7 @@ class Skeleton:
                 767    # Frame 9 start x-position
             ]
             
-            frame_width = 64   # Approximate width of each frame
+            frame_width = 42   # Approximate width of each frame
             frame_height = walk_img.get_height()
             
             print(f"DEBUG: Loaded walk sprite image: {walk_img.get_width()}x{frame_height}")
