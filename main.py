@@ -5,6 +5,8 @@ from entities.player import Player
 
 from world import World
 from map import Map
+from entities.skeleton import Skeleton
+
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GREEN
 
 # Initialize pygame
@@ -48,7 +50,6 @@ def start_transition(direction):
     """Start a transition effect when moving between blocks"""
     global fading_in, fade_alpha, fade_start_time, transition_in_progress
     
-    print(f"DEBUG: start_transition called - Direction: {direction}")
     fading_in = True
     fade_alpha = 0
     fade_start_time = pygame.time.get_ticks()
@@ -75,7 +76,6 @@ while running:
                 
     # Handle transition effect
     if transition_in_progress:
-        #print(f"DEBUG: Transition in progress - fading_in: {fading_in}, alpha: {fade_alpha}")
         elapsed = current_time - fade_start_time
         
         if fading_in:
@@ -84,7 +84,6 @@ while running:
             
             if fade_alpha >= 255:
                 # Transition complete, now fade out
-                #print("DEBUG: Fade in complete, starting fade out")
                 fading_in = False
                 fade_start_time = current_time
         else:
@@ -93,7 +92,6 @@ while running:
             
             if fade_alpha <= 0:
                 # Transition fully complete
-                #print("DEBUG: Transition fully complete")
                 transition_in_progress = False
     
     # Only process input if not transitioning and map is not visible
@@ -129,6 +127,11 @@ while running:
         
         # Get current entities from world
         current_entities = game_world.get_current_entities()
+        
+        # Update enemies
+        for entity in current_entities:
+            if isinstance(entity, Skeleton):
+                entity.update(player)
         
         # Move player
         player.move(dx, dy, current_entities)

@@ -1,6 +1,7 @@
 import pygame
 import random
 from entities.grass import Grass
+from entities.skeleton import Skeleton
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
 class WorldBlock:
@@ -11,10 +12,13 @@ class WorldBlock:
         self.y_coord = y_coord  # Y coordinate in the world grid
         self.entities = []  # List of all entities in this block
         self.visited = False  # Whether the player has visited this block before
+        print(f"DEBUG: Created new WorldBlock with ID {block_id} at ({x_coord}, {y_coord})")
         
     def add_entity(self, entity):
         """Add an entity to this block"""
         self.entities.append(entity)
+        entity_type = type(entity).__name__
+        print(f"DEBUG: Added {entity_type} to block ({self.x_coord}, {self.y_coord})")
         
     def remove_entity(self, entity):
         """Remove an entity from this block"""
@@ -49,12 +53,14 @@ class World:
         # If block already exists, just return it
         block_key = (x_coord, y_coord)
         if block_key in self.blocks:
+            print(f"DEBUG: Block ({x_coord}, {y_coord}) already exists, returning existing block")
             return self.blocks[block_key]
             
         # Create a new block
         block_id = f"block_{self.next_block_id}"
         self.next_block_id += 1
         
+        print(f"DEBUG: Creating NEW block at ({x_coord}, {y_coord}) with ID {block_id}")
         new_block = WorldBlock(block_id, x_coord, y_coord)
         self.blocks[block_key] = new_block
         
@@ -65,6 +71,8 @@ class World:
     
     def _populate_block(self, block, player_entry_point=None):
         """Fill a block with entities like grass, enemies, etc."""
+        print(f"DEBUG: Populating block ({block.x_coord}, {block.y_coord})")
+        
         # Create safe area around player entry point (if specified)
         safe_area = None
         if player_entry_point:
@@ -79,8 +87,32 @@ class World:
         # Add grass patches
         self._add_grass_patches(block, 15, safe_area)
         
+        # Add enemies
+        self._add_enemies(block, safe_area)
+        
         # Mark as populated
         block.mark_as_visited()
+    
+    def _add_enemies(self, block, safe_area=None):
+        """Add enemies to a block"""
+        
+        # For the initial block, add 2 skeletons
+        skeleton_positions = [
+            (200, 200),  # First skeleton position
+            (400, 400)   # Second skeleton position
+        ]
+        
+        for pos_x, pos_y in skeleton_positions:
+            enemy_rect = pygame.Rect(pos_x, pos_y, 32, 32)
+            
+            # Don't place enemy if in safe area
+            if safe_area and safe_area.colliderect(enemy_rect):
+                # print(f"DEBUG: Skipping skeleton at ({pos_x}, {pos_y}) - in safe area")
+                continue
+                
+            skeleton = Skeleton(pos_x, pos_y)
+            block.add_entity(skeleton)
+            # print(f"DEBUG: Added skeleton at ({pos_x}, {pos_y})")
     
     def _add_grass_patches(self, block, count, safe_area=None):
         """Add grass patches to a block"""
@@ -134,33 +166,36 @@ class World:
         """Check if player has moved out of the current block and handle transition"""
         # Get player position
         player_rect = player.get_rect()
+        
         block_changed = False
         new_player_pos = None
         direction = None
+        new_x, new_y = self.current_block_coords
         
         # Check if player is out of bounds
-        if player_rect.left < 0:  # Moving left
+        if player_rect.left <= 0:  # Moving left
+
             direction = "left"
             block_changed = True
-            new_x, new_y = self.current_block_coords[0] - 1, self.current_block_coords[1]
+            new_x = self.current_block_coords[0] - 1
             new_player_pos = (SCREEN_WIDTH - player.width - 10, player_rect.top)
             
-        elif player_rect.right > SCREEN_WIDTH:  # Moving right
+        elif player_rect.right >= SCREEN_WIDTH:  # Moving right
             direction = "right"
             block_changed = True
-            new_x, new_y = self.current_block_coords[0] + 1, self.current_block_coords[1]
+            new_x = self.current_block_coords[0] + 1
             new_player_pos = (10, player_rect.top)
             
-        elif player_rect.top < 0:  # Moving up
+        elif player_rect.top <= 0:  # Moving up
             direction = "up"
             block_changed = True
-            new_x, new_y = self.current_block_coords[0], self.current_block_coords[1] - 1
+            new_y = self.current_block_coords[1] - 1
             new_player_pos = (player_rect.left, SCREEN_HEIGHT - player.height - 10)
             
-        elif player_rect.bottom > SCREEN_HEIGHT:  # Moving down
+        elif player_rect.bottom >= SCREEN_HEIGHT:  # Moving down
             direction = "down"
             block_changed = True
-            new_x, new_y = self.current_block_coords[0], self.current_block_coords[1] + 1
+            new_y = self.current_block_coords[1] + 1
             new_player_pos = (player_rect.left, 10)
         
         if block_changed:
@@ -179,7 +214,6 @@ class World:
             # Move player to new position
             player.x, player.y = new_player_pos
             
-            print(f"Transitioned to block at coordinates {new_block_coords} from {direction} direction")
             return True, direction
         
         return False, None
