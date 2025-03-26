@@ -131,7 +131,7 @@ while running:
     
     # Display player level and abilities
     # Display control info
-    controls_y = SCREEN_HEIGHT - 80
+    controls_y = SCREEN_HEIGHT - 90
     controls_text = [
         "Controls:",
         "WASD or Arrow Keys: Move",
