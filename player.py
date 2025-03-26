@@ -24,6 +24,29 @@ class Player:
         self.swing_animation_speed = 0.31  # Adjusted for 90-degree swing
         self.swing_frames_total = 5  # Frames for a 90-degree swing
         
+        # Level system
+        self.level = 1
+        self.max_level = 4
+        
+        # Level 2: Dash (temporary speed boost)
+        self.can_dash = False  # Level 2 ability
+        self.dash_duration = 1000  # 1 second in milliseconds
+        self.dash_cooldown = 3000  # 3 seconds in milliseconds
+        self.dash_timer = 0  # For cooldown tracking
+        self.dash_end_time = 0  # For duration tracking
+        self.dashing = False
+        self.base_speed = 3  # Store the base speed
+        
+        # Level 4: Blink (teleport)
+        self.can_blink = False  # Level 4 ability
+        self.blink_distance = 80
+        self.blink_cooldown = 2000  # in milliseconds
+        self.blink_timer = 0
+        
+        # Default sword length (will be increased at level 3)
+        self.sword_length = 24
+        self.base_sword_length = 24  # Store the base value for reference
+        
         # Load spritesheet
         try:
             self.spritesheet = pygame.image.load('assets/sprites.png').convert_alpha()
@@ -84,8 +107,31 @@ class Player:
         self.debug_sprite = self.get_sprite(sprite_x, sprite_y, 16, 24)
         print(f"Loaded sprite at ({sprite_x}, {sprite_y})")
     
-    def update(self):
-        """Update animation frame"""
+    def level_up(self):
+        """Increase player level and unlock abilities"""
+        if self.level < self.max_level:
+            self.level += 1
+            print(f"Level up! Player is now level {self.level}")
+            
+            # Level 2: Unlock dash ability (temporary speed boost)
+            if self.level == 2:
+                self.can_dash = True
+                print("Unlocked dash ability! Press SHIFT for a temporary speed boost.")
+            
+            # Level 3: Increase sword length by 50%
+            elif self.level == 3:
+                self.sword_length = int(self.base_sword_length * 1.5)
+                print(f"Increased sword length! ({self.base_sword_length} -> {self.sword_length})")
+                
+            # Level 4: Unlock blink ability (teleport)
+            elif self.level == 4:
+                self.can_blink = True
+                print("Unlocked blink ability! Press B to teleport in the direction you're facing.")
+        else:
+            print(f"Already at max level ({self.max_level})!")
+    
+    def update(self, current_time=None):
+        """Update animation frame and ability cooldowns"""
         # Handle movement animation
         if self.moving:
             self.animation_counter += self.animation_speed
@@ -111,6 +157,22 @@ class Player:
                 self.swing_animation_counter = 0
             
             self.swing_frame = int(self.swing_animation_counter)
+
+        if current_time:
+            # Update dash status
+            if self.dashing and current_time > self.dash_end_time:
+                # End the dash effect
+                self.dashing = False
+                self.speed = self.base_speed
+                print("Dash ended")
+                
+            # Clear dash cooldown
+            if self.dash_timer > 0 and current_time > self.dash_timer:
+                self.dash_timer = 0
+                
+            # Clear blink cooldown
+            if self.blink_timer > 0 and current_time > self.blink_timer:
+                self.blink_timer = 0
     
     def move(self, dx, dy, obstacles):
         """Move player and update animation state with collision detection"""
@@ -148,6 +210,46 @@ class Player:
                 self.y = max(0, min(self.y, SCREEN_HEIGHT - self.height))
         else:
             self.moving = False
+    
+    def dash(self, current_time):
+        """Activate a temporary speed boost"""
+        if not self.can_dash or self.dashing or current_time < self.dash_timer:
+            return False
+        
+        # Activate dash (speed boost)
+        self.dashing = True
+        self.speed = self.base_speed * 1.5  # 50% speed increase
+        
+        # Set timers
+        self.dash_end_time = current_time + self.dash_duration
+        self.dash_timer = current_time + self.dash_cooldown + self.dash_duration
+        
+        print("Dash activated! Speed increased by 50% for 1 second")
+        return True
+        
+    def blink(self, obstacles, current_time):
+        """Teleport in the current facing direction"""
+        if not self.can_blink or current_time < self.blink_timer:
+            return False
+        
+        # Calculate blink direction based on facing
+        blink_dx, blink_dy = 0, 0
+        if self.facing == 'right':
+            blink_dx = self.blink_distance
+        elif self.facing == 'left':
+            blink_dx = -self.blink_distance
+        elif self.facing == 'down':
+            blink_dy = self.blink_distance
+        elif self.facing == 'up':
+            blink_dy = -self.blink_distance
+        
+        # Try to move in the blink direction
+        self.move(blink_dx, blink_dy, obstacles)
+
+        # Set cooldown timer
+        self.blink_timer = current_time + self.blink_cooldown
+        print("Blink!")
+        return True
             
     def get_rect(self):
         """Return player collision rectangle"""
@@ -196,8 +298,8 @@ class Player:
         rotation_angle = base_angle + angle_offset
         
         # Default sword length (distance from handle to tip)
-        # increase to make the sword fly
-        sword_length = 24
+        # This value is now controlled by the level system
+        sword_length = self.sword_length
         
         # Calculate sword position based on rotation angle
         sword_x = player_center_x + math.cos(rotation_angle) * sword_length
@@ -253,3 +355,40 @@ class Player:
         
         # Draw sword if player is swinging
         self.draw_sword(surface)
+        
+    def render_level_info(self, surface, font, x, y):
+        """Display player level information on screen"""
+        level_text = font.render(f"Level: {self.level}/{self.max_level}", True, (255, 255, 255))
+        surface.blit(level_text, (x, y))
+        
+        # Display ability info
+        abilities_y = y + 25
+        
+        # Level 2: Dash
+        if self.level >= 2:
+            if self.dashing:
+                dash_status = "ACTIVE"
+                color = (0, 255, 0)  # Green when active
+            elif self.dash_timer == 0:
+                dash_status = "Ready"
+                color = (255, 255, 255)  # White when ready
+            else:
+                dash_status = "Cooling Down"
+                color = (255, 165, 0)  # Orange when on cooldown
+                
+            dash_text = font.render(f"Dash: {dash_status}", True, color)
+            surface.blit(dash_text, (x, abilities_y))
+            abilities_y += 25
+        
+        # Level 3: Extended Sword    
+        if self.level >= 3:
+            sword_text = font.render(f"Extended Sword: Active", True, (255, 255, 255))
+            surface.blit(sword_text, (x, abilities_y))
+            abilities_y += 25
+            
+        # Level 4: Blink
+        if self.level >= 4:
+            blink_status = "Ready" if self.blink_timer == 0 else "Cooling Down"
+            blink_color = (255, 255, 255) if self.blink_timer == 0 else (255, 165, 0)
+            blink_text = font.render(f"Blink: {blink_status}", True, blink_color)
+            surface.blit(blink_text, (x, abilities_y))

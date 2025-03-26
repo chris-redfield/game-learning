@@ -13,6 +13,9 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Game")
 clock = pygame.time.Clock()
 
+# Create font for level display
+font = pygame.font.SysFont('Arial', 16)
+
 # Create player
 player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
 
@@ -52,7 +55,11 @@ while len(grass_patches) < 15 and attempts < 100:  # Reduced from 25 to 15 to av
 
 # Game loop
 running = True
+show_collision_boxes = False
+
 while running:
+    current_time = pygame.time.get_ticks()
+    
     # Process events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -61,6 +68,9 @@ while running:
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
                 player.start_swing()
+            # Level up when '+' key is pressed
+            elif event.key == pygame.K_PLUS or event.key == pygame.K_KP_PLUS or event.key == pygame.K_EQUALS:
+                player.level_up()
                 
     # Handle player movement
     keys = pygame.key.get_pressed()
@@ -75,6 +85,14 @@ while running:
     if keys[pygame.K_DOWN] or keys[pygame.K_s]:
         dy = player.speed
     
+    # Handle dash ability (Level 2)
+    if (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) and player.level >= 2:
+        player.dash(current_time)
+        
+    # Handle blink ability (Level 4)
+    if keys[pygame.K_b] and player.level >= 4:
+        player.blink(grass_patches, current_time)
+        
     # Debug key for sprite testing
     if keys[pygame.K_p]:
         # Try different coordinates here to find the correct left-facing sprites
@@ -88,10 +106,9 @@ while running:
     else:
         show_collision_boxes = False
     
-    # Process events
-        
+    # Move player and update animation states    
     player.move(dx, dy, grass_patches)
-    player.update()
+    player.update(current_time)
     
     # Draw everything
     screen.fill(GREEN)  # Green background for grass
@@ -111,6 +128,25 @@ while running:
         
         player_rect = player.get_rect()
         pygame.draw.rect(screen, (0, 0, 255), player_rect, 1)
+    
+    # Display player level and abilities
+    # Display control info
+    controls_y = SCREEN_HEIGHT - 80
+    controls_text = [
+        "Controls:",
+        "WASD or Arrow Keys: Move",
+        "SPACE: Swing Sword",
+        "SHIFT: Dash (Level 2+)",
+        "B: Blink (Level 4+)",
+        "+: Level Up"
+    ]
+    
+    for i, text in enumerate(controls_text):
+        text_surface = font.render(text, True, (255, 255, 255))
+        screen.blit(text_surface, (10, controls_y + i * 15))
+    
+    # Display player level info
+    player.render_level_info(screen, font, 10, 10)
     
     # Update display
     pygame.display.flip()
