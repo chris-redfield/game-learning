@@ -164,6 +164,53 @@ class Player:
         """Check if player is currently swinging the sword"""
         return self.swinging
     
+    def draw_sword(self, surface):
+        """Draw sword based on player's facing direction and swing animation state"""
+        if not self.swinging:
+            return
+            
+        # Calculate sword position based on player position and facing direction
+        # This creates a 90-degree arc centered on player's facing direction
+        # Map the swing_frame (0-3) to an angle range of 45 degrees each side of center
+        angle_offset = (self.swing_animation_counter / self.swing_frames_total) * math.pi/2 - math.pi/4
+        
+        # Configure sword position and rotation based on facing direction
+        sword_configs = {
+            'right': {
+                'base_angle': 0,
+                'rotation': -90
+            },
+            'left': {
+                'base_angle': math.pi,
+                'rotation': 90
+            },
+            'up': {
+                'base_angle': -math.pi/2,
+                'rotation': 0
+            },
+            'down': {
+                'base_angle': math.pi/2,
+                'rotation': 180
+            }
+        }
+        
+        config = sword_configs[self.facing]
+        base_angle = config['base_angle']
+        
+        # Calculate sword position based on arc swing
+        sword_x = self.x + self.width/2 + math.cos(base_angle + angle_offset) * 30
+        sword_y = self.y + self.height/2 + math.sin(base_angle + angle_offset) * 30 + 10  # Add 10px to y
+        
+        # Rotate sword sprite based on direction
+        rotated_sword = pygame.transform.rotate(self.sword_sprite, config['rotation'])
+        
+        # Get the new rect for the rotated sword to properly center it
+        sword_rect = rotated_sword.get_rect()
+        sword_rect.center = (sword_x, sword_y)
+        
+        # Draw the sword
+        surface.blit(rotated_sword, sword_rect.topleft)
+    
     def draw(self, surface):
         """Draw the player with appropriate animation frame"""
         # If in debug mode and a debug sprite is loaded, draw that instead
@@ -191,52 +238,5 @@ class Player:
         # Draw the player character
         surface.blit(sprite, (self.x, self.y))
         
-        # Draw sword swing animation if active
-        if self.swinging:
-            # Use only the first sword sprite for all frames
-            sword_sprite = self.sword_sprite
-            
-            # Calculate sword position based on player position and facing direction
-            # This creates a 90-degree arc centered on player's facing direction
-            # Map the swing_frame (0-3) to an angle range of 45 degrees each side of center
-            angle_offset = (self.swing_animation_counter / self.swing_frames_total) * math.pi/2 - math.pi/4
-            
-            # Base angle depends on player's facing direction
-            if self.facing == 'right':
-                base_angle = 0  # Right
-                sword_x = self.x + self.width/2 + math.cos(base_angle + angle_offset) * 30
-                sword_y = self.y + self.height/2 + math.sin(base_angle + angle_offset) * 30 + 10  # Add 10px to y
-                
-                # Fixed rotation: just make the sword point outward from player
-                rotated_sword = pygame.transform.rotate(sword_sprite, -90)
-                
-            elif self.facing == 'left':
-                base_angle = math.pi  # Left
-                sword_x = self.x + self.width/2 + math.cos(base_angle + angle_offset) * 30
-                sword_y = self.y + self.height/2 + math.sin(base_angle + angle_offset) * 30 + 10  # Add 10px to y
-                
-                # Fixed rotation: just make the sword point outward from player
-                rotated_sword = pygame.transform.rotate(sword_sprite, 90)
-                
-            elif self.facing == 'up':
-                base_angle = -math.pi/2  # Up
-                sword_x = self.x + self.width/2 + math.cos(base_angle + angle_offset) * 30
-                sword_y = self.y + self.height/2 + math.sin(base_angle + angle_offset) * 30 + 10  # Add 10px to y
-                
-                # Fixed rotation: just make the sword point outward from player
-                rotated_sword = pygame.transform.rotate(sword_sprite, 180)
-                
-            else:  # down
-                base_angle = math.pi/2  # Down
-                sword_x = self.x + self.width/2 + math.cos(base_angle + angle_offset) * 30
-                sword_y = self.y + self.height/2 + math.sin(base_angle + angle_offset) * 30 + 10  # Add 10px to y
-                
-                # Fixed rotation: just make the sword point outward from player
-                rotated_sword = pygame.transform.rotate(sword_sprite, 0)
-            
-            # Get the new rect for the rotated sword to properly center it
-            sword_rect = rotated_sword.get_rect()
-            sword_rect.center = (sword_x, sword_y)
-            
-            # Draw the sword
-            surface.blit(rotated_sword, sword_rect.topleft)
+        # Draw sword if player is swinging
+        self.draw_sword(surface)
