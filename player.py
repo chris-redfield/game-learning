@@ -21,7 +21,7 @@ class Player:
         self.swinging = False
         self.swing_frame = 0
         self.swing_animation_counter = 0
-        self.swing_animation_speed = 0.27  # Adjusted for 90-degree swing
+        self.swing_animation_speed = 0.31  # Adjusted for 90-degree swing
         self.swing_frames_total = 5  # Frames for a 90-degree swing
         
         # Load spritesheet
@@ -173,6 +173,10 @@ class Player:
         player_center_x = self.x + self.width / 2
         player_center_y = self.y + self.height / 2
         
+        # Apply offset for upward-facing position
+        if self.facing == 'up':
+            player_center_y -= 9  # Move sword handle up by 9px
+
         # Base angles for each direction
         base_angles = {
             'right': 0,
