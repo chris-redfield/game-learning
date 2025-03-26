@@ -30,7 +30,7 @@ class Player:
         
         # Level 2: Dash (temporary speed boost)
         self.can_dash = False  # Level 2 ability
-        self.dash_duration = 1000  # 1 second in milliseconds
+        self.dash_duration = 1500  # 1.5 seconds in milliseconds
         self.dash_cooldown = 3000  # 3 seconds in milliseconds
         self.dash_timer = 0  # For cooldown tracking
         self.dash_end_time = 0  # For duration tracking
