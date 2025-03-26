@@ -4,6 +4,7 @@ import sys
 from entities.player import Player
 
 from world import World
+from map import Map
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GREEN
 
 # Initialize pygame
@@ -26,6 +27,9 @@ game_world = World()
 # Generate the first block (at 0,0)
 initial_block = game_world.generate_block(0, 0)
 
+# Create map
+game_map = Map(game_world)
+
 # Transition effects
 fade_alpha = 0
 fading_in = False
@@ -44,6 +48,7 @@ def start_transition(direction):
     """Start a transition effect when moving between blocks"""
     global fading_in, fade_alpha, fade_start_time, transition_in_progress
     
+    print(f"DEBUG: start_transition called - Direction: {direction}")
     fading_in = True
     fade_alpha = 0
     fade_start_time = pygame.time.get_ticks()
@@ -63,9 +68,14 @@ while running:
             # Level up when '+' key is pressed
             elif event.key == pygame.K_PLUS or event.key == pygame.K_KP_PLUS or event.key == pygame.K_EQUALS:
                 player.level_up()
+            # Toggle map when 'M' key is pressed
+            elif event.key == pygame.K_m:
+                map_visible = game_map.toggle()
+                print(f"DEBUG: Map toggled - visible: {map_visible}")
                 
     # Handle transition effect
     if transition_in_progress:
+        #print(f"DEBUG: Transition in progress - fading_in: {fading_in}, alpha: {fade_alpha}")
         elapsed = current_time - fade_start_time
         
         if fading_in:
@@ -74,6 +84,7 @@ while running:
             
             if fade_alpha >= 255:
                 # Transition complete, now fade out
+                #print("DEBUG: Fade in complete, starting fade out")
                 fading_in = False
                 fade_start_time = current_time
         else:
@@ -82,10 +93,11 @@ while running:
             
             if fade_alpha <= 0:
                 # Transition fully complete
+                #print("DEBUG: Transition fully complete")
                 transition_in_progress = False
     
-    # Only process input if not transitioning
-    if not transition_in_progress or not fading_in:
+    # Only process input if not transitioning and map is not visible
+    if (not transition_in_progress or not fading_in) and not game_map.is_visible():
         # Handle player movement
         keys = pygame.key.get_pressed()
         dx, dy = 0, 0
@@ -131,59 +143,65 @@ while running:
                 print(f"DEBUG: Block transition triggered! Moving {direction}")
     
     # Draw everything
-    screen.fill(GREEN)  # Green background for grass
-    
-    # Draw entities in current block
-    for entity in game_world.get_current_entities():
-        entity.draw(screen)
-    
-    # Draw player
-    player.draw(screen)
-    
-    # Draw collision boxes for debugging if C key is pressed
-    if show_collision_boxes:
+    if game_map.is_visible():
+        # Draw the map screen
+        game_map.draw(screen)
+    else:
+        # Draw normal game screen
+        screen.fill(GREEN)  # Green background for grass
+        
+        # Draw entities in current block
         for entity in game_world.get_current_entities():
-            rect = entity.get_rect()
-            pygame.draw.rect(screen, (255, 0, 0), rect, 1)
+            entity.draw(screen)
         
-        player_rect = player.get_rect()
-        pygame.draw.rect(screen, (0, 0, 255), player_rect, 1)
-    
-    # Display world info
-    block_info = game_world.get_block_description()
-    block_text = font.render(f"Current: {block_info}", True, (255, 255, 255))
-    screen.blit(block_text, (SCREEN_WIDTH - 150, 10))
-    
-    # Display control info
-    controls_y = SCREEN_HEIGHT - 100
-    controls_text = [
-        "Controls:",
-        "WASD or Arrow Keys: Move",
-        "SPACE: Swing Sword",
-        "SHIFT: Dash (Level 2+)",
-        "B: Blink (Level 4+)",
-        "+: Level Up",
-        "C: Show Collision Boxes"
-    ]
-    
-    for i, text in enumerate(controls_text):
-        text_surface = font.render(text, True, (255, 255, 255))
-        screen.blit(text_surface, (10, controls_y + i * 15))
-    
-    # Display player level info
-    player.render_level_info(screen, font, 10, 10)
-    
-    # Draw transition effect if in progress
-    if transition_in_progress:
-        fade_surface.set_alpha(fade_alpha)
-        screen.blit(fade_surface, (0, 0))
+        # Draw player
+        player.draw(screen)
         
-        # Show transition text during fade
-        if fade_alpha > 50:
-            if transition_direction:
-                direction_text = font.render(f"Moving {transition_direction.upper()}", True, (255, 255, 255))
-                text_rect = direction_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-                screen.blit(direction_text, text_rect)
+        # Draw collision boxes for debugging if C key is pressed
+        if show_collision_boxes:
+            for entity in game_world.get_current_entities():
+                rect = entity.get_rect()
+                pygame.draw.rect(screen, (255, 0, 0), rect, 1)
+            
+            player_rect = player.get_rect()
+            pygame.draw.rect(screen, (0, 0, 255), player_rect, 1)
+        
+        # Display world info
+        block_info = game_world.get_block_description()
+        block_text = font.render(f"Current: {block_info}", True, (255, 255, 255))
+        screen.blit(block_text, (SCREEN_WIDTH - 150, 10))
+        
+        # Display control info
+        controls_y = SCREEN_HEIGHT - 120
+        controls_text = [
+            "Controls:",
+            "WASD or Arrow Keys: Move",
+            "SPACE: Swing Sword",
+            "SHIFT: Dash (Level 2+)",
+            "B: Blink (Level 4+)",
+            "+: Level Up",
+            "C: Show Collision Boxes",
+            "M: Toggle Map"
+        ]
+        
+        for i, text in enumerate(controls_text):
+            text_surface = font.render(text, True, (255, 255, 255))
+            screen.blit(text_surface, (10, controls_y + i * 15))
+        
+        # Display player level info
+        player.render_level_info(screen, font, 10, 10)
+        
+        # Draw transition effect if in progress
+        if transition_in_progress:
+            fade_surface.set_alpha(fade_alpha)
+            screen.blit(fade_surface, (0, 0))
+            
+            # Show transition text during fade
+            if fade_alpha > 50:
+                if transition_direction:
+                    direction_text = font.render(f"Moving {transition_direction.upper()}", True, (255, 255, 255))
+                    text_rect = direction_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+                    screen.blit(direction_text, text_rect)
     
     # Update display
     pygame.display.flip()
