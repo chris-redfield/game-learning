@@ -21,8 +21,8 @@ class Player:
         self.swinging = False
         self.swing_frame = 0
         self.swing_animation_counter = 0
-        self.swing_animation_speed = 0.1  # Adjusted for full 360-degree spin
-        self.swing_frames_total = 8  # Increased to 8 frames for a full 360-degree spin
+        self.swing_animation_speed = 0.27  # Adjusted for 90-degree swing
+        self.swing_frames_total = 5  # Frames for a 90-degree swing
         
         # Load spritesheet
         try:
@@ -165,7 +165,7 @@ class Player:
         return self.swinging
     
     def draw_sword(self, surface):
-        """Draw sword spinning around the player's center like a full rotation"""
+        """Draw sword with a 90-degree swing centered on player's facing direction"""
         if not self.swinging:
             return
             
@@ -173,23 +173,27 @@ class Player:
         player_center_x = self.x + self.width / 2
         player_center_y = self.y + self.height / 2
         
-        # Calculate rotation angle based on swing animation progress
-        # For a full 360 degree spin, multiply by 2*pi
-        rotation_angle = (self.swing_animation_counter / self.swing_frames_total) * 2 * math.pi
-        
-        # Default sword length (distance from handle to tip)
-        sword_length = 24
-        
-        # Initial rotation offset based on facing direction
-        initial_rotations = {
+        # Base angles for each direction
+        base_angles = {
             'right': 0,
             'left': math.pi,
             'up': -math.pi/2,
             'down': math.pi/2
         }
         
-        # Add initial rotation based on player direction
-        rotation_angle += initial_rotations[self.facing]
+        # Get base angle from player's facing direction
+        base_angle = base_angles[self.facing]
+        
+        # Calculate swing angle: swing 90 degrees (-45° to +45° from center direction)
+        # Maps swing_animation_counter from 0 to 1 to an angle from -45° to +45°
+        angle_offset = (self.swing_animation_counter / self.swing_frames_total) * math.pi/2 - math.pi/4
+        
+        # Calculate final rotation angle
+        rotation_angle = base_angle + angle_offset
+        
+        # Default sword length (distance from handle to tip)
+        # increase to make the sword fly
+        sword_length = 24
         
         # Calculate sword position based on rotation angle
         sword_x = player_center_x + math.cos(rotation_angle) * sword_length
