@@ -205,9 +205,9 @@ class Player:
                 self.x += dx
                 self.y += dy
                 
-                # Keep player on screen
-                self.x = max(0, min(self.x, SCREEN_WIDTH - self.width))
-                self.y = max(0, min(self.y, SCREEN_HEIGHT - self.height))
+                # # Keep player on screen
+                # self.x = max(0, min(self.x, SCREEN_WIDTH - self.width))
+                # self.y = max(0, min(self.y, SCREEN_HEIGHT - self.height))
         else:
             self.moving = False
     
