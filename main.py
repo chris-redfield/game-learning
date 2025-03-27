@@ -8,6 +8,11 @@ from map import Map
 from entities.skeleton import Skeleton
 
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GREEN
+import os
+
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
 
 # Initialize pygame
 pygame.init()

@@ -4,4 +4,4 @@ SCREEN_HEIGHT = 1080
 FPS = 60
 
 # Colors
-GREEN = (40, 92, 40)  # More Zelda-like grass green
+GREEN = (0, 64, 64)  # More Zelda-like grass green

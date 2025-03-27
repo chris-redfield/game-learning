@@ -98,8 +98,8 @@ class World:
         
         # For the initial block, add 2 skeletons
         skeleton_positions = [
-            (200, 200),  # First skeleton position
-            (400, 400)   # Second skeleton position
+            (random.randint(100, SCREEN_WIDTH - 100), random.randint(100, SCREEN_HEIGHT - 100)),  # First skeleton position
+            (random.randint(100, SCREEN_WIDTH - 100), random.randint(100, SCREEN_HEIGHT - 100))   # Second skeleton position
         ]
         
         for pos_x, pos_y in skeleton_positions:
