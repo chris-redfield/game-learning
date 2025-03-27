@@ -6,6 +6,7 @@ from entities.player import Player
 from world import World
 from map import Map
 from entities.skeleton import Skeleton
+from character_screen import CharacterScreen
 
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GREEN
 import os
@@ -37,6 +38,9 @@ initial_block = game_world.generate_block(0, 0)
 # Create map
 game_map = Map(game_world)
 
+# Create character screen
+character_screen = CharacterScreen(player)
+
 # Transition effects
 fade_alpha = 0
 fading_in = False
@@ -67,7 +71,7 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        # Check for space key press to trigger sword swing
+        # Check for key presses
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
                 player.start_swing()
@@ -76,9 +80,21 @@ while running:
                 player.level_up()
             # Toggle map when 'M' key is pressed
             elif event.key == pygame.K_m:
-                map_visible = game_map.toggle()
-                print(f"DEBUG: Map toggled - visible: {map_visible}")
-                
+                # Only toggle map if character screen is not visible
+                if not character_screen.is_visible():
+                    map_visible = game_map.toggle()
+                    print(f"DEBUG: Map toggled - visible: {map_visible}")
+            # Toggle character screen when 'ENTER' key is pressed
+            elif event.key == pygame.K_RETURN:
+                # Only toggle character screen if map is not visible
+                if not game_map.is_visible():
+                    character_screen_visible = character_screen.toggle()
+                    print(f"DEBUG: Character screen toggled - visible: {character_screen_visible}")
+        
+        # Handle character screen events
+        if character_screen.is_visible():
+            character_screen.handle_event(event)
+    
     # Handle transition effect
     if transition_in_progress:
         elapsed = current_time - fade_start_time
@@ -99,8 +115,8 @@ while running:
                 # Transition fully complete
                 transition_in_progress = False
     
-    # Only process input if not transitioning and map is not visible
-    if (not transition_in_progress or not fading_in) and not game_map.is_visible():
+    # Only process input if not transitioning, map is not visible, and character screen is not visible
+    if (not transition_in_progress or not fading_in) and not game_map.is_visible() and not character_screen.is_visible():
         # Handle player movement
         keys = pygame.key.get_pressed()
         dx, dy = 0, 0
@@ -154,6 +170,19 @@ while running:
     if game_map.is_visible():
         # Draw the map screen
         game_map.draw(screen)
+    elif character_screen.is_visible():
+        # First draw the game behind the character screen
+        screen.fill(GREEN)  # Green background for grass
+        
+        # Draw entities in current block
+        for entity in game_world.get_current_entities():
+            entity.draw(screen)
+        
+        # Draw player
+        player.draw(screen)
+        
+        # Draw the character screen on top
+        character_screen.draw(screen)
     else:
         # Draw normal game screen
         screen.fill(GREEN)  # Green background for grass
@@ -180,7 +209,7 @@ while running:
         screen.blit(block_text, (SCREEN_WIDTH - 150, 10))
         
         # Display control info
-        controls_y = SCREEN_HEIGHT - 120
+        controls_y = SCREEN_HEIGHT - 135  # Increased to fit new control
         controls_text = [
             "Controls:",
             "WASD or Arrow Keys: Move",
@@ -189,7 +218,8 @@ while running:
             "B: Blink (Level 4+)",
             "+: Level Up",
             "C: Show Collision Boxes",
-            "M: Toggle Map"
+            "M: Toggle Map",
+            "ENTER: Character Screen"
         ]
         
         for i, text in enumerate(controls_text):

@@ -10,6 +10,18 @@ class Player:
         self.height = 41  # Increased by ~10% from 37
         self.speed = 3
         
+        # Starting attributes
+        self.str = 1  # Strength
+        self.con = 1  # Constitution
+        self.dex = 1  # Dexterity
+        self.int = 1  # Intelligence
+
+        self.max_health = 10 + (self.con * 2)  # Base health + CON bonus
+        self.current_health = self.max_health
+        self.max_mana = 1 + self.int  # Base mana + INT bonus
+        self.current_mana = self.max_mana
+        self.stat_points = 0  # Available points to spend
+
         # Direction states
         self.facing = 'down'  # 'up', 'down', 'left', 'right'
         self.moving = False
@@ -107,11 +119,50 @@ class Player:
         self.debug_sprite = self.get_sprite(sprite_x, sprite_y, 16, 24)
         print(f"Loaded sprite at ({sprite_x}, {sprite_y})")
     
+    def increase_stat(self, stat_name):
+        """Increase a stat if stat points are available"""
+        if self.stat_points <= 0:
+            return False
+            
+        if stat_name == "str":
+            self.str += 1
+            # Strength increases attack power
+            self.stat_points -= 1
+            return True
+        elif stat_name == "con":
+            self.con += 1
+            # Constitution increases health
+            old_max_health = self.max_health
+            self.max_health = 10 + (self.con * 2)
+            # Increase current health by the difference
+            self.current_health += (self.max_health - old_max_health)
+            self.stat_points -= 1
+            return True
+        elif stat_name == "dex":
+            self.dex += 1
+            # Dexterity increases movement speed slightly
+            self.base_speed = 3 + (self.dex * 0.05)
+            self.speed = self.base_speed  # Update current speed
+            self.stat_points -= 1
+            return True
+        elif stat_name == "int":
+            self.int += 1
+            # Intelligence increases mana
+            old_max_mana = self.max_mana
+            self.max_mana = 1 + self.int
+            # Increase current mana by the difference
+            self.current_mana += (self.max_mana - old_max_mana)
+            self.stat_points -= 1
+            return True
+            
+        return False
+
     def level_up(self):
         """Increase player level and unlock abilities"""
         if self.level < self.max_level:
             self.level += 1
-            print(f"Level up! Player is now level {self.level}")
+            self.stat_points += 1  # Gain a stat point on level up
+            print(f"Level up! Player is now level {self.level} and gained a stat point!")
             
             # Level 2: Unlock dash ability (temporary speed boost)
             if self.level == 2:
@@ -127,8 +178,37 @@ class Player:
             elif self.level == 4:
                 self.can_blink = True
                 print("Unlocked blink ability! Press B to teleport in the direction you're facing.")
+            
+            return True
         else:
-            print(f"Already at max level ({self.max_level})!")
+            print(f"Already at max level ({self.max_level})! No more levels available.")
+            return False
+            
+    def get_attack_power(self):
+        """Calculate attack power based on strength"""
+        return 1 + int(self.str * 0.5)  # Base attack + STR bonus
+        
+    def take_damage(self, amount):
+        """Handle player taking damage"""
+        self.current_health -= amount
+        if self.current_health < 0:
+            self.current_health = 0
+            # Handle player death
+        
+    def heal(self, amount):
+        """Heal the player"""
+        self.current_health = min(self.current_health + amount, self.max_health)
+        
+    def use_mana(self, amount):
+        """Use mana if available"""
+        if self.current_mana >= amount:
+            self.current_mana -= amount
+            return True
+        return False
+        
+    def restore_mana(self, amount):
+        """Restore mana"""
+        self.current_mana = min(self.current_mana + amount, self.max_mana)
     
     def update(self, current_time=None):
         """Update animation frame and ability cooldowns"""
