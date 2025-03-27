@@ -105,30 +105,45 @@ class World:
         
         print(f"DEBUG: Adding {num_enemies} enemies to block ({x_coord}, {y_coord}) [max possible: {max_enemies}]")
         
+        # Get existing entities to check for collisions
+        existing_entities = block.get_entities()
+        
         # Add the calculated number of enemies
-        for _ in range(num_enemies):
+        enemies_added = 0
+        max_attempts = 100  # Limit attempts to prevent infinite loops
+        
+        while enemies_added < num_enemies and max_attempts > 0:
             pos_x = random.randint(100, SCREEN_WIDTH - 100)
             pos_y = random.randint(100, SCREEN_HEIGHT - 100)
             
-            enemy_rect = pygame.Rect(pos_x, pos_y, 32, 32)
+            # Create a test rect for the new enemy
+            enemy_rect = pygame.Rect(pos_x, pos_y, 48, 52)  # Match skeleton dimensions
             
             # Don't place enemy if in safe area
             if safe_area and safe_area.colliderect(enemy_rect):
-                # Try again with a different position
-                attempts = 0
-                while safe_area.colliderect(enemy_rect) and attempts < 10:
-                    pos_x = random.randint(100, SCREEN_WIDTH - 100)
-                    pos_y = random.randint(100, SCREEN_HEIGHT - 100)
-                    enemy_rect = pygame.Rect(pos_x, pos_y, 32, 32)
-                    attempts += 1
+                max_attempts -= 1
+                continue
+            
+            # Check collision with existing entities
+            collision = False
+            for entity in existing_entities:
+                if enemy_rect.colliderect(entity.get_rect()):
+                    collision = True
+                    break
+            
+            # If there's a collision, try again
+            if collision:
+                max_attempts -= 1
+                continue
                 
-                # Skip this enemy if we couldn't find a safe spot after several attempts
-                if safe_area.colliderect(enemy_rect):
-                    continue
-                    
+            # All checks passed, add the enemy
             skeleton = Skeleton(pos_x, pos_y)
             block.add_entity(skeleton)
+            existing_entities.append(skeleton)  # Add to collision check list for subsequent enemies
+            enemies_added += 1
             print(f"DEBUG: Added skeleton at ({pos_x}, {pos_y})")
+        
+        print(f"DEBUG: Successfully added {enemies_added} enemies after collision checks")
     
     def _add_grass_patches(self, block, count, safe_area=None):
         """Add grass patches to a block"""
