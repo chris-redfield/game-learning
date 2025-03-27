@@ -136,7 +136,7 @@ while running:
         # Update enemies
         for entity in current_entities:
             if isinstance(entity, Skeleton):
-                entity.update(player)
+                entity.update(player, current_entities)
         
         # Move player
         player.move(dx, dy, current_entities)

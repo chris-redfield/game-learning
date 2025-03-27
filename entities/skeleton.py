@@ -25,9 +25,8 @@ class Skeleton:
         self.movement_timer = 0
         self.movement_pause = random.randint(60, 180)  # Frames to wait between movements
         self.movement_duration = random.randint(30, 120)  # Frames to move when active
-        self.target_x = None
-        self.target_y = None
-        self.moving = False
+        self.dx = 0  # Current movement direction (x component)
+        self.dy = 0  # Current movement direction (y component)
         
         # Health and combat properties
         self.health = 3
@@ -128,7 +127,7 @@ class Skeleton:
             
             self.frame = int(self.animation_counter)
         
-        # AI behavior - switch between idle and moving
+        # Handle AI behavior based on current state
         if self.state != "dying" and self.state != "attacking":
             self.movement_timer += 1
             
@@ -142,16 +141,15 @@ class Skeleton:
                     self.movement_timer = 0
                     self.stop_moving()
                 else:
-                    # Include player in collision check
-                    self.move(obstacles, player)
+                    # Move if currently in moving state
+                    if obstacles:
+                        self.move(self.dx, self.dy, obstacles)
             
-            # Player detection for combat (could be implemented later)
+            # Check for collision with player (for potential combat)
             if player and self.rect.colliderect(player.get_rect()):
-                # If colliding with player, stop and potentially attack
                 self.stop_moving()
-                # Uncomment to enable attacking when collision occurs
-                # self.attack(player)
-        
+                # self.attack(player)  # Uncomment to enable attacking
+                
         # Update collision rect position
         self.rect.x = self.x
         self.rect.y = self.y
@@ -159,106 +157,72 @@ class Skeleton:
     def start_moving(self):
         """Start movement in a random direction"""
         self.state = "moving"
-        self.direction = random.choice(["left", "right"])
         
-        # Choose a random target point within reasonable distance
+        # Choose a random direction vector
         angle = random.uniform(0, 2 * math.pi)
-        distance = random.randint(50, 150)
-        self.target_x = self.x + math.cos(angle) * distance
-        self.target_y = self.y + math.sin(angle) * distance
+        self.dx = math.cos(angle) * self.speed
+        self.dy = math.sin(angle) * self.speed
         
-        # Keep target within screen bounds with padding
-        padding = 50
-        self.target_x = max(padding, min(SCREEN_WIDTH - padding, self.target_x))
-        self.target_y = max(padding, min(SCREEN_HEIGHT - padding, self.target_y))
+        # Set direction based on horizontal movement
+        if self.dx > 0:
+            self.direction = "right"
+        elif self.dx < 0:
+            self.direction = "left"
     
     def stop_moving(self):
         """Stop movement and go idle"""
         self.state = "idle"
-        
-    def move(self, obstacles=None, player=None):
-        """Move toward the target point with collision detection"""
-        if self.target_x is None or self.target_y is None:
-            return
+        self.dx = 0
+        self.dy = 0
+    
+    def move(self, dx, dy, obstacles):
+        """Move with collision detection - similar to player movement logic"""
+        if dx == 0 and dy == 0:
+            return False
             
-        # Calculate direction vector
-        dx = self.target_x - self.x
-        dy = self.target_y - self.y
+        # Create test rectangles for movement along each axis separately
+        test_rect_x = pygame.Rect(self.x + dx, self.y, self.width, self.height)
+        test_rect_y = pygame.Rect(self.x, self.y + dy, self.width, self.height)
         
-        # Normalize the vector
-        distance = max(1, math.sqrt(dx * dx + dy * dy))
-        dx = dx / distance
-        dy = dy / distance
-        
-        # Set direction based on movement
-        if dx > 0:
-            self.direction = "right"
-        elif dx < 0:
-            self.direction = "left"
-        
-        # Store original position for collision detection
-        original_x = self.x
-        original_y = self.y
-        
-        # Try moving on x-axis
-        new_x = self.x + dx * self.speed
-        # Create a temporary rect to test x movement
-        temp_rect_x = pygame.Rect(new_x, self.y, self.width, self.height)
-        
-        # Check for collisions on x-axis
+        # Check horizontal movement
         x_collision = False
-        
-        # Check collision with obstacles
-        if obstacles:
-            for obstacle in obstacles:
-                if temp_rect_x.colliderect(obstacle.get_rect()):
-                    x_collision = True
-                    break
-        
-        # Check collision with player
-        if player and not x_collision:
-            if temp_rect_x.colliderect(player.get_rect()):
+        for obstacle in obstacles:
+            # Skip self-collision
+            if obstacle is self:
+                continue
+                
+            if test_rect_x.colliderect(obstacle.get_rect()):
                 x_collision = True
+                break
         
-        # Apply x movement if no collision
+        # Apply horizontal movement if no collision
         if not x_collision:
-            self.x = new_x
+            self.x += dx
         
-        # Try moving on y-axis
-        new_y = self.y + dy * self.speed
-        # Create a temporary rect to test y movement
-        temp_rect_y = pygame.Rect(self.x, new_y, self.width, self.height)
-        
-        # Check for collisions on y-axis
+        # Check vertical movement
         y_collision = False
-        
-        # Check collision with obstacles
-        if obstacles:
-            for obstacle in obstacles:
-                if temp_rect_y.colliderect(obstacle.get_rect()):
-                    y_collision = True
-                    break
-        
-        # Check collision with player
-        if player and not y_collision:
-            if temp_rect_y.colliderect(player.get_rect()):
+        for obstacle in obstacles:
+            # Skip self-collision
+            if obstacle is self:
+                continue
+                
+            if test_rect_y.colliderect(obstacle.get_rect()):
                 y_collision = True
+                break
         
-        # Apply y movement if no collision
+        # Apply vertical movement if no collision
         if not y_collision:
-            self.y = new_y
-        
-        # Update collision rect position
-        self.rect.x = self.x
-        self.rect.y = self.y
-        
-        # If we hit an obstacle or player, choose a new random target
+            self.y += dy
+            
+        # If we hit an obstacle, consider changing direction
         if x_collision or y_collision:
-            self.start_moving()
-        
-        # Check if we've reached the target (within a small threshold)
-        if distance < 5:
-            self.stop_moving()
+            # 25% chance to choose a new direction when hitting an obstacle
+            if random.random() < 0.25:
+                self.start_moving()
+            return False
+            
+        # Successfully moved
+        return True
     
     def attack(self, player):
         """Start attack animation and deal damage (placeholder)"""
