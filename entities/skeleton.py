@@ -11,6 +11,9 @@ class Skeleton:
         self.height = 52  # Increased height to better match the sprite proportions
         self.speed = 1
         
+        # Create collision rect
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        
         # Animation and state properties
         self.state = "idle"  # "idle", "moving", "attacking", "dying"
         self.direction = random.choice(["left", "right"])
@@ -113,7 +116,7 @@ class Skeleton:
                 move_placeholder.fill((180, 180, 180))
                 self.sprites['moving_right'].append(move_placeholder)
     
-    def update(self, player=None):
+    def update(self, player=None, obstacles=None):
         """Update skeleton state and animation"""
         # Update animation frame
         self.animation_counter += self.animation_speed
@@ -139,9 +142,19 @@ class Skeleton:
                     self.movement_timer = 0
                     self.stop_moving()
                 else:
-                    self.move()
+                    # Include player in collision check
+                    self.move(obstacles, player)
             
-            # Player detection would go here for future implementation
+            # Player detection for combat (could be implemented later)
+            if player and self.rect.colliderect(player.get_rect()):
+                # If colliding with player, stop and potentially attack
+                self.stop_moving()
+                # Uncomment to enable attacking when collision occurs
+                # self.attack(player)
+        
+        # Update collision rect position
+        self.rect.x = self.x
+        self.rect.y = self.y
     
     def start_moving(self):
         """Start movement in a random direction"""
@@ -163,8 +176,8 @@ class Skeleton:
         """Stop movement and go idle"""
         self.state = "idle"
         
-    def move(self):
-        """Move toward the target point"""
+    def move(self, obstacles=None, player=None):
+        """Move toward the target point with collision detection"""
         if self.target_x is None or self.target_y is None:
             return
             
@@ -183,9 +196,65 @@ class Skeleton:
         elif dx < 0:
             self.direction = "left"
         
-        # Move the skeleton
-        self.x += dx * self.speed
-        self.y += dy * self.speed
+        # Store original position for collision detection
+        original_x = self.x
+        original_y = self.y
+        
+        # Try moving on x-axis
+        new_x = self.x + dx * self.speed
+        # Create a temporary rect to test x movement
+        temp_rect_x = pygame.Rect(new_x, self.y, self.width, self.height)
+        
+        # Check for collisions on x-axis
+        x_collision = False
+        
+        # Check collision with obstacles
+        if obstacles:
+            for obstacle in obstacles:
+                if temp_rect_x.colliderect(obstacle.get_rect()):
+                    x_collision = True
+                    break
+        
+        # Check collision with player
+        if player and not x_collision:
+            if temp_rect_x.colliderect(player.get_rect()):
+                x_collision = True
+        
+        # Apply x movement if no collision
+        if not x_collision:
+            self.x = new_x
+        
+        # Try moving on y-axis
+        new_y = self.y + dy * self.speed
+        # Create a temporary rect to test y movement
+        temp_rect_y = pygame.Rect(self.x, new_y, self.width, self.height)
+        
+        # Check for collisions on y-axis
+        y_collision = False
+        
+        # Check collision with obstacles
+        if obstacles:
+            for obstacle in obstacles:
+                if temp_rect_y.colliderect(obstacle.get_rect()):
+                    y_collision = True
+                    break
+        
+        # Check collision with player
+        if player and not y_collision:
+            if temp_rect_y.colliderect(player.get_rect()):
+                y_collision = True
+        
+        # Apply y movement if no collision
+        if not y_collision:
+            self.y = new_y
+        
+        # Update collision rect position
+        self.rect.x = self.x
+        self.rect.y = self.y
+        
+        # If we hit an obstacle or player, choose a new random target
+        if x_collision or y_collision:
+            self.start_moving()
         
         # Check if we've reached the target (within a small threshold)
         if distance < 5:
@@ -215,7 +284,7 @@ class Skeleton:
     
     def get_rect(self):
         """Return collision rectangle"""
-        return pygame.Rect(self.x, self.y, self.width, self.height)
+        return self.rect
     
     def draw(self, surface):
         """Draw the skeleton with appropriate animation frame and direction"""
