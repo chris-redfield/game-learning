@@ -1,40 +1,23 @@
 import pygame
-import random
-import math
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT
+from entities.enemy import Enemy
 
-class Skeleton:
+class Skeleton(Enemy):
     def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.width = 48  # Increased width to better match the sprite proportions
-        self.height = 52  # Increased height to better match the sprite proportions
-        self.speed = 1
+        # Define skeleton-specific dimensions
+        width = 48  # Increased width to better match the sprite proportions
+        height = 52  # Increased height to better match the sprite proportions
         
-        # Create collision rect
-        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        # Call parent constructor
+        super().__init__(x, y, width, height, speed=1)
         
-        # Animation and state properties
-        self.state = "idle"  # "idle", "moving", "attacking", "dying"
-        self.direction = random.choice(["left", "right"])
-        self.frame = 0
-        self.animation_speed = 0.1
-        self.animation_counter = 0
+        # Skeleton-specific properties
+        self.health = 3  # Override default health if needed
         
-        # Movement AI properties
-        self.movement_timer = 0
-        self.movement_pause = random.randint(60, 180)  # Frames to wait between movements
-        self.movement_duration = random.randint(30, 120)  # Frames to move when active
-        self.dx = 0  # Current movement direction (x component)
-        self.dy = 0  # Current movement direction (y component)
-        
-        # Health and combat properties
-        self.health = 3
-        self.attack_power = 1
-        self.attack_range = 50
-        self.detection_range = 150
-        
-        # Load sprite images from separate files
+        # Load skeleton sprites
+        self.load_sprites()
+    
+    def load_sprites(self):
+        """Load skeleton-specific sprites from sprite sheets"""
         self.sprites = {
             'idle_right': [],
             'moving_right': []
@@ -107,155 +90,37 @@ class Skeleton:
                 move_placeholder.fill((180, 180, 180))
                 self.sprites['moving_right'].append(move_placeholder)
     
-    def update(self, player=None, obstacles=None):
-        """Update skeleton state and animation"""
-        # Update animation frame
-        self.animation_counter += self.animation_speed
-        animation_frames = self.sprites.get(f"{self.state}_right", [])
-        
-        if len(animation_frames) > 0:
-            if self.animation_counter >= len(animation_frames):
-                self.animation_counter = 0
-            
-            self.frame = int(self.animation_counter)
-        
-        # Handle AI behavior based on current state
-        if self.state != "dying" and self.state != "attacking":
-            self.movement_timer += 1
-            
-            if self.state == "idle":
-                if self.movement_timer >= self.movement_pause:
-                    self.movement_timer = 0
-                    self.start_moving()
-            
-            elif self.state == "moving":
-                if self.movement_timer >= self.movement_duration:
-                    self.movement_timer = 0
-                    self.stop_moving()
-                else:
-                    # Move if currently in moving state
-                    if obstacles:
-                        self.move(self.dx, self.dy, obstacles)
-            
-            # Check for collision with player (for potential combat)
-            if player and self.rect.colliderect(player.get_rect()):
-                self.stop_moving()
-                # self.attack(player)  # Uncomment to enable attacking
-                
-        # Update collision rect position
-        self.rect.x = self.x
-        self.rect.y = self.y
-    
-    def start_moving(self):
-        """Start movement in a random direction"""
-        self.state = "moving"
-        
-        # Choose a random direction vector
-        angle = random.uniform(0, 2 * math.pi)
-        self.dx = math.cos(angle) * self.speed
-        self.dy = math.sin(angle) * self.speed
-        
-        # Set direction based on horizontal movement
-        if self.dx > 0:
-            self.direction = "right"
-        elif self.dx < 0:
-            self.direction = "left"
-    
-    def stop_moving(self):
-        """Stop movement and go idle"""
-        self.state = "idle"
-        self.dx = 0
-        self.dy = 0
-    
-    def move(self, dx, dy, obstacles):
-        """Move with collision detection - similar to player movement logic"""
-        if dx == 0 and dy == 0:
-            return False
-            
-        # Create test rectangles for movement along each axis separately
-        test_rect_x = pygame.Rect(self.x + dx, self.y, self.width, self.height)
-        test_rect_y = pygame.Rect(self.x, self.y + dy, self.width, self.height)
-        
-        # Check horizontal movement
-        x_collision = False
-        for obstacle in obstacles:
-            # Skip self-collision
-            if obstacle is self:
-                continue
-                
-            if test_rect_x.colliderect(obstacle.get_rect()):
-                x_collision = True
-                break
-        
-        # Apply horizontal movement if no collision
-        if not x_collision:
-            self.x += dx
-        
-        # Check vertical movement
-        y_collision = False
-        for obstacle in obstacles:
-            # Skip self-collision
-            if obstacle is self:
-                continue
-                
-            if test_rect_y.colliderect(obstacle.get_rect()):
-                y_collision = True
-                break
-        
-        # Apply vertical movement if no collision
-        if not y_collision:
-            self.y += dy
-            
-        # If we hit an obstacle, consider changing direction
-        if x_collision or y_collision:
-            # 25% chance to choose a new direction when hitting an obstacle
-            if random.random() < 0.25:
-                self.start_moving()
-            return False
-            
-        # Successfully moved
-        return True
-    
-    def attack(self, player):
-        """Start attack animation and deal damage (placeholder)"""
-        self.state = "attacking"
-        self.animation_counter = 0
-        # Attack logic would be implemented here
-        print("Skeleton attacks!")
-    
-    def take_damage(self, damage):
-        """Take damage and check if dead (placeholder)"""
-        self.health -= damage
-        if self.health <= 0:
-            self.die()
-        else:
-            # Damage reaction animation could go here
-            print(f"Skeleton took {damage} damage, {self.health} health remaining")
-    
-    def die(self):
-        """Start death animation (placeholder)"""
-        self.state = "dying"
-        self.animation_counter = 0
-        print("Skeleton is dying!")
-    
-    def get_rect(self):
-        """Return collision rectangle"""
-        return self.rect
-    
-    def draw(self, surface):
-        """Draw the skeleton with appropriate animation frame and direction"""
-        # Get the correct animation set based on state
+    def get_animation_frames(self):
+        """Override to always use right-facing animations and let draw() handle flipping"""
+        # For skeleton, we only have "_right" animations, so always use those
+        # regardless of the actual direction (the draw method will flip them if needed)
         animation_key = f"{self.state}_right"
         
-        if animation_key in self.sprites and len(self.sprites[animation_key]) > 0 and self.frame < len(self.sprites[animation_key]):
-            sprite = self.sprites[animation_key][self.frame]
+        if animation_key in self.sprites and len(self.sprites[animation_key]) > 0:
+            return self.sprites[animation_key]
+        
+        # If the current state doesn't have animations (e.g., "attacking" isn't implemented),
+        # fallback to idle_right as a safe default
+        if 'idle_right' in self.sprites and len(self.sprites['idle_right']) > 0:
+            return self.sprites['idle_right']
             
-            # Flip sprite if facing left
-            if self.direction == "left":
-                sprite = pygame.transform.flip(sprite, True, False)
-            
-            # Draw the skeleton
-            surface.blit(sprite, (self.x, self.y))
-            
-            # For debugging collision boxes (uncomment if needed)
-            # pygame.draw.rect(surface, (255, 0, 0), self.get_rect(), 1)
+        # Return an empty list only if all else fails
+        return []
+    
+    def handle_player_collision(self, player):
+        """Override to implement skeleton-specific player collision behavior"""
+        super().handle_player_collision(player)
+        # You can add skeleton-specific collision behavior here
+        # For example, if the skeleton should attack on contact:
+        # self.attack(player)
+    
+    def attack(self, player):
+        """Skeleton-specific attack behavior"""
+        super().attack(player)
+        # Add skeleton-specific attack logic here
+        # For example, skeletons might have a specific attack animation or pattern
+    
+    def die(self):
+        """Skeleton-specific death behavior"""
+        super().die()
+        # Add skeleton-specific death animations or effects here
