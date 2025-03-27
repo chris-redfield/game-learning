@@ -27,15 +27,53 @@ class CharacterScreen:
         self.text_font = pygame.font.SysFont('Arial', 18)
         self.button_font = pygame.font.SysFont('Arial', 16)
         
-        # Load placeholder portrait
-        self.portrait = self.create_placeholder_portrait()
+        # Load portrait
+        self.portrait = self.load_portrait()
         
         # UI components
         self.buttons = {}
         self.init_buttons()
         
+    def load_portrait(self):
+        """Load Link portrait from file with fallback to placeholder"""
+        portrait_size = 220
+        
+        try:
+            # Try loading the portrait image
+            portrait_img = pygame.image.load('assets/portrait-pixel-art.png')
+            
+            # Scale it to fit the portrait area while maintaining aspect ratio
+            original_width, original_height = portrait_img.get_size()
+            scaling_factor = min(portrait_size / original_width, portrait_size / original_height)
+            
+            new_width = int(original_width * scaling_factor)
+            new_height = int(original_height * scaling_factor)
+            
+            scaled_portrait = pygame.transform.scale(portrait_img, (new_width, new_height))
+            
+            # Create a surface with border
+            portrait = pygame.Surface((portrait_size, portrait_size))
+            portrait.fill(self.colors['portrait_bg'])
+            
+            # Center the image in the portrait
+            x_offset = (portrait_size - new_width) // 2
+            y_offset = (portrait_size - new_height) // 2
+            
+            portrait.blit(scaled_portrait, (x_offset, y_offset))
+            
+            # Add border
+            pygame.draw.rect(portrait, self.colors['border'], (0, 0, portrait_size, portrait_size), 3)
+            
+            print("Loaded Link portrait successfully")
+            return portrait
+            
+        except Exception as e:
+            print(f"Error loading portrait: {e}")
+            # Fall back to placeholder
+            return self.create_placeholder_portrait()
+        
     def create_placeholder_portrait(self):
-        """Create a placeholder portrait until a real one is loaded"""
+        """Create a placeholder portrait if the image can't be loaded"""
         portrait_size = 150
         portrait = pygame.Surface((portrait_size, portrait_size))
         portrait.fill(self.colors['portrait_bg'])
@@ -45,14 +83,15 @@ class CharacterScreen:
         pygame.draw.circle(portrait, (50, 50, 70), (portrait_size//2 - 15, portrait_size//2 - 10), 5)  # Left eye
         pygame.draw.circle(portrait, (50, 50, 70), (portrait_size//2 + 15, portrait_size//2 - 10), 5)  # Right eye
         
-        # Draw a sad face (curved down mouth)
+        # Draw a happy face
         pygame.draw.arc(portrait, (50, 50, 70), 
-                       (portrait_size//2 - 20, portrait_size//2 + 10, 40, 20), 
-                       3.14, 2*3.14, 2)  # Sad mouth
+                       (portrait_size//2 - 20, portrait_size//2 - 10, 40, 30), 
+                       0, 3.14, 2)  # Smile
         
         # Add a border
         pygame.draw.rect(portrait, self.colors['border'], (0, 0, portrait_size, portrait_size), 3)
         
+        print("Using placeholder portrait")
         return portrait
         
     def init_buttons(self):
