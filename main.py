@@ -5,7 +5,8 @@ from entities.player import Player
 
 from world import World
 from map import Map
-from entities.skeleton import Skeleton
+from entities.enemy import Enemy
+
 from character_screen import CharacterScreen
 
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GREEN
@@ -151,7 +152,7 @@ while running:
         
         # Update enemies
         for entity in current_entities:
-            if isinstance(entity, Skeleton):
+            if isinstance(entity, Enemy):
                 entity.update(player, current_entities)
         
         # Move player
