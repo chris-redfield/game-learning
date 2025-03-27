@@ -1,6 +1,6 @@
 import pygame
 import math
-
+import random
 
 class Player:
     def __init__(self, x, y):
@@ -70,6 +70,15 @@ class Player:
         self.invulnerability_timer = 0
         self.flash_interval = 100  # milliseconds
         self.visible = True       # For damage flash effect
+
+        # Blood particles for damage effect
+        self.blood_particles = []
+        self.max_particles = 15  # Maximum number of particles per hit
+        
+        # Map of stuck particles (organized by block coordinates)
+        # Format: {(block_x, block_y): [(x, y, size, color, life), ...]}
+        self.stuck_particles = {}
+        self.current_block = (0, 0)  # Start at origin block
 
         # Load spritesheet
         try:
@@ -260,8 +269,40 @@ class Player:
         knockback_reduction = min(0.8, self.con * 0.1)  # Up to 80% reduction
         self.current_knockback = self.damage_knockback_distance * (1 - knockback_reduction)
         
+        # Create blood particles
+        self.spawn_blood_particles(final_damage)
+        
         print(f"Player took {final_damage} damage! Knockback direction: ({dir_x:.2f}, {dir_y:.2f})")
         return True
+
+    def spawn_blood_particles(self, damage_amount):
+        """Create blood particles based on damage amount"""
+        from entities.blood_particle import BloodParticle  # Import here to avoid circular imports
+        
+        # Clear old particles
+        self.blood_particles = []
+        
+        # Calculate particle count based on damage (more damage = more blood)
+        particle_count = min(self.max_particles, damage_amount * 3)
+        
+        # Player center coordinates
+        center_x = self.x + self.width / 2
+        center_y = self.y + self.height / 2
+        
+        # Create particles in a circular spray
+        for _ in range(particle_count):
+            # Random angle for particle direction
+            angle = random.uniform(0, 2 * math.pi)
+            
+            # Direction vector from angle
+            dir_x = math.cos(angle)
+            dir_y = math.sin(angle)
+            
+            # Create particle with larger size (optional parameter)
+            # You can specify a size here if you want a specific size rather than random
+            # For example: size=random.randint(6, 12) for even larger particles
+            particle = BloodParticle(center_x, center_y, dir_x, dir_y)
+            self.blood_particles.append(particle)
 
     def heal(self, amount):
         """Heal the player"""
@@ -376,9 +417,11 @@ class Player:
                     # If we hit an obstacle on both axes, end the knockback animation early
                     if x_collision and y_collision:
                         self.is_taking_damage = False
+                        print("Knockback stopped due to collision")
                 else:
                     # End damage animation
                     self.is_taking_damage = False
+                    print("Damage animation ended")
                     
             # Handle invulnerability and flashing effect
             if self.invulnerable:
@@ -394,6 +437,34 @@ class Player:
                 if self.invulnerability_timer >= self.invulnerability_duration:
                     self.invulnerable = False
                     self.visible = True
+                    print("Invulnerability ended")
+            
+            # Update blood particles
+            if self.blood_particles and obstacles:
+            # Update each particle
+                for particle in self.blood_particles[:]:
+                    particle.update(obstacles)
+                    
+                    # Remove inactive particles
+                    if not particle.active:
+                        self.blood_particles.remove(particle)
+                    
+                    # If particle is stuck, add it to the stuck particles list for current block
+                    if particle.stuck and particle in self.blood_particles:
+                        self.blood_particles.remove(particle)
+                        
+                        # Make sure the current block has an entry in the dictionary
+                        if self.current_block not in self.stuck_particles:
+                            self.stuck_particles[self.current_block] = []
+                        
+                        # Store information about the stuck particle
+                        self.stuck_particles[self.current_block].append((
+                            particle.x,
+                            particle.y,
+                            particle.size,
+                            particle.color,
+                            particle.current_life
+                        ))
             
             # Store current time for next update
             self.last_update_time = current_time
@@ -560,16 +631,20 @@ class Player:
     
     def draw(self, surface):
         """Draw the player with appropriate animation frame"""
-        # Don't draw if not visible (flashing during invulnerability)
+        # Don't draw player if not visible (flashing during invulnerability)
         if not self.visible:
             # Still draw the sword if swinging, even when player is flashing
             if self.swinging:
                 self.draw_sword(surface)
+            
+            # Always draw blood particles, even when player is invisible
+            self.draw_blood_particles(surface)
             return
         
         # If in debug mode and a debug sprite is loaded, draw that instead
         if hasattr(self, 'debug_sprite'):
             surface.blit(self.debug_sprite, (self.x, self.y))
+            self.draw_blood_particles(surface)
             return
         
         # For left-facing, use the right sprites but flip them horizontally
@@ -589,25 +664,43 @@ class Player:
             else:
                 sprite = self.sprites[f'{self.facing}_idle'][0]
         
-        # Tint the sprite red if taking damage
-        if self.is_taking_damage:
-            # Create a copy of the sprite to modify
-            tinted_sprite = sprite.copy()
-            
-            # Add a transparent red overlay
-            overlay = pygame.Surface(sprite.get_size(), pygame.SRCALPHA)
-            overlay.fill((255, 0, 0, 100))  # Red with alpha
-            tinted_sprite.blit(overlay, (0, 0))
-            
-            # Draw the tinted player character
-            surface.blit(tinted_sprite, (self.x, self.y))
-        else:
-            # Draw the normal player character
-            surface.blit(sprite, (self.x, self.y))
+        # Draw the player character (we no longer tint it red)
+        surface.blit(sprite, (self.x, self.y))
         
         # Draw sword if player is swinging
         self.draw_sword(surface)
         
+        # Draw blood particles
+        self.draw_blood_particles(surface)
+
+    def draw_blood_particles(self, surface):
+        """Draw all blood particles and stuck blood"""
+        # Draw active particles
+        for particle in self.blood_particles:
+            particle.draw(surface)
+        
+        # Draw stuck particles for the current block only
+        if self.current_block in self.stuck_particles:
+            for x, y, size, color, life in self.stuck_particles[self.current_block]:
+                # Skip if outside screen (optimization)
+                if x < -size or x > pygame.display.get_surface().get_width() + size or \
+                y < -size or y > pygame.display.get_surface().get_height() + size:
+                    continue
+                
+                # Calculate opacity based on life
+                opacity = min(255, life * 10)  # Fade out based on life
+                
+                # Create a surface with alpha for the particle
+                particle_surface = pygame.Surface((size, size), pygame.SRCALPHA)
+                
+                # Set the color with opacity
+                color_with_alpha = (*color, opacity)
+                pygame.draw.circle(particle_surface, color_with_alpha, 
+                                (size//2, size//2), size//2)
+                
+                # Draw the particle
+                surface.blit(particle_surface, (x - size//2, y - size//2))
+
     def render_level_info(self, surface, font, x, y):
         """Display player level information on screen"""
         level_text = font.render(f"Level: {self.level}/{self.max_level}", True, (255, 255, 255))
@@ -644,3 +737,12 @@ class Player:
             blink_color = (255, 255, 255) if self.blink_timer == 0 else (255, 165, 0)
             blink_text = font.render(f"Blink: {blink_status}", True, blink_color)
             surface.blit(blink_text, (x, abilities_y))
+
+# Add this method to the Player class
+def set_current_block(self, block_x, block_y):
+    """Update the player's current block coordinates"""
+    self.current_block = (block_x, block_y)
+    
+    # Initialize empty list for this block if it doesn't exist
+    if self.current_block not in self.stuck_particles:
+        self.stuck_particles[self.current_block] = []

@@ -346,6 +346,8 @@ class World:
             # Move player to new position
             player.x, player.y = new_player_pos
             
+            player.current_block = (new_x, new_y)
+            
             # Log difficulty level of the new block
             difficulty = self._get_difficulty_level(new_x, new_y)
             print(f"DEBUG: Moved to block ({new_x}, {new_y}) - Difficulty level: {difficulty}")
