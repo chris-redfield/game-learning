@@ -36,9 +36,17 @@ class Enemy:
         
         # Sprite dictionary - to be populated by subclasses
         self.sprites = {}
+        self.hit = False
+        self.hit_timer = 0
+        self.hit_duration = 200  # milliseconds
+        
+        self.defense = 0  # Base enemies have no defense
+        self.blood_particles = []
     
     def update(self, player=None, obstacles=None):
         """Update enemy state and animation - basic behavior"""
+        # Keep existing update code
+        
         # Update animation frame
         self.animation_counter += self.animation_speed
         animation_frames = self.get_animation_frames()
@@ -74,7 +82,41 @@ class Enemy:
         # Update collision rect position
         self.rect.x = self.x
         self.rect.y = self.y
-    
+        
+        # NEW: Update hit effect timer
+        if self.hit:
+            self.hit_timer += 16.67  # Approximate time between frames at 60 FPS
+            if self.hit_timer >= self.hit_duration:
+                self.hit = False
+                self.hit_timer = 0
+        
+        # NEW: Update blood particles
+        if obstacles is not None:
+            self.update_blood_particles(obstacles)
+
+
+    def update_blood_particles(self, obstacles):
+        """Update blood particles for the enemy"""
+        # Skip if no particles or no blood_particles attribute
+        if not hasattr(self, 'blood_particles') or not self.blood_particles:
+            return
+            
+        # Update each particle
+        for particle in self.blood_particles[:]:  # Use a copy of the list for safe iteration
+            if particle:  # Make sure particle is not None
+                particle.update(obstacles)
+                
+                # Remove inactive particles
+                if not particle.active:
+                    self.blood_particles.remove(particle)
+                
+                # Handle stuck particles - for now, just keep them 
+                # (in a real game you might want to transfer them to world)
+                if particle.stuck:
+                    # Just keep stuck particles for now
+                    pass
+
+
     def get_animation_frames(self):
         """Get the correct animation frames based on current state and direction"""
         # This is a base implementation - subclasses should override to provide their specific logic
@@ -180,12 +222,26 @@ class Enemy:
     
     def take_damage(self, damage):
         """Take damage and check if dead"""
-        self.health -= damage
+        # Apply damage, accounting for defense
+        defense_factor = 1.0 - (self.defense * 0.1)  # 10% reduction per defense point
+        final_damage = max(1, int(damage * defense_factor))  # At least 1 damage
+        
+        self.health -= final_damage
+        
+        # Set hit flag for visual feedback
+        self.hit = True
+        self.hit_timer = 0
+        
+        print(f"Enemy {self.__class__.__name__} at ({self.x}, {self.y}) took {final_damage} damage!")
+        
         if self.health <= 0:
+            print(f"Enemy {self.__class__.__name__} died!")
             self.die()
+            return True  # Enemy died
         else:
-            # Damage reaction could be implemented by subclasses
-            print(f"{self.__class__.__name__} took {damage} damage, {self.health} health remaining")
+            # Damage reaction
+            print(f"{self.__class__.__name__} has {self.health} health remaining")
+            return False  # Enemy still alive
     
     def die(self):
         """Start death animation"""
@@ -210,11 +266,25 @@ class Enemy:
             if self.direction == "left" and animation_key in self.sprites:
                 sprite = pygame.transform.flip(sprite, True, False)
             
-            # Draw the enemy
-            surface.blit(sprite, (self.x, self.y))
+            # NEW: Apply hit effect - alternate between showing and hiding for GIFs
+            # or apply red tint for regular sprites
+            if self.hit:
+                # For GIF-based enemies (like slimes), use flashing instead of tint
+                from entities.slime import Slime
+                if isinstance(self, Slime):
+                    # Flash by only drawing every other frame during hit animation
+                    if (self.hit_timer // 50) % 2 == 0:  # Toggle visibility every 50ms
+                        surface.blit(sprite, (self.x, self.y))
+                else:
+                    # For regular sprites (like skeletons), use red tint
+                    surface.blit(sprite, (self.x, self.y))
+            else:
+                # Normal drawing (no hit effect)
+                surface.blit(sprite, (self.x, self.y))
             
-            # For debugging collision boxes (uncomment if needed)
-            # pygame.draw.rect(surface, (255, 0, 0), self.get_rect(), 1)
+            # NEW IMPROVED: Draw blood particles
+            for particle in self.blood_particles:
+                particle.draw(surface)
             
     def load_sprites(self):
         """

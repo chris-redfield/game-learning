@@ -4,14 +4,15 @@ from entities.enemy import Enemy
 class Skeleton(Enemy):
     def __init__(self, x, y):
         # Define skeleton-specific dimensions
-        width = 48  # Increased width to better match the sprite proportions
-        height = 52  # Increased height to better match the sprite proportions
+        width = 48
+        height = 52
         
         # Call parent constructor
         super().__init__(x, y, width, height, speed=1)
         
         # Skeleton-specific properties
-        self.health = 3  # Override default health if needed
+        self.health = 3
+        self.defense = 1  # Skeletons have some defense
         
         # Load skeleton sprites
         self.load_sprites()

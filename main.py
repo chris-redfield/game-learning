@@ -91,6 +91,14 @@ while running:
                 if not game_map.is_visible():
                     character_screen_visible = character_screen.toggle()
                     print(f"DEBUG: Character screen toggled - visible: {character_screen_visible}")
+            # Toggle sword collision debug view when 'D' key is pressed
+            elif event.key == pygame.K_d:
+                # Toggle debug mode for sword collision rect
+                if hasattr(player, 'debug_sword_rect'):
+                    player.debug_sword_rect = not player.debug_sword_rect
+                else:
+                    player.debug_sword_rect = True
+                print(f"DEBUG: Sword collision visualization {'enabled' if player.debug_sword_rect else 'disabled'}")
         
         # Handle character screen events
         if character_screen.is_visible():
@@ -168,6 +176,10 @@ while running:
         # Always update player with obstacles to prevent knockback collisions
         player.update(current_time, current_entities)
         
+        # Check for sword collisions with enemies
+        if player.swinging:
+            player.check_sword_collisions(current_entities)
+        
         # Check if player has changed blocks
         if not transition_in_progress:
             block_changed, direction = game_world.check_player_block_transition(player)
@@ -222,7 +234,7 @@ while running:
         screen.blit(block_text, (SCREEN_WIDTH - 150, 10))
         
         # Display control info
-        controls_y = SCREEN_HEIGHT - 135  # Increased to fit new control
+        controls_y = SCREEN_HEIGHT - 150  # Increased to fit new control
         controls_text = [
             "Controls:",
             "WASD or Arrow Keys: Move",
@@ -231,6 +243,7 @@ while running:
             "B: Blink (Level 4+)",
             "+: Level Up",
             "C: Show Collision Boxes",
+            "D: Show Sword Collision",
             "M: Toggle Map",
             "ENTER: Character Screen"
         ]

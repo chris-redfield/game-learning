@@ -1,6 +1,6 @@
-import pygame
+# Enhanced BloodParticle class for blood_particle.py
 import random
-import math
+import pygame
 
 class BloodParticle:
     """A class representing a blood particle for damage effects"""
@@ -12,14 +12,14 @@ class BloodParticle:
         # Size (randomized if not provided)
         self.size = size if size else random.randint(4, 8)
         
-        # Velocity
-        speed = random.uniform(0.5, 3.0)
+        # Velocity - increase speed range for more dynamic effect
+        speed = random.uniform(1.0, 4.0)  # Faster particles
         self.vel_x = direction_x * speed
         self.vel_y = direction_y * speed
         
-        # Physics properties
-        self.gravity = 0.15
-        self.friction = 0.92
+        # Physics properties - adjusted for better particle behavior
+        self.gravity = 0.2      # Slightly increased gravity
+        self.friction = 0.95    # Less friction = faster particles
         
         # Life properties
         self.life = random.randint(15, 30)  # How long the particle lives
@@ -62,6 +62,10 @@ class BloodParticle:
                                        self.size, self.size)
             
             for obstacle in obstacles:
+                # Skip collision checks with the source of the blood particles
+                if hasattr(obstacle, 'blood_particles') and self in obstacle.blood_particles:
+                    continue
+                    
                 obstacle_rect = obstacle.get_rect()
                 if particle_rect.colliderect(obstacle_rect):
                     # Particle hit an obstacle, stick to it

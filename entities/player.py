@@ -740,11 +740,157 @@ class Player:
             blink_text = font.render(f"Blink: {blink_status}", True, blink_color)
             surface.blit(blink_text, (x, abilities_y))
 
-# Add this method to the Player class
-def set_current_block(self, block_x, block_y):
-    """Update the player's current block coordinates"""
-    self.current_block = (block_x, block_y)
-    
-    # Initialize empty list for this block if it doesn't exist
-    if self.current_block not in self.stuck_particles:
-        self.stuck_particles[self.current_block] = []
+    def set_current_block(self, block_x, block_y):
+        """Update the player's current block coordinates"""
+        self.current_block = (block_x, block_y)
+        
+        # Initialize empty list for this block if it doesn't exist
+        if self.current_block not in self.stuck_particles:
+            self.stuck_particles[self.current_block] = []
+
+    def check_sword_collisions(self, obstacles):
+        """Check if the sword is colliding with any enemies and apply damage"""
+        if not self.swinging:
+            return False
+            
+        # Get the current sword position and create a collision rect
+        sword_rect = self.get_sword_rect()
+        if not sword_rect:  # If sword_rect is None or empty
+            return False
+            
+        hit_something = False
+        
+        # Check collisions with enemies
+        from entities.enemy import Enemy  # Import here to avoid circular imports
+        for obstacle in obstacles:
+            if isinstance(obstacle, Enemy) and sword_rect.colliderect(obstacle.get_rect()):
+                # Calculate attack damage based on player's strength
+                damage = self.get_attack_power()
+                
+                # Apply damage to the enemy
+                obstacle.take_damage(damage)
+                
+                # Add blood effects
+                self.spawn_enemy_blood(obstacle)
+                
+                hit_something = True
+                
+        return hit_something
+
+    def get_sword_rect(self):
+        """Get the collision rectangle for the sword in its current position"""
+        if not self.swinging:
+            return None
+            
+        # Player center point (handle position)
+        player_center_x = self.x + self.width / 2
+        player_center_y = self.y + self.height / 2
+        
+        # Apply offset for upward-facing position
+        if self.facing == 'up':
+            player_center_y -= 9  # Move sword handle up by 9px
+
+        # Base angles for each direction
+        base_angles = {
+            'right': 0,
+            'left': math.pi,
+            'up': -math.pi/2,
+            'down': math.pi/2
+        }
+        
+        # Get base angle from player's facing direction
+        base_angle = base_angles[self.facing]
+        
+        # Calculate swing angle: swing 90 degrees (-45° to +45° from center direction)
+        angle_offset = (self.swing_animation_counter / self.swing_frames_total) * math.pi/2 - math.pi/4
+        
+        # Calculate final rotation angle
+        rotation_angle = base_angle + angle_offset
+        
+        # Calculate sword position based on rotation angle
+        sword_x = player_center_x + math.cos(rotation_angle) * self.sword_length
+        sword_y = player_center_y + math.sin(rotation_angle) * self.sword_length
+        
+        # Create a rectangle for the sword
+        # We'll use a small square at the tip of the sword for collision detection
+        sword_size = 10
+        sword_rect = pygame.Rect(
+            sword_x - sword_size / 2,
+            sword_y - sword_size / 2,
+            sword_size,
+            sword_size
+        )
+        
+        return sword_rect
+
+    def draw_sword_rect(self, surface):
+        """Draw the sword collision rectangle for debugging"""
+        if not self.swinging:
+            return
+            
+        sword_rect = self.get_sword_rect()
+        if sword_rect:
+            pygame.draw.rect(surface, (255, 0, 0), sword_rect, 2)  # Red rectangle, 2px width
+
+            
+    def spawn_enemy_blood(self, enemy):
+        """Spawn blood particles from an enemy when hit with improved positioning"""
+        from entities.blood_particle import BloodParticle  # Import here to avoid circular imports
+        
+        # Initialize blood_particles list if it doesn't exist
+        if not hasattr(enemy, 'blood_particles'):
+            enemy.blood_particles = []
+        
+        # Player center coordinates (source of the hit)
+        player_center_x = self.x + self.width / 2
+        player_center_y = self.y + self.height / 2
+        
+        # Enemy center coordinates
+        enemy_center_x = enemy.x + enemy.width / 2
+        enemy_center_y = enemy.y + enemy.height / 2
+        
+        # Direction vector from player to enemy
+        dir_x = enemy_center_x - player_center_x
+        dir_y = enemy_center_y - player_center_y
+        
+        # Normalize direction
+        length = max(0.1, math.sqrt(dir_x**2 + dir_y**2))
+        dir_x /= length
+        dir_y /= length
+        
+        # Calculate impact point (on the edge of the enemy facing the player)
+        # Start with the enemy center, then move slightly towards the player
+        # This creates a more natural impact point
+        impact_offset = min(enemy.width, enemy.height) * 0.4  # 40% of enemy size
+        impact_x = enemy_center_x - dir_x * impact_offset
+        impact_y = enemy_center_y - dir_y * impact_offset
+        
+        # Create particles
+        particle_count = random.randint(8, 12)
+        
+        # Create particles with direction biased away from player
+        for _ in range(particle_count):
+            # Random angle in a cone facing away from player
+            base_angle = math.atan2(dir_y, dir_x)
+            angle_variation = random.uniform(-0.7, 0.7)  # +/- 40 degrees
+            angle = base_angle + angle_variation
+            
+            # Final direction vector with some randomness
+            particle_dir_x = math.cos(angle) 
+            particle_dir_y = math.sin(angle)
+            
+            # Add a bit of randomness to particle starting position
+            rand_offset = 3.0
+            start_x = impact_x + random.uniform(-rand_offset, rand_offset)
+            start_y = impact_y + random.uniform(-rand_offset, rand_offset)
+            
+            # Larger particles for enemies
+            size = random.randint(4, 8)
+            
+            # Create particle
+            particle = BloodParticle(start_x, start_y, particle_dir_x, particle_dir_y, size)
+            
+            # Add to enemy's blood particles
+            enemy.blood_particles.append(particle)
+        
+        print(f"Created {particle_count} blood particles for enemy at impact point ({impact_x:.1f}, {impact_y:.1f})")
