@@ -94,25 +94,41 @@ class World:
         block.mark_as_visited()
     
     def _add_enemies(self, block, safe_area=None):
-        """Add enemies to a block"""
+        """Add enemies to a block with dynamic scaling based on distance from origin"""
+        # Calculate the upper bound based on block coordinates
+        x_coord, y_coord = block.x_coord, block.y_coord
+        distance_factor = abs(x_coord) + abs(y_coord)
+        max_enemies = 5 + distance_factor
         
-        # For the initial block, add 2 skeletons
-        skeleton_positions = [
-            (random.randint(100, SCREEN_WIDTH - 100), random.randint(100, SCREEN_HEIGHT - 100)),  # First skeleton position
-            (random.randint(100, SCREEN_WIDTH - 100), random.randint(100, SCREEN_HEIGHT - 100))   # Second skeleton position
-        ]
+        # Generate a random number of enemies between 1 and max_enemies
+        num_enemies = random.randint(1, max_enemies)
         
-        for pos_x, pos_y in skeleton_positions:
+        print(f"DEBUG: Adding {num_enemies} enemies to block ({x_coord}, {y_coord}) [max possible: {max_enemies}]")
+        
+        # Add the calculated number of enemies
+        for _ in range(num_enemies):
+            pos_x = random.randint(100, SCREEN_WIDTH - 100)
+            pos_y = random.randint(100, SCREEN_HEIGHT - 100)
+            
             enemy_rect = pygame.Rect(pos_x, pos_y, 32, 32)
             
             # Don't place enemy if in safe area
             if safe_area and safe_area.colliderect(enemy_rect):
-                # print(f"DEBUG: Skipping skeleton at ({pos_x}, {pos_y}) - in safe area")
-                continue
+                # Try again with a different position
+                attempts = 0
+                while safe_area.colliderect(enemy_rect) and attempts < 10:
+                    pos_x = random.randint(100, SCREEN_WIDTH - 100)
+                    pos_y = random.randint(100, SCREEN_HEIGHT - 100)
+                    enemy_rect = pygame.Rect(pos_x, pos_y, 32, 32)
+                    attempts += 1
                 
+                # Skip this enemy if we couldn't find a safe spot after several attempts
+                if safe_area.colliderect(enemy_rect):
+                    continue
+                    
             skeleton = Skeleton(pos_x, pos_y)
             block.add_entity(skeleton)
-            # print(f"DEBUG: Added skeleton at ({pos_x}, {pos_y})")
+            print(f"DEBUG: Added skeleton at ({pos_x}, {pos_y})")
     
     def _add_grass_patches(self, block, count, safe_area=None):
         """Add grass patches to a block"""
