@@ -115,7 +115,7 @@ while running:
             if fade_alpha <= 0:
                 # Transition fully complete
                 transition_in_progress = False
-    
+
     # Only process input if not transitioning, map is not visible, and character screen is not visible
     if (not transition_in_progress or not fading_in) and not game_map.is_visible() and not character_screen.is_visible():
         # Handle player movement
@@ -149,15 +149,24 @@ while running:
         
         # Get current entities from world
         current_entities = game_world.get_current_entities()
-        
+
+        # Move player
+        player.move(dx, dy, current_entities)
+
+        # Additional check for player-initiated collisions
+        player_rect = player.get_rect()
+        for entity in current_entities:
+            if isinstance(entity, Enemy) and player_rect.colliderect(entity.get_rect()):
+                entity.handle_player_collision(player)
+                break  # Only handle one collision per frame to prevent multiple damage
+
         # Update enemies
         for entity in current_entities:
             if isinstance(entity, Enemy):
                 entity.update(player, current_entities)
-        
-        # Move player
-        player.move(dx, dy, current_entities)
-        player.update(current_time)
+
+        # Always update player with obstacles to prevent knockback collisions
+        player.update(current_time, current_entities)
         
         # Check if player has changed blocks
         if not transition_in_progress:

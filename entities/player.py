@@ -59,6 +59,18 @@ class Player:
         self.sword_length = 24
         self.base_sword_length = 24  # Store the base value for reference
         
+        # Damage animation properties
+        self.is_taking_damage = False
+        self.damage_animation_timer = 0
+        self.damage_animation_duration = 500  # milliseconds
+        self.damage_knockback_distance = 20   # pixels
+        self.knockback_direction = None
+        self.invulnerable = False
+        self.invulnerability_duration = 1000  # milliseconds
+        self.invulnerability_timer = 0
+        self.flash_interval = 100  # milliseconds
+        self.visible = True       # For damage flash effect
+
         # Load spritesheet
         try:
             self.spritesheet = pygame.image.load('assets/sprites.png').convert_alpha()
@@ -188,13 +200,69 @@ class Player:
         """Calculate attack power based on strength"""
         return 1 + int(self.str * 0.5)  # Base attack + STR bonus
         
-    def take_damage(self, amount):
-        """Handle player taking damage"""
-        self.current_health -= amount
+    def take_damage(self, amount, attacker_x=None, attacker_y=None):
+        """Handle player taking damage with animation and knockback
+        
+        Args:
+            amount: Amount of damage to take
+            attacker_x: X position of the damage source (if available)
+            attacker_y: Y position of the damage source (if available)
+        """
+        # Skip if already taking damage or invulnerable
+        if self.is_taking_damage or self.invulnerable:
+            return False
+        
+        # Calculate damage reduction based on constitution (defense)
+        defense_factor = 1.0 - (self.con * 0.05)  # 5% reduction per CON point
+        final_damage = max(1, int(amount * defense_factor))  # Minimum 1 damage
+        
+        # Apply damage
+        self.current_health -= final_damage
         if self.current_health < 0:
             self.current_health = 0
             # Handle player death
+            
+        # Calculate knockback direction
+        if attacker_x is not None and attacker_y is not None:
+            # Calculate direction vector from attacker to player
+            dir_x = self.x + (self.width / 2) - attacker_x
+            dir_y = self.y + (self.height / 2) - attacker_y
+            
+            # Normalize the direction vector
+            length = max(0.1, (dir_x**2 + dir_y**2)**0.5)
+            dir_x /= length
+            dir_y /= length
+        else:
+            # Default knockback direction based on facing (opposite to facing)
+            dir_x, dir_y = 0, 0
+            if self.facing == 'right':
+                dir_x = -1
+            elif self.facing == 'left':
+                dir_x = 1
+            elif self.facing == 'down':
+                dir_y = -1
+            elif self.facing == 'up':
+                dir_y = 1
         
+        # Store knockback direction
+        self.knockback_direction = (dir_x, dir_y)
+        
+        # Start damage animation
+        self.is_taking_damage = True
+        self.damage_animation_timer = 0
+        
+        # Make player invulnerable
+        self.invulnerable = True
+        self.invulnerability_timer = 0
+        
+        # Calculate knockback strength based on constitution
+        # Higher CON means less knockback
+        knockback_reduction = min(0.8, self.con * 0.1)  # Up to 80% reduction
+        self.current_knockback = self.damage_knockback_distance * (1 - knockback_reduction)
+        
+        print(f"Player took {final_damage} damage! Knockback direction: ({dir_x:.2f}, {dir_y:.2f})")
+        return True
+
     def heal(self, amount):
         """Heal the player"""
         self.current_health = min(self.current_health + amount, self.max_health)
@@ -210,7 +278,7 @@ class Player:
         """Restore mana"""
         self.current_mana = min(self.current_mana + amount, self.max_mana)
     
-    def update(self, current_time=None):
+    def update(self, current_time=None, obstacles=None):
         """Update animation frame and ability cooldowns"""
         # Handle movement animation
         if self.moving:
@@ -239,6 +307,9 @@ class Player:
             self.swing_frame = int(self.swing_animation_counter)
 
         if current_time:
+            # Track time delta for animations
+            time_delta = current_time - (getattr(self, 'last_update_time', current_time))
+            
             # Update dash status
             if self.dashing and current_time > self.dash_end_time:
                 # End the dash effect
@@ -253,7 +324,80 @@ class Player:
             # Clear blink cooldown
             if self.blink_timer > 0 and current_time > self.blink_timer:
                 self.blink_timer = 0
-    
+                
+            # Handle damage animation and knockback
+            if self.is_taking_damage and obstacles is not None:
+                # Update timer
+                self.damage_animation_timer += time_delta
+                
+                # Apply knockback - using a larger factor for more noticeable effect
+                if self.damage_animation_timer < self.damage_animation_duration:
+                    # Calculate knockback movement for this frame
+                    progress = self.damage_animation_timer / self.damage_animation_duration
+                    knockback_factor = 1 - progress  # Gradually reduce knockback
+                    
+                    # Apply knockback movement - increased multiplier for stronger effect
+                    dir_x, dir_y = self.knockback_direction
+                    move_x = dir_x * self.current_knockback * knockback_factor * 0.5
+                    move_y = dir_y * self.current_knockback * knockback_factor * 0.5
+                    
+                    # Create test rectangles for collision detection during knockback
+                    test_rect_x = pygame.Rect(self.x + move_x, self.y, self.width, self.height)
+                    test_rect_y = pygame.Rect(self.x, self.y + move_y, self.width, self.height)
+                    
+                    # Check for collisions on each axis separately
+                    x_collision = False
+                    for obstacle in obstacles:
+                        # Skip self-collision
+                        if obstacle is self:
+                            continue
+                        if test_rect_x.colliderect(obstacle.get_rect()):
+                            x_collision = True
+                            break
+                    
+                    # Only apply X movement if no collision
+                    if not x_collision:
+                        self.x += move_x
+                    
+                    # Check Y collision
+                    y_collision = False
+                    for obstacle in obstacles:
+                        # Skip self-collision
+                        if obstacle is self:
+                            continue
+                        if test_rect_y.colliderect(obstacle.get_rect()):
+                            y_collision = True
+                            break
+                    
+                    # Only apply Y movement if no collision
+                    if not y_collision:
+                        self.y += move_y
+                    
+                    # If we hit an obstacle on both axes, end the knockback animation early
+                    if x_collision and y_collision:
+                        self.is_taking_damage = False
+                else:
+                    # End damage animation
+                    self.is_taking_damage = False
+                    
+            # Handle invulnerability and flashing effect
+            if self.invulnerable:
+                self.invulnerability_timer += time_delta
+                
+                # Toggle visibility for flashing effect
+                if (self.invulnerability_timer // self.flash_interval) % 2 == 0:
+                    self.visible = True
+                else:
+                    self.visible = False
+                    
+                # End invulnerability after duration
+                if self.invulnerability_timer >= self.invulnerability_duration:
+                    self.invulnerable = False
+                    self.visible = True
+            
+            # Store current time for next update
+            self.last_update_time = current_time
+
     def move(self, dx, dy, obstacles):
         """Move player and update animation state with collision detection"""
         if dx != 0 or dy != 0:
@@ -274,20 +418,28 @@ class Player:
             
             # Check for collisions with obstacles
             collision = False
+            collided_with_enemy = False
+            
             for obstacle in obstacles:
-                if test_rect.colliderect(obstacle.get_rect()):
+                obstacle_rect = obstacle.get_rect()
+                if test_rect.colliderect(obstacle_rect):
                     collision = True
+                    
+                    # Check if the obstacle is an enemy
+                    from entities.enemy import Enemy  # Import here to avoid circular imports
+                    if isinstance(obstacle, Enemy):
+                        collided_with_enemy = True
+                        # Let the enemy handle the collision
+                        obstacle.handle_player_collision(self)
+                    
                     break
             
-            # Only move if there's no collision
-            if not collision:
+            # Only move if there's no collision or if collided with an enemy
+            # (we still want to move if hitting an enemy, just take damage)
+            if not collision or collided_with_enemy:
                 # Update position
                 self.x += dx
                 self.y += dy
-                
-                # # Keep player on screen
-                # self.x = max(0, min(self.x, SCREEN_WIDTH - self.width))
-                # self.y = max(0, min(self.y, SCREEN_HEIGHT - self.height))
         else:
             self.moving = False
     
@@ -408,6 +560,13 @@ class Player:
     
     def draw(self, surface):
         """Draw the player with appropriate animation frame"""
+        # Don't draw if not visible (flashing during invulnerability)
+        if not self.visible:
+            # Still draw the sword if swinging, even when player is flashing
+            if self.swinging:
+                self.draw_sword(surface)
+            return
+        
         # If in debug mode and a debug sprite is loaded, draw that instead
         if hasattr(self, 'debug_sprite'):
             surface.blit(self.debug_sprite, (self.x, self.y))
@@ -430,8 +589,21 @@ class Player:
             else:
                 sprite = self.sprites[f'{self.facing}_idle'][0]
         
-        # Draw the player character
-        surface.blit(sprite, (self.x, self.y))
+        # Tint the sprite red if taking damage
+        if self.is_taking_damage:
+            # Create a copy of the sprite to modify
+            tinted_sprite = sprite.copy()
+            
+            # Add a transparent red overlay
+            overlay = pygame.Surface(sprite.get_size(), pygame.SRCALPHA)
+            overlay.fill((255, 0, 0, 100))  # Red with alpha
+            tinted_sprite.blit(overlay, (0, 0))
+            
+            # Draw the tinted player character
+            surface.blit(tinted_sprite, (self.x, self.y))
+        else:
+            # Draw the normal player character
+            surface.blit(sprite, (self.x, self.y))
         
         # Draw sword if player is swinging
         self.draw_sword(surface)

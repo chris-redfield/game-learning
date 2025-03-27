@@ -49,6 +49,10 @@ class Enemy:
             
             self.frame = int(self.animation_counter)
         
+        # Check for collision with player first (for combat), regardless of state
+        if player and self.rect.colliderect(player.get_rect()):
+            self.handle_player_collision(player)
+        
         # Base AI behavior - can be overridden by subclasses
         if self.state != "dying" and self.state != "attacking":
             self.movement_timer += 1
@@ -66,11 +70,7 @@ class Enemy:
                     # Move if currently in moving state
                     if obstacles:
                         self.move(self.dx, self.dy, obstacles)
-            
-            # Check for collision with player (for potential combat)
-            if player and self.rect.colliderect(player.get_rect()):
-                self.handle_player_collision(player)
-                
+        
         # Update collision rect position
         self.rect.x = self.x
         self.rect.y = self.y
@@ -95,7 +95,11 @@ class Enemy:
     def handle_player_collision(self, player):
         """Handle collision with player - override in subclasses for specific behavior"""
         self.stop_moving()
-        # Subclasses can override this to implement specific collision behavior
+        
+        # Damage player and pass enemy position for knockback direction
+        enemy_center_x = self.x + (self.width / 2)
+        enemy_center_y = self.y + (self.height / 2)
+        player.take_damage(self.attack_power, enemy_center_x, enemy_center_y)
     
     def start_moving(self):
         """Start movement in a random direction"""

@@ -98,7 +98,10 @@ class Slime(Enemy):
         # Don't call super() here as it would stop movement
         
         # Attack the player but keep moving
-        player.take_damage(self.attack_power)
+        # Pass position for knockback calculation
+        enemy_center_x = self.x + (self.width / 2)
+        enemy_center_y = self.y + (self.height / 2)
+        player.take_damage(self.attack_power, enemy_center_x, enemy_center_y)
     
     def draw(self, surface):
         """Draw the slime with the current animation frame"""
