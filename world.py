@@ -18,7 +18,7 @@ class WorldBlock:
         """Add an entity to this block"""
         self.entities.append(entity)
         entity_type = type(entity).__name__
-        print(f"DEBUG: Added {entity_type} to block ({self.x_coord}, {self.y_coord})")
+        # print(f"DEBUG: Added {entity_type} to block ({self.x_coord}, {self.y_coord})")
         
     def remove_entity(self, entity):
         """Remove an entity from this block"""
@@ -141,9 +141,7 @@ class World:
             block.add_entity(skeleton)
             existing_entities.append(skeleton)  # Add to collision check list for subsequent enemies
             enemies_added += 1
-            print(f"DEBUG: Added skeleton at ({pos_x}, {pos_y})")
-        
-        print(f"DEBUG: Successfully added {enemies_added} enemies after collision checks")
+            # print(f"DEBUG: Added skeleton at ({pos_x}, {pos_y})")
     
     def _add_grass_patches(self, block, count, safe_area=None):
         """Add grass patches to a block"""

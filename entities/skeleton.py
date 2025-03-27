@@ -59,8 +59,6 @@ class Skeleton:
             frame_width = 42   # Approximate width of each frame
             frame_height = idle_img.get_height()
             
-            print(f"DEBUG: Loaded idle sprite image: {idle_img.get_width()}x{frame_height}")
-            
             # Load each idle frame using manual positions
             for i, x_pos in enumerate(idle_frame_positions):
                 frame = pygame.Surface((frame_width, frame_height), pygame.SRCALPHA)
@@ -68,7 +66,6 @@ class Skeleton:
                 # Scale to desired size
                 scaled_frame = pygame.transform.scale(frame, (self.width, self.height))
                 self.sprites['idle_right'].append(scaled_frame)
-                print(f"DEBUG: Added idle frame {i+1} from position ({x_pos}, 0)")
             
             # Load walking animation frames with manually defined positions
             walk_img = pygame.image.load('assets/Skeleton_02_White_Walk.png').convert_alpha()
@@ -89,8 +86,6 @@ class Skeleton:
             frame_width = 42   # Approximate width of each frame
             frame_height = walk_img.get_height()
             
-            print(f"DEBUG: Loaded walk sprite image: {walk_img.get_width()}x{frame_height}")
-            
             # Load each walking frame using manual positions
             for i, x_pos in enumerate(walking_frame_positions):
                 frame = pygame.Surface((frame_width, frame_height), pygame.SRCALPHA)
@@ -98,9 +93,6 @@ class Skeleton:
                 # Scale to desired size
                 scaled_frame = pygame.transform.scale(frame, (self.width, self.height))
                 self.sprites['moving_right'].append(scaled_frame)
-                print(f"DEBUG: Added walking frame {i+1} from position ({x_pos}, 0)")
-                
-            print(f"DEBUG: Skeleton sprites loaded successfully - {len(self.sprites['idle_right'])} idle frames, {len(self.sprites['moving_right'])} walking frames")
                 
         except Exception as e:
             print(f"Error loading skeleton sprites: {e}")
