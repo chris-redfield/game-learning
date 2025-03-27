@@ -197,11 +197,14 @@ while running:
         # Draw normal game screen
         screen.fill(GREEN)  # Green background for grass
         
-        # Draw entities in current block
+        # First draw stuck blood particles in the background
+        player.draw_stuck_blood(screen)
+        
+        # Then draw entities in current block
         for entity in game_world.get_current_entities():
             entity.draw(screen)
         
-        # Draw player
+        # Finally draw player and active particles
         player.draw(screen)
         
         # Draw collision boxes for debugging if C key is pressed

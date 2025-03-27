@@ -10,7 +10,7 @@ class BloodParticle:
         self.y = y
         
         # Size (randomized if not provided)
-        self.size = size if size else random.randint(4, 10)
+        self.size = size if size else random.randint(4, 8)
         
         # Velocity
         speed = random.uniform(0.5, 3.0)

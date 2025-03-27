@@ -637,14 +637,14 @@ class Player:
             if self.swinging:
                 self.draw_sword(surface)
             
-            # Always draw blood particles, even when player is invisible
-            self.draw_blood_particles(surface)
+            # Draw active blood particles (not stuck ones)
+            self.draw_active_blood(surface)
             return
         
         # If in debug mode and a debug sprite is loaded, draw that instead
         if hasattr(self, 'debug_sprite'):
             surface.blit(self.debug_sprite, (self.x, self.y))
-            self.draw_blood_particles(surface)
+            self.draw_active_blood(surface)
             return
         
         # For left-facing, use the right sprites but flip them horizontally
@@ -670,15 +670,17 @@ class Player:
         # Draw sword if player is swinging
         self.draw_sword(surface)
         
-        # Draw blood particles
-        self.draw_blood_particles(surface)
+        # Draw active blood particles
+        self.draw_active_blood(surface)
 
-    def draw_blood_particles(self, surface):
-        """Draw all blood particles and stuck blood"""
+    def draw_active_blood(self, surface):
+        """Draw only the active (flying) blood particles"""
         # Draw active particles
         for particle in self.blood_particles:
             particle.draw(surface)
-        
+
+    def draw_stuck_blood(self, surface):
+        """Draw only the stuck blood particles (should be called before drawing entities)"""
         # Draw stuck particles for the current block only
         if self.current_block in self.stuck_particles:
             for x, y, size, color, life in self.stuck_particles[self.current_block]:
