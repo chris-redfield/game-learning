@@ -10,21 +10,16 @@ class Grass:
         # Create collision rect
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
         
-        # Load spritesheet
+        # Load direct bush image instead of spritesheet
         try:
-            self.spritesheet = pygame.image.load('assets/world-tiles-1.png').convert_alpha()
-            self.sprite = self.get_sprite(759, 50, 16, 16)  # Coordinates from the sprite sheet
+            self.sprite = pygame.image.load('assets/bush.png').convert_alpha()
+            # Scale the sprite to match the desired dimensions
+            self.sprite = pygame.transform.scale(self.sprite, (self.width, self.height))
         except Exception as e:
-            print(f"Error loading grass sprites: {e}")
+            print(f"Error loading bush sprite: {e}")
             # Create placeholder
-            self.sprite = pygame.Surface((16, 16))
+            self.sprite = pygame.Surface((self.width, self.height))
             self.sprite.fill((60, 140, 60))
-            
-    def get_sprite(self, x, y, width, height):
-        """Extract a sprite from the spritesheet"""
-        sprite = pygame.Surface((width, height), pygame.SRCALPHA)
-        sprite.blit(self.spritesheet, (0, 0), (x, y, width, height))
-        return pygame.transform.scale(sprite, (self.width, self.height))
     
     def get_rect(self):
         """Return the collision rectangle"""
