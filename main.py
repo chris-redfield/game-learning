@@ -8,8 +8,9 @@ from map import Map
 from entities.enemy import Enemy
 
 from character_screen import CharacterScreen
+from death_screen import DeathScreen
 
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GREEN
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GREEN, DESERT
 import os
 
 abspath = os.path.abspath(__file__)
@@ -27,20 +28,15 @@ clock = pygame.time.Clock()
 # Create font for display
 font = pygame.font.SysFont('Arial', 16)
 
-# Create player at the center of the screen
-player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+# Game state variables
+player = None
+game_world = None
+initial_block = None
+game_map = None
+character_screen = None
 
-# Create world
-game_world = World()
-
-# Generate the first block (at 0,0)
-initial_block = game_world.generate_block(0, 0)
-
-# Create map
-game_map = Map(game_world)
-
-# Create character screen
-character_screen = CharacterScreen(player)
+# Create death screen (only created once)
+death_screen = DeathScreen()
 
 # Transition effects
 fade_alpha = 0
@@ -56,6 +52,30 @@ running = True
 show_collision_boxes = False
 transition_in_progress = False
 
+def initialize_game():
+    """Initialize or reinitialize all game objects"""
+    global player, game_world, initial_block, game_map, character_screen
+    
+    # Create player at the center of the screen
+    player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+    
+    # Create world
+    game_world = World()
+    
+    # Generate the first block (at 0,0)
+    initial_block = game_world.generate_block(0, 0)
+    
+    # Create map
+    game_map = Map(game_world)
+    
+    # Create character screen
+    character_screen = CharacterScreen(player)
+
+def restart_game():
+    """Restart the game by reinitializing everything"""
+    initialize_game()
+    print("Game restarted!")
+
 def start_transition(direction):
     """Start a transition effect when moving between blocks"""
     global fading_in, fade_alpha, fade_start_time, transition_in_progress
@@ -65,6 +85,9 @@ def start_transition(direction):
     fade_start_time = pygame.time.get_ticks()
     transition_in_progress = True
 
+# Initial game setup
+initialize_game()
+
 while running:
     current_time = pygame.time.get_ticks()
     
@@ -72,6 +95,13 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        
+        # Check if death screen is active and handle its events first
+        if death_screen.is_active():
+            result = death_screen.handle_event(event)
+            if result == "restart":
+                restart_game()
+                continue
         # Check for key presses
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
@@ -81,14 +111,14 @@ while running:
                 player.level_up()
             # Toggle map when 'M' key is pressed
             elif event.key == pygame.K_m:
-                # Only toggle map if character screen is not visible
-                if not character_screen.is_visible():
+                # Only toggle map if character screen is not visible and death screen is not active
+                if not character_screen.is_visible() and not death_screen.is_active():
                     map_visible = game_map.toggle()
                     print(f"DEBUG: Map toggled - visible: {map_visible}")
             # Toggle character screen when 'ENTER' key is pressed
             elif event.key == pygame.K_RETURN:
-                # Only toggle character screen if map is not visible
-                if not game_map.is_visible():
+                # Only toggle character screen if map is not visible and death screen is not active
+                if not game_map.is_visible() and not death_screen.is_active():
                     character_screen_visible = character_screen.toggle()
                     print(f"DEBUG: Character screen toggled - visible: {character_screen_visible}")
         
@@ -116,8 +146,8 @@ while running:
                 # Transition fully complete
                 transition_in_progress = False
 
-    # Only process input if not transitioning, map is not visible, and character screen is not visible
-    if (not transition_in_progress or not fading_in) and not game_map.is_visible() and not character_screen.is_visible():
+    # Only process input if not transitioning, map is not visible, character screen is not visible, and death screen is not active
+    if (not transition_in_progress or not fading_in) and not game_map.is_visible() and not character_screen.is_visible() and not death_screen.is_active():
         # Handle player movement
         keys = pygame.key.get_pressed()
         dx, dy = 0, 0
@@ -247,11 +277,16 @@ while running:
                 start_transition(direction)
                 print(f"DEBUG: Block transition triggered! Moving {direction}")
     
+    # Check if player is dead
+    if player.current_health <= 0 and not death_screen.is_active():
+        death_screen.activate()
+        print("Player died! Death screen activated.")
+    
     # Draw everything
-    if game_map.is_visible():
+    if game_map.is_visible() and not death_screen.is_active():
         # Draw the map screen
         game_map.draw(screen)
-    elif character_screen.is_visible():
+    elif character_screen.is_visible() and not death_screen.is_active():
         # First draw the game behind the character screen
         screen.fill(GREEN)  # Green background for grass
         
@@ -287,43 +322,49 @@ while running:
             player_rect = player.get_rect()
             pygame.draw.rect(screen, (0, 0, 255), player_rect, 1)
         
-        # Display world info
-        block_info = game_world.get_block_description()
-        block_text = font.render(f"Current: {block_info}", True, (255, 255, 255))
-        screen.blit(block_text, (SCREEN_WIDTH - 150, 10))
-        
-        # Display control info
-        controls_y = SCREEN_HEIGHT - 150  # Adjusted for removed control
-        controls_text = [
-            "Controls:",
-            "WASD or Arrow Keys: Move",
-            "SPACE: Swing Sword",
-            "SHIFT: Dash (Level 2+)",
-            "B: Blink (Level 4+)",
-            "+: Level Up",
-            "C: Show Collision Boxes",
-            "M: Toggle Map",
-            "ENTER: Character Screen"
-        ]
-        
-        for i, text in enumerate(controls_text):
-            text_surface = font.render(text, True, (255, 255, 255))
-            screen.blit(text_surface, (10, controls_y + i * 15))
-        
-        # Display player level info
-        player.render_level_info(screen, font, 10, 10)
-        
-        # Draw transition effect if in progress
-        if transition_in_progress:
-            fade_surface.set_alpha(fade_alpha)
-            screen.blit(fade_surface, (0, 0))
+        # Only show game UI if death screen is not active
+        if not death_screen.is_active():
+            # Display world info
+            block_info = game_world.get_block_description()
+            block_text = font.render(f"Current: {block_info}", True, (255, 255, 255))
+            screen.blit(block_text, (SCREEN_WIDTH - 150, 10))
             
-            # Show transition text during fade
-            if fade_alpha > 50:
-                if transition_direction:
-                    direction_text = font.render(f"Moving {transition_direction.upper()}", True, (255, 255, 255))
-                    text_rect = direction_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-                    screen.blit(direction_text, text_rect)
+            # Display control info
+            controls_y = SCREEN_HEIGHT - 150  # Adjusted for removed control
+            controls_text = [
+                "Controls:",
+                "WASD or Arrow Keys: Move",
+                "SPACE: Swing Sword",
+                "SHIFT: Dash (Level 2+)",
+                "B: Blink (Level 4+)",
+                "+: Level Up",
+                "C: Show Collision Boxes",
+                "M: Toggle Map",
+                "ENTER: Character Screen"
+            ]
+            
+            for i, text in enumerate(controls_text):
+                text_surface = font.render(text, True, (255, 255, 255))
+                screen.blit(text_surface, (10, controls_y + i * 15))
+            
+            # Display player level info
+            player.render_level_info(screen, font, 10, 10)
+            
+            # Draw transition effect if in progress
+            if transition_in_progress:
+                fade_surface.set_alpha(fade_alpha)
+                screen.blit(fade_surface, (0, 0))
+                
+                # Show transition text during fade
+                if fade_alpha > 50:
+                    if transition_direction:
+                        direction_text = font.render(f"Moving {transition_direction.upper()}", True, (255, 255, 255))
+                        text_rect = direction_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+                        screen.blit(direction_text, text_rect)
+
+        # Draw death screen on top of everything if active
+        if death_screen.is_active():
+            death_screen.draw(screen, player.get_rect())
     
     # Update display
     pygame.display.flip()
