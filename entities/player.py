@@ -717,9 +717,9 @@ class Player:
                 hit_something = True
                 
         return hit_something
-    
+
     def get_sword_rect(self):
-        """Get a simple effective square hitbox for the sword"""
+        """Get a sword hitbox that scales with the sword length"""
         if not self.swinging:
             return None
             
@@ -727,9 +727,22 @@ class Player:
         player_center_x = self.x + self.width / 2
         player_center_y = self.y + self.height / 2
         
+        # Apply offset for upward-facing position (same as in draw_sword)
+        if self.facing == 'up':
+            player_center_y -= 9  # Move sword handle up by 9px
+        
         # Constants for hitbox
-        hitbox_size = 24  # Size of the square hitbox
+        hitbox_size = 24  # Base size of the square hitbox
         base_distance = 20  # Base distance from player center
+        
+        # Scale hitbox distance based on sword length compared to base length
+        # This ensures the hitbox extends proportionally when the sword gets longer
+        length_scale = self.sword_length / self.base_sword_length
+        scaled_distance = base_distance * length_scale
+        
+        # Slightly increase hitbox size for longer sword
+        if length_scale > 1:
+            hitbox_size = int(hitbox_size * (1 + (length_scale - 1) * 0.5))  # Grow by half as much as the sword
         
         # Set base direction vector based on player facing
         if self.facing == 'right':
@@ -738,8 +751,11 @@ class Player:
             base_dir_x, base_dir_y = -1, 0
         elif self.facing == 'up':
             base_dir_x, base_dir_y = 0, -1
+            scaled_distance *= 1.2  # Slightly larger distance for vertical attacks
         elif self.facing == 'down':
             base_dir_x, base_dir_y = 0, 1
+            scaled_distance *= 1.2  # Slightly larger distance for vertical attacks
+            player_center_y += 10  # Add the y+10px offset for downward attacks
         
         # Get swing progress (0 to 1)
         swing_progress = min(1.0, self.swing_animation_counter / self.swing_frames_total)
@@ -756,11 +772,21 @@ class Player:
         dir_y = base_dir_x * sin_angle + base_dir_y * cos_angle
         
         # Position hitbox
-        hitbox_x = player_center_x + dir_x * base_distance - hitbox_size/2
-        hitbox_y = player_center_y + dir_y * base_distance - hitbox_size/2
+        hitbox_x = player_center_x + dir_x * scaled_distance - hitbox_size/2
+        hitbox_y = player_center_y + dir_y * scaled_distance - hitbox_size/2
         
         # Create hitbox
         return pygame.Rect(hitbox_x, hitbox_y, hitbox_size, hitbox_size)
+
+    def draw_sword_rect(self, surface):
+        """Draw the sword collision rectangle for debugging"""
+        if not self.swinging:
+            return
+            
+        sword_rect = self.get_sword_rect()
+        if sword_rect:
+            # Draw the hitbox
+            pygame.draw.rect(surface, (255, 0, 0), sword_rect, 2)
 
     def spawn_enemy_blood(self, enemy):
         """Spawn blood particles from an enemy when hit with improved positioning"""
@@ -824,15 +850,6 @@ class Player:
         
         print(f"Created {particle_count} blood particles for enemy at impact point ({impact_x:.1f}, {impact_y:.1f})")
     
-    def draw_sword_rect(self, surface):
-        """Draw the sword collision rectangle for debugging"""
-        if not self.swinging:
-            return
-            
-        sword_rect = self.get_sword_rect()
-        if sword_rect:
-            # Draw the hitbox
-            pygame.draw.rect(surface, (255, 0, 0), sword_rect, 2)
 
     def draw_sword(self, surface):
         """Draw sword with a 90-degree swing centered on player's facing direction"""
