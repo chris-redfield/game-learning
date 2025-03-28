@@ -9,15 +9,12 @@ class Slime(Enemy):
         width = 32
         height = 24
         
-        # Call parent constructor with SLOWER speed (skeletons use 1.0)
+        # Call parent constructor with SLOWER speed
         super().__init__(x, y, width, height, speed=0.5)
         
         # Slime-specific properties
-        self.health = 2  # Slimes have less health than skeletons
-        self.attack_power = 1
-        
-        # SLOWER animation speed (reduced from the default 0.1)
-        self.animation_speed = 0.03  # Half the default animation speed
+        self.health = 2
+        self.defense = 0  # Slimes have no defense
         
         # Load slime sprites
         self.load_sprites()
@@ -104,12 +101,23 @@ class Slime(Enemy):
         player.take_damage(self.attack_power, enemy_center_x, enemy_center_y)
     
     def draw(self, surface):
-        """Draw the slime with the current animation frame"""
+        """Custom draw method for slime to handle GIF animations and hit effects"""
         animation_frames = self.get_animation_frames()
         
         if len(animation_frames) > 0 and self.frame < len(animation_frames):
             sprite = animation_frames[self.frame]
-            surface.blit(sprite, (self.x, self.y))
             
-            # Uncomment to debug collision boxes
-            # pygame.draw.rect(surface, (0, 255, 0), self.get_rect(), 1)
+            # Handle hit animation for slimes (flashing instead of tinting)
+            if self.hit:
+                # Only draw the slime on even frames during hit animation
+                if (self.hit_timer // 40) % 2 == 0:
+                    surface.blit(sprite, (self.x, self.y))
+            else:
+                # Normal drawing (no hit effect)
+                surface.blit(sprite, (self.x, self.y))
+            
+            # Draw blood particles
+            if hasattr(self, 'blood_particles'):
+                for particle in self.blood_particles:
+                    if particle:  # Make sure particle is not None
+                        particle.draw(surface)
