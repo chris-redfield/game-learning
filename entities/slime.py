@@ -14,7 +14,7 @@ class Slime(Enemy):
         super().__init__(x, y, width, height, speed=0.5)
         
         # Slime-specific properties
-        self.health = 10  # Slimes have less health than skeletons
+        self.health = 5  # Slimes have less health than skeletons
         self.attack_power = 1
         self.defense = 0  # Slimes have no defense
         

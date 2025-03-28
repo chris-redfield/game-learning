@@ -719,51 +719,49 @@ class Player:
         return hit_something
     
     def get_sword_rect(self):
-        """Get the collision rectangle for the sword in its current position"""
+        """Get a simple effective square hitbox for the sword"""
         if not self.swinging:
             return None
             
-        # Player center point (handle position)
+        # Player center point
         player_center_x = self.x + self.width / 2
         player_center_y = self.y + self.height / 2
         
-        # Apply offset for upward-facing position
-        if self.facing == 'up':
-            player_center_y -= 9  # Move sword handle up by 9px
+        # Constants for hitbox
+        hitbox_size = 24  # Size of the square hitbox
+        base_distance = 20  # Base distance from player center
+        
+        # Set base direction vector based on player facing
+        if self.facing == 'right':
+            base_dir_x, base_dir_y = 1, 0
+        elif self.facing == 'left':
+            base_dir_x, base_dir_y = -1, 0
+        elif self.facing == 'up':
+            base_dir_x, base_dir_y = 0, -1
+        elif self.facing == 'down':
+            base_dir_x, base_dir_y = 0, 1
+        
+        # Get swing progress (0 to 1)
+        swing_progress = min(1.0, self.swing_animation_counter / self.swing_frames_total)
+        
+        # Calculate swing angle (-45° to +45° from base direction)
+        swing_angle = math.radians(-45 + 90 * swing_progress)
+        
+        # Rotate the base direction vector by the swing angle
+        cos_angle = math.cos(swing_angle)
+        sin_angle = math.sin(swing_angle)
+        
+        # Apply rotation to the base direction
+        dir_x = base_dir_x * cos_angle - base_dir_y * sin_angle
+        dir_y = base_dir_x * sin_angle + base_dir_y * cos_angle
+        
+        # Position hitbox
+        hitbox_x = player_center_x + dir_x * base_distance - hitbox_size/2
+        hitbox_y = player_center_y + dir_y * base_distance - hitbox_size/2
+        
+        # Create hitbox
+        return pygame.Rect(hitbox_x, hitbox_y, hitbox_size, hitbox_size)
 
-        # Base angles for each direction
-        base_angles = {
-            'right': 0,
-            'left': math.pi,
-            'up': -math.pi/2,
-            'down': math.pi/2
-        }
-        
-        # Get base angle from player's facing direction
-        base_angle = base_angles[self.facing]
-        
-        # Calculate swing angle: swing 90 degrees (-45° to +45° from center direction)
-        angle_offset = (self.swing_animation_counter / self.swing_frames_total) * math.pi/2 - math.pi/4
-        
-        # Calculate final rotation angle
-        rotation_angle = base_angle + angle_offset
-        
-        # Calculate sword position based on rotation angle
-        sword_x = player_center_x + math.cos(rotation_angle) * self.sword_length
-        sword_y = player_center_y + math.sin(rotation_angle) * self.sword_length
-        
-        # Create a rectangle for the sword
-        # We'll use a small square at the tip of the sword for collision detection
-        sword_size = 10
-        sword_rect = pygame.Rect(
-            sword_x - sword_size / 2,
-            sword_y - sword_size / 2,
-            sword_size,
-            sword_size
-        )
-        
-        return sword_rect
-    
     def spawn_enemy_blood(self, enemy):
         """Spawn blood particles from an enemy when hit with improved positioning"""
         from entities.blood_particle import BloodParticle  # Import here to avoid circular imports
@@ -833,8 +831,9 @@ class Player:
             
         sword_rect = self.get_sword_rect()
         if sword_rect:
-            pygame.draw.rect(surface, (255, 0, 0), sword_rect, 2)  # Red rectangle, 2px width
-    
+            # Draw the hitbox
+            pygame.draw.rect(surface, (255, 0, 0), sword_rect, 2)
+
     def draw_sword(self, surface):
         """Draw sword with a 90-degree swing centered on player's facing direction"""
         if not self.swinging:
