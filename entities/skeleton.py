@@ -11,7 +11,7 @@ class Skeleton(Enemy):
         super().__init__(x, y, width, height, speed=1)
         
         # Skeleton-specific properties
-        self.health = 15
+        self.health = 10
         self.defense = 1  # Skeletons have some defense
         
         # Load skeleton sprites
