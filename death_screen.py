@@ -46,23 +46,21 @@ class DeathScreen:
                 
         return False
     
-    def draw(self, screen, player_rect=None):
+    def draw(self, screen, player=None):
         """Draw the death screen overlay and options"""
         if not self.active:
             return
         
-        # Create a copy of the screen before adding the overlay
+        # Create a copy of the screen for reference
         screen_copy = screen.copy()
         
         # Draw darkened overlay
         screen.blit(self.overlay, (0, 0))
         
-        # If player_rect is provided, draw the player from the original screen
-        if player_rect:
-            # Extract player sprite from original screen
-            player_sprite = screen_copy.subsurface(player_rect)
-            # Draw the player sprite back on top of the darkened overlay
-            screen.blit(player_sprite, player_rect)
+        # If player is provided, draw just the player sprite
+        if player:
+            # Get the player to draw itself on the darkened screen
+            player.draw(screen)
         
         # Center coordinates
         center_x = SCREEN_WIDTH // 2

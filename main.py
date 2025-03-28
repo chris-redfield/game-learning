@@ -364,7 +364,7 @@ while running:
 
         # Draw death screen on top of everything if active
         if death_screen.is_active():
-            death_screen.draw(screen, player.get_rect())
+            death_screen.draw(screen, player)
     
     # Update display
     pygame.display.flip()
