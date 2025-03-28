@@ -16,7 +16,7 @@ class Player:
         self.dex = 1  # Dexterity
         self.int = 1  # Intelligence
 
-        self.max_health = 10 + (self.con * 2)  # Base health + CON bonus
+        self.max_health = 3 + (self.con * 2)  # Base health + CON bonus
         self.current_health = self.max_health
         self.max_mana = 1 + self.int  # Base mana + INT bonus
         self.current_mana = self.max_mana
