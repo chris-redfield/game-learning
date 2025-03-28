@@ -22,6 +22,11 @@ class Player:
         self.current_mana = self.max_mana
         self.stat_points = 0  # Available points to spend
 
+        # XP system
+        self.xp = 0
+        self.xp_needed = 10  # XP needed for first level up
+        self.xp_particles = []
+
         # Direction states
         self.facing = 'down'  # 'up', 'down', 'left', 'right'
         self.moving = False
@@ -79,6 +84,12 @@ class Player:
         # Format: {(block_x, block_y): [(x, y, size, color, life), ...]}
         self.stuck_particles = {}
         self.current_block = (0, 0)  # Start at origin block
+        
+        # Hit enemies tracking (for sword collisions)
+        self.hit_enemies = set()
+        
+        # Debug flag for sword collision visualization
+        self.debug_sword_rect = False
 
         # Load spritesheet
         try:
@@ -204,6 +215,87 @@ class Player:
         else:
             print(f"Already at max level ({self.max_level})! No more levels available.")
             return False
+    
+    def gain_xp(self, amount):
+        """Add XP to the player and check for level up"""
+        # Initialize XP system if not already
+        if not hasattr(self, 'xp'):
+            self.xp = 0
+            self.xp_needed = 10  # XP needed for first level up
+            
+        self.xp += amount
+        
+        # Create XP particles for visual feedback
+        self.create_xp_particles(amount)
+        
+        # Check for level up
+        if self.xp >= self.xp_needed and self.level < self.max_level:
+            self.level_up()
+            
+            # Increase XP requirement for next level (50% more each time)
+            self.xp_needed = int(self.xp_needed * 1.5)
+            
+            # Display message
+            print(f"LEVEL UP! Now level {self.level}. Next level at {self.xp_needed} XP")
+            return True
+        
+        return False
+    
+    def create_xp_particles(self, amount):
+        """Create particles when XP is gained"""
+        # Initialize XP particles list if needed
+        if not hasattr(self, 'xp_particles'):
+            self.xp_particles = []
+        
+        # Create 5-10 particles per XP point (capped for performance)
+        particle_count = min(20, amount * 5)
+        
+        # Player center coordinates
+        center_x = self.x + self.width / 2
+        center_y = self.y + self.height / 2
+        
+        for _ in range(particle_count):
+            # Random position around player
+            angle = random.uniform(0, 2 * math.pi)
+            distance = random.uniform(10, 30)
+            
+            pos_x = center_x + math.cos(angle) * distance
+            pos_y = center_y + math.sin(angle) * distance
+            
+            # Random size
+            size = random.randint(2, 4)
+            
+            # Golden color for XP particles
+            self.xp_particles.append({
+                'x': pos_x,
+                'y': pos_y,
+                'size': size,
+                'color': (255, 215, 0),  # Gold color
+                'life': random.randint(10, 20)
+            })
+    
+    def update_xp_particles(self):
+        """Update XP particles"""
+        # Skip if no XP particles
+        if not hasattr(self, 'xp_particles'):
+            return
+            
+        for particle in self.xp_particles[:]:
+            # Decrease life
+            particle['life'] -= 1
+            
+            # Remove dead particles
+            if particle['life'] <= 0:
+                self.xp_particles.remove(particle)
+    
+    def add_xp_particles(self, particles):
+        """Add external particles to the player's XP particles"""
+        # Initialize XP particles list if needed
+        if not hasattr(self, 'xp_particles'):
+            self.xp_particles = []
+            
+        # Add the particles
+        self.xp_particles.extend(particles)
             
     def get_attack_power(self):
         """Calculate attack power based on strength"""
@@ -344,6 +436,9 @@ class Player:
             if self.swing_animation_counter >= self.swing_frames_total:
                 self.swinging = False
                 self.swing_animation_counter = 0
+                # Clear the hit enemies set when swing is complete
+                if hasattr(self, 'hit_enemies'):
+                    self.hit_enemies.clear()
             
             self.swing_frame = int(self.swing_animation_counter)
 
@@ -441,7 +536,7 @@ class Player:
             
             # Update blood particles
             if self.blood_particles and obstacles:
-            # Update each particle
+                # Update each particle
                 for particle in self.blood_particles[:]:
                     particle.update(obstacles)
                     
@@ -465,6 +560,9 @@ class Player:
                             particle.color,
                             particle.current_life
                         ))
+            
+            # Update XP particles
+            self.update_xp_particles()
             
             # Store current time for next update
             self.last_update_time = current_time
@@ -564,190 +662,16 @@ class Player:
             self.swinging = True
             self.swing_animation_counter = 0
             self.swing_frame = 0
+            # Clear the hit enemies set when starting a new swing
+            if hasattr(self, 'hit_enemies'):
+                self.hit_enemies.clear()
+            else:
+                self.hit_enemies = set()
             
     def is_swinging(self):
         """Check if player is currently swinging the sword"""
         return self.swinging
     
-    def draw_sword(self, surface):
-        """Draw sword with a 90-degree swing centered on player's facing direction"""
-        if not self.swinging:
-            return
-            
-        # Player center point (handle position)
-        player_center_x = self.x + self.width / 2
-        player_center_y = self.y + self.height / 2
-        
-        # Apply offset for upward-facing position
-        if self.facing == 'up':
-            player_center_y -= 9  # Move sword handle up by 9px
-
-        # Base angles for each direction
-        base_angles = {
-            'right': 0,
-            'left': math.pi,
-            'up': -math.pi/2,
-            'down': math.pi/2
-        }
-        
-        # Get base angle from player's facing direction
-        base_angle = base_angles[self.facing]
-        
-        # Calculate swing angle: swing 90 degrees (-45° to +45° from center direction)
-        # Maps swing_animation_counter from 0 to 1 to an angle from -45° to +45°
-        angle_offset = (self.swing_animation_counter / self.swing_frames_total) * math.pi/2 - math.pi/4
-        
-        # Calculate final rotation angle
-        rotation_angle = base_angle + angle_offset
-        
-        # Default sword length (distance from handle to tip)
-        # This value is now controlled by the level system
-        sword_length = self.sword_length
-        
-        # Calculate sword position based on rotation angle
-        sword_x = player_center_x + math.cos(rotation_angle) * sword_length
-        sword_y = player_center_y + math.sin(rotation_angle) * sword_length
-        
-        # Calculate display rotation angle in degrees for pygame
-        display_angle = -math.degrees(rotation_angle) - 90  # -90 to adjust for sword sprite orientation
-        
-        # Rotate sword sprite
-        rotated_sword = pygame.transform.rotate(self.sword_sprite, display_angle)
-        
-        # Get the new rect for the rotated sword to properly position it
-        sword_rect = rotated_sword.get_rect()
-        
-        # Set the sword position so that the handle (not the center) is at the rotation point
-        # We need to offset from the calculated position to account for handle placement
-        handle_offset_x = sword_rect.width * 0.5  # Adjust based on where the handle is in your sprite
-        handle_offset_y = sword_rect.height * 0.2  # Assume handle is at 20% of the sprite height
-        
-        # Calculate the offset position for the sprite
-        offset_x = sword_x - handle_offset_x
-        offset_y = sword_y - handle_offset_y
-        
-        # Draw the sword
-        surface.blit(rotated_sword, (offset_x, offset_y))
-    
-    def draw(self, surface):
-        """Draw the player with appropriate animation frame"""
-        # Don't draw player if not visible (flashing during invulnerability)
-        if not self.visible:
-            # Still draw the sword if swinging, even when player is flashing
-            if self.swinging:
-                self.draw_sword(surface)
-            
-            # Draw active blood particles (not stuck ones)
-            self.draw_active_blood(surface)
-            return
-        
-        # If in debug mode and a debug sprite is loaded, draw that instead
-        if hasattr(self, 'debug_sprite'):
-            surface.blit(self.debug_sprite, (self.x, self.y))
-            self.draw_active_blood(surface)
-            return
-        
-        # For left-facing, use the right sprites but flip them horizontally
-        if self.facing == 'left':
-            if self.moving:
-                # Get right sprite and flip it
-                right_sprite = self.sprites['right_walk'][self.frame]
-                sprite = pygame.transform.flip(right_sprite, True, False)  # Flip horizontally
-            else:
-                # Get right idle sprite and flip it
-                right_sprite = self.sprites['right_idle'][0]
-                sprite = pygame.transform.flip(right_sprite, True, False)  # Flip horizontally
-        else:
-            # Normal sprite handling for other directions
-            if self.moving:
-                sprite = self.sprites[f'{self.facing}_walk'][self.frame]
-            else:
-                sprite = self.sprites[f'{self.facing}_idle'][0]
-        
-        # Draw the player character (we no longer tint it red)
-        surface.blit(sprite, (self.x, self.y))
-        
-        # Draw sword if player is swinging
-        self.draw_sword(surface)
-        
-        # Draw active blood particles
-        self.draw_active_blood(surface)
-
-    def draw_active_blood(self, surface):
-        """Draw only the active (flying) blood particles"""
-        # Draw active particles
-        for particle in self.blood_particles:
-            particle.draw(surface)
-
-    def draw_stuck_blood(self, surface):
-        """Draw only the stuck blood particles (should be called before drawing entities)"""
-        # Draw stuck particles for the current block only
-        if self.current_block in self.stuck_particles:
-            for x, y, size, color, life in self.stuck_particles[self.current_block]:
-                # Skip if outside screen (optimization)
-                if x < -size or x > pygame.display.get_surface().get_width() + size or \
-                y < -size or y > pygame.display.get_surface().get_height() + size:
-                    continue
-                
-                # Calculate opacity based on life
-                opacity = min(255, life * 10)  # Fade out based on life
-                
-                # Create a surface with alpha for the particle
-                particle_surface = pygame.Surface((size, size), pygame.SRCALPHA)
-                
-                # Set the color with opacity
-                color_with_alpha = (*color, opacity)
-                pygame.draw.circle(particle_surface, color_with_alpha, 
-                                (size//2, size//2), size//2)
-                
-                # Draw the particle
-                surface.blit(particle_surface, (x - size//2, y - size//2))
-
-    def render_level_info(self, surface, font, x, y):
-        """Display player level information on screen"""
-        level_text = font.render(f"Level: {self.level}/{self.max_level}", True, (255, 255, 255))
-        surface.blit(level_text, (x, y))
-        
-        # Display ability info
-        abilities_y = y + 25
-        
-        # Level 2: Dash
-        if self.level >= 2:
-            if self.dashing:
-                dash_status = "ACTIVE"
-                color = (0, 255, 0)  # Green when active
-            elif self.dash_timer == 0:
-                dash_status = "Ready"
-                color = (255, 255, 255)  # White when ready
-            else:
-                dash_status = "Cooling Down"
-                color = (255, 165, 0)  # Orange when on cooldown
-                
-            dash_text = font.render(f"Dash: {dash_status}", True, color)
-            surface.blit(dash_text, (x, abilities_y))
-            abilities_y += 25
-        
-        # Level 3: Extended Sword    
-        if self.level >= 3:
-            sword_text = font.render(f"Extended Sword: Active", True, (255, 255, 255))
-            surface.blit(sword_text, (x, abilities_y))
-            abilities_y += 25
-            
-        # Level 4: Blink
-        if self.level >= 4:
-            blink_status = "Ready" if self.blink_timer == 0 else "Cooling Down"
-            blink_color = (255, 255, 255) if self.blink_timer == 0 else (255, 165, 0)
-            blink_text = font.render(f"Blink: {blink_status}", True, blink_color)
-            surface.blit(blink_text, (x, abilities_y))
-
-    def set_current_block(self, block_x, block_y):
-        """Update the player's current block coordinates"""
-        self.current_block = (block_x, block_y)
-        
-        # Initialize empty list for this block if it doesn't exist
-        if self.current_block not in self.stuck_particles:
-            self.stuck_particles[self.current_block] = []
-
     def check_sword_collisions(self, obstacles):
         """Check if the sword is colliding with any enemies and apply damage"""
         if not self.swinging:
@@ -758,12 +682,26 @@ class Player:
         if not sword_rect:  # If sword_rect is None or empty
             return False
             
+        # Initialize hit tracking if needed
+        if not hasattr(self, 'hit_enemies'):
+            self.hit_enemies = set()
+        
+        # When a new swing starts, clear the list of hit enemies
+        if self.swing_frame == 0:
+            self.hit_enemies.clear()
+            
         hit_something = False
         
         # Check collisions with enemies
         from entities.enemy import Enemy  # Import here to avoid circular imports
         for obstacle in obstacles:
-            if isinstance(obstacle, Enemy) and sword_rect.colliderect(obstacle.get_rect()):
+            # Skip if not an enemy, already hit this swing, or enemy is dying
+            if (not isinstance(obstacle, Enemy) or 
+                obstacle in self.hit_enemies or
+                obstacle.state == "dying"):
+                continue
+                
+            if sword_rect.colliderect(obstacle.get_rect()):
                 # Calculate attack damage based on player's strength
                 damage = self.get_attack_power()
                 
@@ -773,10 +711,13 @@ class Player:
                 # Add blood effects
                 self.spawn_enemy_blood(obstacle)
                 
+                # Mark this enemy as hit during this swing
+                self.hit_enemies.add(obstacle)
+                
                 hit_something = True
                 
         return hit_something
-
+    
     def get_sword_rect(self):
         """Get the collision rectangle for the sword in its current position"""
         if not self.swinging:
@@ -822,17 +763,7 @@ class Player:
         )
         
         return sword_rect
-
-    def draw_sword_rect(self, surface):
-        """Draw the sword collision rectangle for debugging"""
-        if not self.swinging:
-            return
-            
-        sword_rect = self.get_sword_rect()
-        if sword_rect:
-            pygame.draw.rect(surface, (255, 0, 0), sword_rect, 2)  # Red rectangle, 2px width
-
-            
+    
     def spawn_enemy_blood(self, enemy):
         """Spawn blood particles from an enemy when hit with improved positioning"""
         from entities.blood_particle import BloodParticle  # Import here to avoid circular imports
@@ -894,3 +825,226 @@ class Player:
             enemy.blood_particles.append(particle)
         
         print(f"Created {particle_count} blood particles for enemy at impact point ({impact_x:.1f}, {impact_y:.1f})")
+    
+    def draw_sword_rect(self, surface):
+        """Draw the sword collision rectangle for debugging"""
+        if not self.swinging:
+            return
+            
+        sword_rect = self.get_sword_rect()
+        if sword_rect:
+            pygame.draw.rect(surface, (255, 0, 0), sword_rect, 2)  # Red rectangle, 2px width
+    
+    def draw_sword(self, surface):
+        """Draw sword with a 90-degree swing centered on player's facing direction"""
+        if not self.swinging:
+            return
+            
+        # Player center point (handle position)
+        player_center_x = self.x + self.width / 2
+        player_center_y = self.y + self.height / 2
+        
+        # Apply offset for upward-facing position
+        if self.facing == 'up':
+            player_center_y -= 9  # Move sword handle up by 9px
+
+        # Base angles for each direction
+        base_angles = {
+            'right': 0,
+            'left': math.pi,
+            'up': -math.pi/2,
+            'down': math.pi/2
+        }
+        
+        # Get base angle from player's facing direction
+        base_angle = base_angles[self.facing]
+        
+        # Calculate swing angle: swing 90 degrees (-45° to +45° from center direction)
+        # Maps swing_animation_counter from 0 to 1 to an angle from -45° to +45°
+        angle_offset = (self.swing_animation_counter / self.swing_frames_total) * math.pi/2 - math.pi/4
+        
+        # Calculate final rotation angle
+        rotation_angle = base_angle + angle_offset
+        
+        # Default sword length (distance from handle to tip)
+        # This value is now controlled by the level system
+        sword_length = self.sword_length
+        
+        # Calculate sword position based on rotation angle
+        sword_x = player_center_x + math.cos(rotation_angle) * sword_length
+        sword_y = player_center_y + math.sin(rotation_angle) * sword_length
+        
+        # Calculate display rotation angle in degrees for pygame
+        display_angle = -math.degrees(rotation_angle) - 90  # -90 to adjust for sword sprite orientation
+        
+        # Rotate sword sprite
+        rotated_sword = pygame.transform.rotate(self.sword_sprite, display_angle)
+        
+        # Get the new rect for the rotated sword to properly position it
+        sword_rect = rotated_sword.get_rect()
+        
+        # Set the sword position so that the handle (not the center) is at the rotation point
+        # We need to offset from the calculated position to account for handle placement
+        handle_offset_x = sword_rect.width * 0.5  # Adjust based on where the handle is in your sprite
+        handle_offset_y = sword_rect.height * 0.2  # Assume handle is at 20% of the sprite height
+        
+        # Calculate the offset position for the sprite
+        offset_x = sword_x - handle_offset_x
+        offset_y = sword_y - handle_offset_y
+        
+        # Draw the sword
+        surface.blit(rotated_sword, (offset_x, offset_y))
+    
+    def draw_xp_particles(self, surface):
+        """Draw XP particles"""
+        # Skip if no XP particles
+        if not hasattr(self, 'xp_particles') or not self.xp_particles:
+            return
+            
+        for particle in self.xp_particles:
+            # Draw gold particle
+            pygame.draw.circle(surface, particle['color'], 
+                            (int(particle['x']), int(particle['y'])), 
+                            particle['size'])
+    
+    def draw(self, surface):
+        """Draw the player with appropriate animation frame"""
+        # Don't draw player if not visible (flashing during invulnerability)
+        if not self.visible:
+            # Still draw the sword if swinging, even when player is flashing
+            if self.swinging:
+                self.draw_sword(surface)
+                
+                # Debug: Draw sword collision rectangle if enabled
+                if hasattr(self, 'debug_sword_rect') and self.debug_sword_rect:
+                    self.draw_sword_rect(surface)
+            
+            # Draw active blood particles (not stuck ones)
+            self.draw_active_blood(surface)
+            
+            # Draw XP particles
+            self.draw_xp_particles(surface)
+            return
+        
+        # If in debug mode and a debug sprite is loaded, draw that instead
+        if hasattr(self, 'debug_sprite'):
+            surface.blit(self.debug_sprite, (self.x, self.y))
+            self.draw_active_blood(surface)
+            self.draw_xp_particles(surface)
+            return
+        
+        # For left-facing, use the right sprites but flip them horizontally
+        if self.facing == 'left':
+            if self.moving:
+                # Get right sprite and flip it
+                right_sprite = self.sprites['right_walk'][self.frame]
+                sprite = pygame.transform.flip(right_sprite, True, False)  # Flip horizontally
+            else:
+                # Get right idle sprite and flip it
+                right_sprite = self.sprites['right_idle'][0]
+                sprite = pygame.transform.flip(right_sprite, True, False)  # Flip horizontally
+        else:
+            # Normal sprite handling for other directions
+            if self.moving:
+                sprite = self.sprites[f'{self.facing}_walk'][self.frame]
+            else:
+                sprite = self.sprites[f'{self.facing}_idle'][0]
+        
+        # Draw the player character
+        surface.blit(sprite, (self.x, self.y))
+        
+        # Draw sword if player is swinging
+        self.draw_sword(surface)
+        
+        # Debug: Draw sword collision rectangle if enabled
+        if hasattr(self, 'debug_sword_rect') and self.debug_sword_rect:
+            self.draw_sword_rect(surface)
+        
+        # Draw active blood particles
+        self.draw_active_blood(surface)
+        
+        # Draw XP particles
+        self.draw_xp_particles(surface)
+
+    def draw_active_blood(self, surface):
+        """Draw only the active (flying) blood particles"""
+        # Draw active particles
+        for particle in self.blood_particles:
+            particle.draw(surface)
+
+    def draw_stuck_blood(self, surface):
+        """Draw only the stuck blood particles (should be called before drawing entities)"""
+        # Draw stuck particles for the current block only
+        if self.current_block in self.stuck_particles:
+            for x, y, size, color, life in self.stuck_particles[self.current_block]:
+                # Skip if outside screen (optimization)
+                if x < -size or x > pygame.display.get_surface().get_width() + size or \
+                y < -size or y > pygame.display.get_surface().get_height() + size:
+                    continue
+                
+                # Calculate opacity based on life
+                opacity = min(255, life * 10)  # Fade out based on life
+                
+                # Create a surface with alpha for the particle
+                particle_surface = pygame.Surface((size, size), pygame.SRCALPHA)
+                
+                # Set the color with opacity
+                color_with_alpha = (*color, opacity)
+                pygame.draw.circle(particle_surface, color_with_alpha, 
+                                (size//2, size//2), size//2)
+                
+                # Draw the particle
+                surface.blit(particle_surface, (x - size//2, y - size//2))
+
+    def render_level_info(self, surface, font, x, y):
+        """Display player level information on screen"""
+        level_text = font.render(f"Level: {self.level}/{self.max_level}", True, (255, 255, 255))
+        surface.blit(level_text, (x, y))
+        
+        # Display XP info if XP system is initialized
+        if hasattr(self, 'xp'):
+            xp_text = font.render(f"XP: {self.xp}/{self.xp_needed}", True, (255, 215, 0))  # Gold text
+            surface.blit(xp_text, (x, y + 20))
+            # Adjust the starting position for abilities
+            abilities_y = y + 45
+        else:
+            # Without XP display, abilities start at normal position
+            abilities_y = y + 25
+        
+        # Display ability info
+        # Level 2: Dash
+        if self.level >= 2:
+            if self.dashing:
+                dash_status = "ACTIVE"
+                color = (0, 255, 0)  # Green when active
+            elif self.dash_timer == 0:
+                dash_status = "Ready"
+                color = (255, 255, 255)  # White when ready
+            else:
+                dash_status = "Cooling Down"
+                color = (255, 165, 0)  # Orange when on cooldown
+                
+            dash_text = font.render(f"Dash: {dash_status}", True, color)
+            surface.blit(dash_text, (x, abilities_y))
+            abilities_y += 25
+        
+        # Level 3: Extended Sword    
+        if self.level >= 3:
+            sword_text = font.render(f"Extended Sword: Active", True, (255, 255, 255))
+            surface.blit(sword_text, (x, abilities_y))
+            abilities_y += 25
+            
+        # Level 4: Blink
+        if self.level >= 4:
+            blink_status = "Ready" if self.blink_timer == 0 else "Cooling Down"
+            blink_color = (255, 255, 255) if self.blink_timer == 0 else (255, 165, 0)
+            blink_text = font.render(f"Blink: {blink_status}", True, blink_color)
+            surface.blit(blink_text, (x, abilities_y))
+
+    def set_current_block(self, block_x, block_y):
+        """Update the player's current block coordinates"""
+        self.current_block = (block_x, block_y)
+        
+        # Initialize empty list for this block if it doesn't exist
+        if self.current_block not in self.stuck_particles:
+            self.stuck_particles[self.current_block] = []

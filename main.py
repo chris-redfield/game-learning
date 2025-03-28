@@ -91,14 +91,6 @@ while running:
                 if not game_map.is_visible():
                     character_screen_visible = character_screen.toggle()
                     print(f"DEBUG: Character screen toggled - visible: {character_screen_visible}")
-            # Toggle sword collision debug view when 'D' key is pressed
-            elif event.key == pygame.K_d:
-                # Toggle debug mode for sword collision rect
-                if hasattr(player, 'debug_sword_rect'):
-                    player.debug_sword_rect = not player.debug_sword_rect
-                else:
-                    player.debug_sword_rect = True
-                print(f"DEBUG: Sword collision visualization {'enabled' if player.debug_sword_rect else 'disabled'}")
         
         # Handle character screen events
         if character_screen.is_visible():
@@ -149,11 +141,32 @@ while running:
             obstacles = game_world.get_current_entities()
             player.blink(obstacles, current_time)
         
-        # Debug key for collision boxes
+        # Debug key for collision boxes and all debug visuals
         if keys[pygame.K_c]:
             show_collision_boxes = True
+            # Enable sword hitbox visualization
+            if hasattr(player, 'debug_sword_rect'):
+                player.debug_sword_rect = True
+            else:
+                player.debug_sword_rect = True
+            
+            # Enable soul attraction radius visualization
+            for entity in game_world.get_current_entities():
+                if hasattr(entity, 'collect'):  # Identify souls
+                    if hasattr(entity, 'debug_show_radius'):
+                        entity.debug_show_radius = True
+                    else:
+                        entity.debug_show_radius = True
         else:
             show_collision_boxes = False
+            # Disable sword hitbox visualization
+            if hasattr(player, 'debug_sword_rect'):
+                player.debug_sword_rect = False
+                
+            # Disable soul attraction radius visualization
+            for entity in game_world.get_current_entities():
+                if hasattr(entity, 'collect') and hasattr(entity, 'debug_show_radius'):
+                    entity.debug_show_radius = False
         
         # Get current entities from world
         current_entities = game_world.get_current_entities()
@@ -172,6 +185,52 @@ while running:
         for entity in current_entities:
             if isinstance(entity, Enemy):
                 entity.update(player, current_entities)
+
+        # Check for enemies that need to be removed and handle soul drops
+        entities_to_remove = []
+        souls_to_add = []
+
+        for entity in current_entities:
+            if isinstance(entity, Enemy) and hasattr(entity, 'should_remove') and entity.should_remove:
+                entities_to_remove.append(entity)
+                
+                # Check if this enemy should drop a soul
+                if hasattr(entity, 'will_drop_soul') and entity.will_drop_soul:
+                    # Get the soul from the enemy and add it to the souls to add list
+                    soul = entity.drop_soul()
+                    if soul:
+                        souls_to_add.append(soul)
+                        print(f"Soul dropped at ({soul.x}, {soul.y})")
+
+        # Remove dead enemies from current block
+        for entity in entities_to_remove:
+            current_block = game_world.get_current_block()
+            if current_block:
+                current_block.remove_entity(entity)
+                print(f"Removed dead {entity.__class__.__name__} from the world")
+
+        # Add souls to the current block
+        for soul in souls_to_add:
+            current_block = game_world.get_current_block()
+            if current_block:
+                current_block.add_entity(soul)
+                print(f"Added soul to the world at ({soul.x}, {soul.y})")
+
+        # Update souls and check for collection
+        souls_to_remove = []
+        for entity in current_entities:
+            if hasattr(entity, 'collect'):  # Identify souls by their collect method
+                # Update the soul and check if it was collected
+                if entity.update(player):
+                    # If collected, add to souls to remove list
+                    souls_to_remove.append(entity)
+
+        # Remove collected souls
+        for entity in souls_to_remove:
+            current_block = game_world.get_current_block()
+            if current_block:
+                current_block.remove_entity(entity)
+                print(f"Removed collected soul from the world")
 
         # Always update player with obstacles to prevent knockback collisions
         player.update(current_time, current_entities)
@@ -234,7 +293,7 @@ while running:
         screen.blit(block_text, (SCREEN_WIDTH - 150, 10))
         
         # Display control info
-        controls_y = SCREEN_HEIGHT - 150  # Increased to fit new control
+        controls_y = SCREEN_HEIGHT - 150  # Adjusted for removed control
         controls_text = [
             "Controls:",
             "WASD or Arrow Keys: Move",
@@ -243,7 +302,6 @@ while running:
             "B: Blink (Level 4+)",
             "+: Level Up",
             "C: Show Collision Boxes",
-            "D: Show Sword Collision",
             "M: Toggle Map",
             "ENTER: Character Screen"
         ]
