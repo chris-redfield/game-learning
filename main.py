@@ -9,6 +9,7 @@ from entities.enemy import Enemy
 
 from character_screen import CharacterScreen
 from death_screen import DeathScreen
+from hud import HUD  # Import our new HUD module
 
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GREEN, DESERT
 import os
@@ -34,6 +35,7 @@ game_world = None
 initial_block = None
 game_map = None
 character_screen = None
+game_hud = None  # Added HUD variable
 
 # Create death screen (only created once)
 death_screen = DeathScreen()
@@ -54,7 +56,7 @@ transition_in_progress = False
 
 def initialize_game():
     """Initialize or reinitialize all game objects"""
-    global player, game_world, initial_block, game_map, character_screen
+    global player, game_world, initial_block, game_map, character_screen, game_hud
     
     # Create player at the center of the screen
     player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
@@ -70,6 +72,9 @@ def initialize_game():
     
     # Create character screen
     character_screen = CharacterScreen(player)
+    
+    # Create HUD
+    game_hud = HUD(player)
 
 def restart_game():
     """Restart the game by reinitializing everything"""
@@ -324,43 +329,8 @@ while running:
         
         # Only show game UI if death screen is not active
         if not death_screen.is_active():
-            # Display world info
-            block_info = game_world.get_block_description()
-            block_text = font.render(f"Current: {block_info}", True, (255, 255, 255))
-            screen.blit(block_text, (SCREEN_WIDTH - 150, 10))
-            
-            # Display control info
-            controls_y = SCREEN_HEIGHT - 150  # Adjusted for removed control
-            controls_text = [
-                "Controls:",
-                "WASD or Arrow Keys: Move",
-                "SPACE: Swing Sword",
-                "SHIFT: Dash (Level 2+)",
-                "B: Blink (Level 4+)",
-                "+: Level Up",
-                "C: Show Collision Boxes",
-                "M: Toggle Map",
-                "ENTER: Character Screen"
-            ]
-            
-            for i, text in enumerate(controls_text):
-                text_surface = font.render(text, True, (255, 255, 255))
-                screen.blit(text_surface, (10, controls_y + i * 15))
-            
-            # Display player level info
-            player.render_level_info(screen, font, 10, 10)
-            
-            # Draw transition effect if in progress
-            if transition_in_progress:
-                fade_surface.set_alpha(fade_alpha)
-                screen.blit(fade_surface, (0, 0))
-                
-                # Show transition text during fade
-                if fade_alpha > 50:
-                    if transition_direction:
-                        direction_text = font.render(f"Moving {transition_direction.upper()}", True, (255, 255, 255))
-                        text_rect = direction_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-                        screen.blit(direction_text, text_rect)
+            # Draw all HUD elements
+            game_hud.draw(screen, game_world, fade_surface, fade_alpha, transition_direction, transition_in_progress)
 
         # Draw death screen on top of everything if active
         if death_screen.is_active():
