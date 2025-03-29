@@ -165,7 +165,7 @@ class Player:
             self.con += 1
             # Constitution increases health
             old_max_health = self.max_health
-            self.max_health = 10 + (self.con * 2)
+            self.max_health = 3 + (self.con * 2)
             # Increase current health by the difference
             self.current_health += (self.max_health - old_max_health)
             self.stat_points -= 1
