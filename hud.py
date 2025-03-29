@@ -44,10 +44,10 @@ class HUD:
         pygame.draw.rect(surface, (30, 30, 40), (icon_x + 2, icon_y + 2, icon_size - 4, icon_size - 4))
         
         # Calculate health bar width - scales linearly with max health
-        health_width = min(max_bar_width, self.health_base_width + (self.player.max_health - 5) * self.health_scaling)
+        health_width = min(max_bar_width, self.health_base_width + (self.player.attributes.max_health - 5) * self.health_scaling)
         
         # Calculate mana bar width - scales linearly with max mana, independent of health
-        mana_width = min(max_bar_width, self.mana_base_width + (self.player.max_mana - 1) * self.mana_scaling)
+        mana_width = min(max_bar_width, self.mana_base_width + (self.player.attributes.max_mana - 1) * self.mana_scaling)
         
         # Bar positions
         health_x = icon_x + icon_size + 10
@@ -56,10 +56,10 @@ class HUD:
         mana_y = health_y + bar_height + bar_spacing
         
         # Calculate fill percentages
-        health_percent = self.player.current_health / self.player.max_health
+        health_percent = self.player.attributes.current_health / self.player.attributes.max_health
         health_fill_width = int(health_width * health_percent)
         
-        mana_percent = self.player.current_mana / self.player.max_mana
+        mana_percent = self.player.attributes.current_mana / self.player.attributes.max_mana
         mana_fill_width = int(mana_width * mana_percent)
         
         # Draw health bar
@@ -73,19 +73,17 @@ class HUD:
         pygame.draw.rect(surface, self.colors['mana'], (mana_x, mana_y, mana_fill_width, bar_height))
         
         # Display XP text underneath the icon - with fixed alignment
-        if hasattr(self.player, 'xp') and hasattr(self.player, 'xp_needed'):
-            # Fixed position for the XP text - starting at the left edge of the icon
-            text_x = icon_x
-            text_y = icon_y + icon_size + 5  # 5px padding below the icon
-            
-            xp_text = self.font.render(f"XP: {int(self.player.xp)}/{int(self.player.xp_needed)}", True, self.colors['xp'])
-            surface.blit(xp_text, (text_x, text_y))
+        # Now we access XP through the attributes component
+        xp_text = self.font.render(f"XP: {int(self.player.attributes.xp)}/{int(self.player.attributes.xp_needed)}", True, self.colors['xp'])
+        text_x = icon_x
+        text_y = icon_y + icon_size + 5  # 5px padding below the icon
+        surface.blit(xp_text, (text_x, text_y))
         
         # Display values on bars
-        health_text = self.font.render(f"{self.player.current_health}/{self.player.max_health}", True, self.colors['text'])
+        health_text = self.font.render(f"{self.player.attributes.current_health}/{self.player.attributes.max_health}", True, self.colors['text'])
         surface.blit(health_text, (health_x + 5, health_y))
         
-        mana_text = self.font.render(f"{self.player.current_mana}/{self.player.max_mana}", True, self.colors['text'])
+        mana_text = self.font.render(f"{self.player.attributes.current_mana}/{self.player.attributes.max_mana}", True, self.colors['text'])
         surface.blit(mana_text, (mana_x + 5, mana_y))
 
     def render_ability_info(self, surface):
@@ -96,11 +94,11 @@ class HUD:
         
         # Display ability info
         # Level 2: Dash
-        if self.player.level >= 2:
-            if self.player.dashing:
+        if self.player.attributes.level >= 2:
+            if self.player.attributes.dashing:
                 dash_status = "ACTIVE"
                 color = (0, 255, 0)  # Green when active
-            elif self.player.dash_timer == 0:
+            elif self.player.attributes.dash_timer == 0:
                 dash_status = "Ready"
                 color = (255, 255, 255)  # White when ready
             else:
@@ -112,15 +110,15 @@ class HUD:
             y += 25
         
         # Level 3: Extended Sword    
-        if self.player.level >= 3:
+        if self.player.attributes.level >= 3:
             sword_text = self.font.render(f"Extended Sword: Active", True, self.colors['text'])
             surface.blit(sword_text, (x, y))
             y += 25
             
         # Level 4: Blink
-        if self.player.level >= 4:
-            blink_status = "Ready" if self.player.blink_timer == 0 else "Cooling Down"
-            blink_color = self.colors['text'] if self.player.blink_timer == 0 else (255, 165, 0)
+        if self.player.attributes.level >= 4:
+            blink_status = "Ready" if self.player.attributes.blink_timer == 0 else "Cooling Down"
+            blink_color = self.colors['text'] if self.player.attributes.blink_timer == 0 else (255, 165, 0)
             blink_text = self.font.render(f"Blink: {blink_status}", True, blink_color)
             surface.blit(blink_text, (x, y))
 

@@ -130,7 +130,7 @@ class CharacterScreen:
             for button_id, button in self.buttons.items():
                 if button['rect'].collidepoint(mouse_pos):
                     # Only allow clicking if player has stat points
-                    if self.player.stat_points > 0:
+                    if self.player.attributes.stat_points > 0:
                         result = button['action']()
                         return True
             
@@ -167,19 +167,19 @@ class CharacterScreen:
         surface.blit(self.portrait, (portrait_x, portrait_y))
         
         # Draw level info under portrait
-        level_text = self.stat_font.render(f"Level: {self.player.level}", True, self.colors['stat_text'])
+        level_text = self.stat_font.render(f"Level: {self.player.attributes.level}", True, self.colors['stat_text'])
         surface.blit(level_text, (portrait_x, portrait_y + self.portrait.get_height() + 20))
         
         # Draw stat points
-        stat_points_text = self.stat_font.render(f"Stat Points: {self.player.stat_points}", True, self.colors['title'])
+        stat_points_text = self.stat_font.render(f"Stat Points: {self.player.attributes.stat_points}", True, self.colors['title'])
         surface.blit(stat_points_text, (portrait_x, portrait_y + self.portrait.get_height() + 50))
         
         # Draw attribute values under portrait
         attributes_text = [
-            f"STR: {self.player.str}",
-            f"CON: {self.player.con}",
-            f"DEX: {self.player.dex}",
-            f"INT: {self.player.int}"
+            f"STR: {self.player.attributes.str}",
+            f"CON: {self.player.attributes.con}",
+            f"DEX: {self.player.attributes.dex}",
+            f"INT: {self.player.attributes.int}"
         ]
         
         for i, text in enumerate(attributes_text):
@@ -216,7 +216,7 @@ class CharacterScreen:
             button = self.buttons[button_id]
             
             button_color = self.colors['button_disabled']
-            if self.player.stat_points > 0:
+            if self.player.attributes.stat_points > 0:
                 button_color = self.colors['button']
                 # Check hover
                 if button['rect'].collidepoint(pygame.mouse.get_pos()):
@@ -239,26 +239,26 @@ class CharacterScreen:
         bar_height = 20
         
         # Health bar
-        health_percent = self.player.current_health / self.player.max_health
+        health_percent = self.player.attributes.current_health / self.player.attributes.max_health
         health_fill_width = int(bar_width * health_percent)
         
         pygame.draw.rect(surface, (60, 20, 20), (x, y, bar_width, bar_height))
         pygame.draw.rect(surface, self.colors['health'], (x, y, health_fill_width, bar_height))
         pygame.draw.rect(surface, self.colors['border'], (x, y, bar_width, bar_height), 1)
         
-        health_text = self.text_font.render(f"Health: {self.player.current_health}/{self.player.max_health}", 
+        health_text = self.text_font.render(f"Health: {self.player.attributes.current_health}/{self.player.attributes.max_health}", 
                                           True, self.colors['text'])
         surface.blit(health_text, (x + 10, y + 2))
         
         # Mana bar
-        mana_percent = self.player.current_mana / self.player.max_mana
+        mana_percent = self.player.attributes.current_mana / self.player.attributes.max_mana
         mana_fill_width = int(bar_width * mana_percent)
         
         pygame.draw.rect(surface, (20, 20, 60), (x, y + 30, bar_width, bar_height))
         pygame.draw.rect(surface, self.colors['mana'], (x, y + 30, mana_fill_width, bar_height))
         pygame.draw.rect(surface, self.colors['border'], (x, y + 30, bar_width, bar_height), 1)
         
-        mana_text = self.text_font.render(f"Mana: {self.player.current_mana}/{self.player.max_mana}", 
+        mana_text = self.text_font.render(f"Mana: {self.player.attributes.current_mana}/{self.player.attributes.max_mana}", 
                                           True, self.colors['text'])
         surface.blit(mana_text, (x + 10, y + 32))
         
@@ -279,7 +279,7 @@ class CharacterScreen:
             ability_y = y + 40 + i * 60  # Increased spacing between abilities
             
             # Ability name and status
-            if self.player.level >= ability["level"]:
+            if self.player.attributes.level >= ability["level"]:
                 status_color = self.colors['stat_text']  # Green for unlocked
                 status_text = "UNLOCKED"
             else:
@@ -293,6 +293,6 @@ class CharacterScreen:
             surface.blit(status_text, (x + 200, ability_y))
             
             # Description on next line (now with proper spacing)
-            if self.player.level >= ability["level"]:
+            if self.player.attributes.level >= ability["level"]:
                 desc_text = self.text_font.render(ability["desc"], True, (180, 180, 180))
                 surface.blit(desc_text, (x + 20, ability_y + 25))

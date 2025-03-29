@@ -1,7 +1,7 @@
 import pygame
 import sys
 
-from entities.player import Player
+from entities.player.player import Player
 
 from world import World
 from map import Map
@@ -113,7 +113,7 @@ while running:
                 player.start_swing()
             # Level up when '+' key is pressed
             elif event.key == pygame.K_PLUS or event.key == pygame.K_KP_PLUS or event.key == pygame.K_EQUALS:
-                player.level_up()
+                player.gain_xp(10)  # Use gain_xp instead of level_up directly
             # Toggle map when 'M' key is pressed
             elif event.key == pygame.K_m:
                 # Only toggle map if character screen is not visible and death screen is not active
@@ -167,11 +167,11 @@ while running:
             dy = player.speed
         
         # Handle dash ability (Level 2)
-        if (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) and player.level >= 2:
+        if (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) and player.attributes.level >= 2:
             player.dash(current_time)
             
         # Handle blink ability (Level 4)
-        if keys[pygame.K_b] and player.level >= 4:
+        if keys[pygame.K_b] and player.attributes.level >= 4:
             # Get current obstacles
             obstacles = game_world.get_current_entities()
             player.blink(obstacles, current_time)
@@ -283,7 +283,7 @@ while running:
                 print(f"DEBUG: Block transition triggered! Moving {direction}")
     
     # Check if player is dead
-    if player.current_health <= 0 and not death_screen.is_active():
+    if player.attributes.current_health <= 0 and not death_screen.is_active():
         death_screen.activate()
         print("Player died! Death screen activated.")
     
@@ -309,7 +309,7 @@ while running:
         screen.fill(GREEN)  # Green background for grass
         
         # First draw stuck blood particles in the background
-        player.draw_stuck_blood(screen)
+        player.particles.draw_stuck_blood(screen)
         
         # Then draw entities in current block
         for entity in game_world.get_current_entities():
