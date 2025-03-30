@@ -26,6 +26,26 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Dynamic World Game")
 clock = pygame.time.Clock()
 
+# Initialize joysticks
+pygame.joystick.init()
+joysticks = []
+
+# Initialize any connected controllers
+def initialize_controllers():
+    global joysticks
+    joysticks = []
+    
+    # Get count of joysticks
+    joystick_count = pygame.joystick.get_count()
+    
+    # Initialize each joystick
+    for i in range(joystick_count):
+        joystick = pygame.joystick.Joystick(i)
+        joystick.init()
+        joysticks.append(joystick)
+        print(f"Detected controller: {joystick.get_name()}")
+        print(f"Number of buttons: {joystick.get_numbuttons()}")
+
 # Create font for display
 font = pygame.font.SysFont('Arial', 16)
 
@@ -75,6 +95,9 @@ def initialize_game():
     
     # Create HUD
     game_hud = HUD(player)
+    
+    # Initialize controllers
+    initialize_controllers()
 
 def restart_game():
     """Restart the game by reinitializing everything"""
@@ -127,6 +150,29 @@ while running:
                     character_screen_visible = character_screen.toggle()
                     print(f"DEBUG: Character screen toggled - visible: {character_screen_visible}")
         
+        # Controller button presses
+        elif event.type == pygame.JOYBUTTONDOWN:
+            # Button 2: Attack (like space key)
+            if event.button == 2:
+                player.start_swing()
+            # Button 7: Character screen (like Enter key) 
+            elif event.button == 7:
+                if not game_map.is_visible() and not death_screen.is_active():
+                    character_screen_visible = character_screen.toggle()
+                    print(f"DEBUG: Character screen toggled - visible: {character_screen_visible}")
+            # Button 0: Interact action (not implemented yet)
+            elif event.button == 0:
+                pass  # No action yet
+            # Button 6: Map toggle (like M key)
+            elif event.button == 6:
+                if not character_screen.is_visible() and not death_screen.is_active():
+                    map_visible = game_map.toggle()
+                    print(f"DEBUG: Map toggled - visible: {map_visible}")
+            # Button 1: Blink ability (like B key)
+            elif event.button == 1 and player.attributes.level >= 4:
+                obstacles = game_world.get_current_entities()
+                player.blink(obstacles, current_time)
+        
         # Handle character screen events
         if character_screen.is_visible():
             character_screen.handle_event(event)
@@ -153,24 +199,51 @@ while running:
 
     # Only process input if not transitioning, map is not visible, character screen is not visible, and death screen is not active
     if (not transition_in_progress or not fading_in) and not game_map.is_visible() and not character_screen.is_visible() and not death_screen.is_active():
-        # Handle player movement
-        keys = pygame.key.get_pressed()
+        # Initialize movement variables
         dx, dy = 0, 0
         
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            dx = -player.speed
-        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            dx = player.speed
-        if keys[pygame.K_UP] or keys[pygame.K_w]:
-            dy = -player.speed
-        if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            dy = player.speed
+        # Handle controller input if any connected
+        if joysticks and len(joysticks) > 0:
+            joystick = joysticks[0]  # Use the first controller
+            
+            # Left stick for movement
+            x_axis = joystick.get_axis(0)  # Left/Right
+            y_axis = joystick.get_axis(1)  # Up/Down
+            
+            # Add deadzone to prevent drift
+            deadzone = 0.2
+            
+            if abs(x_axis) > deadzone:
+                dx = x_axis * player.speed
+            
+            if abs(y_axis) > deadzone:
+                dy = y_axis * player.speed
+            
+            # Button 4: Dash ability (like left shift)
+            if joystick.get_button(4) and player.attributes.level >= 2:
+                player.dash(current_time)
         
-        # Handle dash ability (Level 2)
+        # Handle keyboard movement (this still works alongside controller)
+        keys = pygame.key.get_pressed()
+        
+        # Only process keyboard if no controller movement
+        if dx == 0:
+            if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+                dx = -player.speed
+            if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+                dx = player.speed
+        
+        if dy == 0:
+            if keys[pygame.K_UP] or keys[pygame.K_w]:
+                dy = -player.speed
+            if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+                dy = player.speed
+        
+        # Handle dash ability with keyboard (Level 2)
         if (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) and player.attributes.level >= 2:
             player.dash(current_time)
             
-        # Handle blink ability (Level 4)
+        # Handle blink ability with keyboard (Level 4)
         if keys[pygame.K_b] and player.attributes.level >= 4:
             # Get current obstacles
             obstacles = game_world.get_current_entities()

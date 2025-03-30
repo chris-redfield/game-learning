@@ -18,7 +18,8 @@ class CharacterScreen:
             'border': (180, 180, 200),        # Border color
             'health': (220, 50, 50),          # Health bar
             'mana': (50, 50, 220),            # Mana bar
-            'portrait_bg': (30, 30, 40)       # Portrait background
+            'portrait_bg': (30, 30, 40),      # Portrait background
+            'cursor': (255, 255, 0)           # Cursor highlight color
         }
         
         # Fonts
@@ -33,6 +34,10 @@ class CharacterScreen:
         # UI components
         self.buttons = {}
         self.init_buttons()
+        
+        # Controller navigation
+        self.selected_index = 0
+        self.button_order = ['inc_str', 'inc_con', 'inc_dex', 'inc_int']
         
     def load_portrait(self):
         """Load Link portrait from file with fallback to placeholder"""
@@ -112,14 +117,25 @@ class CharacterScreen:
     def toggle(self):
         """Toggle the character screen visibility"""
         self.visible = not self.visible
+        # Reset selection on open
+        if self.visible:
+            self.selected_index = 0
         return self.visible
         
     def is_visible(self):
         """Check if character screen is currently visible"""
         return self.visible
+    
+    def select_next(self):
+        """Move to next button"""
+        self.selected_index = (self.selected_index + 1) % len(self.button_order)
+        
+    def select_prev(self):
+        """Move to previous button"""
+        self.selected_index = (self.selected_index - 1) % len(self.button_order)
         
     def handle_event(self, event):
-        """Handle mouse events for the character screen"""
+        """Handle mouse and controller events for the character screen"""
         if not self.visible:
             return False
             
@@ -133,6 +149,35 @@ class CharacterScreen:
                     if self.player.attributes.stat_points > 0:
                         result = button['action']()
                         return True
+        
+        # Controller button handling
+        elif event.type == pygame.JOYBUTTONDOWN:
+               
+            # Button 0 (A) to activate selected button
+            if event.button == 0:
+                if self.player.attributes.stat_points > 0:
+                    button_id = self.button_order[self.selected_index]
+                    result = self.buttons[button_id]['action']()
+                    return True
+                    
+        # D-pad handling
+        elif event.type == pygame.JOYHATMOTION:
+            hat_value = event.value
+            if hat_value[1] == 1:  # D-pad up
+                self.select_prev()
+                return True
+            elif hat_value[1] == -1:  # D-pad down
+                self.select_next()
+                return True
+            
+        # Keyboard handling for navigation
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_UP:
+                self.select_prev()
+                return True
+            elif event.key == pygame.K_DOWN:
+                self.select_next()
+                return True
             
         return False
         
@@ -157,8 +202,8 @@ class CharacterScreen:
         title = self.title_font.render("CHARACTER SHEET", True, self.colors['title'])
         surface.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, margin + 20))
         
-        # Draw close instructions
-        close_text = self.text_font.render("Press ENTER to close", True, self.colors['text'])
+        # Draw close instructions with controller info
+        close_text = self.text_font.render("Press ENTER or START to close", True, self.colors['text'])
         surface.blit(close_text, (SCREEN_WIDTH - close_text.get_width() - margin - 10, margin + 20))
         
         # Draw portrait section
@@ -222,9 +267,28 @@ class CharacterScreen:
                 if button['rect'].collidepoint(pygame.mouse.get_pos()):
                     button_color = self.colors['button_hover']
             
+            # Check if this is the selected button with controller
+            is_selected = self.button_order[self.selected_index] == button_id
+            
+            # Draw button with potentially highlighted background
             pygame.draw.rect(surface, button_color, button['rect'])
+            
+            # Draw selection cursor if this button is selected
+            if is_selected:
+                highlight_rect = button['rect'].inflate(6, 6)
+                pygame.draw.rect(surface, self.colors['cursor'], highlight_rect, 2)
+                
+                # Show "A" prompt if points available
+                if self.player.attributes.stat_points > 0:
+                    a_text = self.button_font.render("A", True, self.colors['cursor'])
+                    a_x = button['rect'].right + 10
+                    a_y = button['rect'].centery - a_text.get_height() // 2
+                    surface.blit(a_text, (a_x, a_y))
+            
+            # Button border
             pygame.draw.rect(surface, self.colors['border'], button['rect'], 1)
             
+            # Button text
             button_text = self.button_font.render(button['text'], True, self.colors['text'])
             text_x = button['rect'].x + (button['rect'].width - button_text.get_width()) // 2
             text_y = button['rect'].y + (button['rect'].height - button_text.get_height()) // 2
@@ -268,10 +332,10 @@ class CharacterScreen:
         surface.blit(abilities_title, (x, y))
         
         abilities = [
-            {"name": "Sword Attack", "level": 1, "desc": "Basic sword attack (SPACE)"},
-            {"name": "Dash", "level": 2, "desc": "Temporary speed boost (SHIFT)"},
+            {"name": "Sword Attack", "level": 1, "desc": "Basic sword attack (SPACE/Button 2)"},
+            {"name": "Dash", "level": 2, "desc": "Temporary speed boost (SHIFT/Button 4)"},
             {"name": "Extended Sword", "level": 3, "desc": "Increased sword reach"},
-            {"name": "Blink", "level": 4, "desc": "Short-range teleport (B)"}
+            {"name": "Blink", "level": 4, "desc": "Short-range teleport (B/Button 1)"}
         ]
         
         # Use more vertical space for abilities

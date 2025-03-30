@@ -149,9 +149,9 @@ class Map:
             text_surf = self.font.render(text, True, self.colors['text'])
             screen.blit(text_surf, (legend_x + 25, y_pos))
         
-        # Draw instructions
+        # Draw instructions with controller button info
         instructions = [
-            "Press 'M' to close map",
+            "Press 'M' or LB to close map",
             "Explore the world by crossing",
             "the borders of each area"
         ]
