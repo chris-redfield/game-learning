@@ -340,6 +340,15 @@ while running:
                 current_block.remove_entity(entity)
                 print(f"Removed collected soul from the world")
 
+        # Update all other entities that have update methods 
+        # (including the bonfire which needs to animate)
+        for entity in current_entities:
+            # We've already handled enemies and souls, now handle other entities
+            if (hasattr(entity, 'update') and 
+                not isinstance(entity, Enemy) and 
+                not hasattr(entity, 'collect')):
+                entity.update()
+
         # Always update player with obstacles to prevent knockback collisions
         player.update(current_time, current_entities)
         

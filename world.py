@@ -3,6 +3,7 @@ import random
 from entities.grass import Grass
 from entities.skeleton import Skeleton
 from entities.slime import Slime
+from entities.bonfire import Bonfire  # Import the new Bonfire class
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
 # Define enemy tiers based on difficulty levels
@@ -99,11 +100,11 @@ class World:
         self.blocks[block_key] = new_block
         
         # Generate content for the block (grass patches, etc.)
-        self._populate_block(new_block, player_entry_point)
+        self._populate_block(new_block, player_entry_point, x_coord, y_coord)
         
         return new_block
     
-    def _populate_block(self, block, player_entry_point=None):
+    def _populate_block(self, block, player_entry_point=None, x_coord=None, y_coord=None):
         """Fill a block with entities like grass, enemies, etc."""
         print(f"DEBUG: Populating block ({block.x_coord}, {block.y_coord})")
         
@@ -117,6 +118,39 @@ class World:
                 200,  # Width of safe area
                 200   # Height of safe area
             )
+        
+        # Special case for origin block (0,0) - add a bonfire northeast of player spawn
+        if x_coord == 0 and y_coord == 0:
+            # The player spawns at the center of the screen, so place bonfire northeast of that
+            player_center_x = SCREEN_WIDTH // 2
+            player_center_y = SCREEN_HEIGHT // 2
+            
+            # Calculate position for bonfire (northeast of player)
+            bonfire_x = player_center_x + 100  # 100 pixels to the right
+            bonfire_y = player_center_y - 100  # 100 pixels up
+            
+            # Create and add the bonfire
+            bonfire = Bonfire(bonfire_x, bonfire_y)
+            block.add_entity(bonfire)
+            print(f"DEBUG: Added bonfire to origin block at ({bonfire_x}, {bonfire_y})")
+            
+            # Extend safe area to include bonfire
+            if safe_area:
+                # Create a new larger safe area that includes both player and bonfire
+                safe_area = pygame.Rect(
+                    min(player_center_x - 100, bonfire_x - 50),
+                    min(player_center_y - 100, bonfire_y - 50),
+                    max(200, abs(bonfire_x - player_center_x) + 150),
+                    max(200, abs(bonfire_y - player_center_y) + 150)
+                )
+            else:
+                # Create a safe area around bonfire if there wasn't one already
+                safe_area = pygame.Rect(
+                    bonfire_x - 50,
+                    bonfire_y - 50,
+                    150,
+                    150
+                )
         
         # Add grass patches
         self._add_grass_patches(block, 15, safe_area)
@@ -338,7 +372,7 @@ class World:
             # If this is a new block, set player entry point for safe area
             if not new_block.is_visited():
                 entry_point = new_player_pos
-                self._populate_block(new_block, entry_point)
+                self._populate_block(new_block, entry_point, new_x, new_y)
             
             # Update current block
             self.current_block_coords = new_block_coords
