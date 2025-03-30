@@ -8,13 +8,20 @@ class Bonfire:
         self.width = 48  # Size of the bonfire
         self.height = 48
         
-        # Create collision rect (slightly smaller than visual size for better gameplay)
-        self.rect = pygame.Rect(self.x + 10, self.y + 20, self.width - 20, self.height - 20)
+        # Create collision rect
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
         
         # Animation variables
         self.frame_index = 0
-        self.animation_speed = 0.15
         self.animation_timer = 0
+        self.state = "burning"  # Current animation state
+        
+        # Healing effect variables
+        self.heal_particles_active = False
+        self.heal_particles_timer = 0
+        
+        # Print debug info
+        print(f"DEBUG: Bonfire created at ({x}, {y}) with rect {self.rect}")
         
         # Load sprites
         self.load_sprites()
@@ -60,24 +67,81 @@ class Bonfire:
         """Return the collision rectangle"""
         return self.rect
     
-    def update(self, dt=None):
+    def update(self, dt=None, current_time=None):
         """Update the bonfire animation"""
         # Track animation time
         self.animation_timer += 1
         
         # Update animation frame when timer exceeds threshold
         if self.animation_timer >= 10:  # Adjust this value to control animation speed
-            self.frame_index = (self.frame_index + 1) % len(self.sprites['burning'])
+            self.frame_index = (self.frame_index + 1) % len(self.sprites[self.state])
             self.animation_timer = 0
+                
+        # Update heal particles effect if active
+        if self.heal_particles_active:
+            self.heal_particles_timer += 1
+            if self.heal_particles_timer > 60:  # Show particles for about 1 second
+                self.heal_particles_active = False
+                self.heal_particles_timer = 0
     
     def get_current_frame(self):
         """Get the current animation frame"""
-        return self.sprites['burning'][self.frame_index]
+        if self.state not in self.sprites or len(self.sprites[self.state]) == 0:
+            print(f"WARNING: Missing animation state '{self.state}' for bonfire")
+            # Return first frame of burning animation if available, or None
+            return self.sprites['burning'][0] if 'burning' in self.sprites and self.sprites['burning'] else None
+        
+        # Make sure frame_index is within bounds
+        if self.frame_index >= len(self.sprites[self.state]):
+            self.frame_index = 0
+        
+        return self.sprites[self.state][self.frame_index]
+    
+    def interact(self, player, current_time=None):
+        """Heal the player when they interact with the bonfire"""
+        print("DEBUG: Bonfire interact method called!")
+        
+        # Calculate how much to heal (full health)
+        heal_amount = player.attributes.max_health - player.attributes.current_health
+        
+        print(f"DEBUG: Player health before: {player.attributes.current_health}/{player.attributes.max_health}")
+        print(f"DEBUG: Will try to heal for {heal_amount} HP")
+        
+        if heal_amount > 0:
+            # Heal the player to full health
+            player.heal(heal_amount)
+            
+            # Activate heal particles effect
+            self.heal_particles_active = True
+            self.heal_particles_timer = 0
+            
+            print(f"Bonfire healed player for {heal_amount} HP")
+            print(f"DEBUG: Player health after: {player.attributes.current_health}/{player.attributes.max_health}")
+            return True
+        else:
+            print("Player already at full health")
+            return False
     
     def draw(self, surface):
         """Draw the bonfire with current animation frame"""
         # Get the current animation frame
         current_frame = self.get_current_frame()
         
+        if current_frame is None:
+            # Draw a placeholder if frame is missing
+            pygame.draw.rect(surface, (255, 100, 0), (self.x, self.y, self.width, self.height))
+            return
+        
         # Draw the bonfire
         surface.blit(current_frame, (self.x, self.y))
+        
+        # Draw heal particles if active
+        if self.heal_particles_active:
+            # Draw some simple particle effects (green healing particles)
+            for i in range(8):
+                particle_size = 3 + (self.heal_particles_timer % 3)
+                particle_x = self.x + self.width//2 + math.cos(i * math.pi/4) * (20 + self.heal_particles_timer//5)
+                particle_y = self.y + self.height//2 + math.sin(i * math.pi/4) * (20 + self.heal_particles_timer//5) - self.heal_particles_timer//3
+                
+                # Draw green healing particle
+                pygame.draw.circle(surface, (100, 255, 100), (int(particle_x), int(particle_y)), particle_size)

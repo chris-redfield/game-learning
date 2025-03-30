@@ -129,11 +129,12 @@ class HUD:
 
     def display_controls(self, surface):
         """Display game controls"""
-        controls_y = self.screen_height - 150
+        controls_y = self.screen_height - 165  # Adjusted to fit the new control line
         controls_text = [
             "Controls:",
             "WASD or Arrow Keys: Move",
             "SPACE: Swing Sword",
+            "E: Interact",
             "SHIFT: Dash (Level 2+)",
             "B: Blink (Level 4+)",
             "+: Level Up",
