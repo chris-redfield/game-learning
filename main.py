@@ -6,7 +6,7 @@ import os
 from entities.player.player import Player
 from world import World
 from map import Map
-from entities.enemy import Enemy
+from entities.enemy.enemy import Enemy
 from character_screen import CharacterScreen
 from death_screen import DeathScreen
 from hud import HUD

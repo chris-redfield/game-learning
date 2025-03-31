@@ -347,7 +347,7 @@ class Player:
                     collision = True
                     
                     # Check if the obstacle is an enemy
-                    from entities.enemy import Enemy  # Import here to avoid circular imports
+                    from entities.enemy.enemy import Enemy  # Import here to avoid circular imports
                     if isinstance(obstacle, Enemy):
                         collided_with_enemy = True
                         # Let the enemy handle the collision
@@ -448,7 +448,7 @@ class Player:
         hit_something = False
         
         # Check collisions with enemies
-        from entities.enemy import Enemy  # Import here to avoid circular imports
+        from entities.enemy.enemy import Enemy  # Import here to avoid circular imports
         for obstacle in obstacles:
             # Skip if not an enemy, already hit this swing, or enemy is dying
             if (not isinstance(obstacle, Enemy) or 

@@ -1,8 +1,8 @@
 import pygame
 import random
 from entities.grass import Grass
-from entities.skeleton import Skeleton
-from entities.slime import Slime
+from entities.enemy.skeleton import Skeleton
+from entities.enemy.slime import Slime
 from entities.bonfire import Bonfire  # Import the new Bonfire class
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
