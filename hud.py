@@ -1,4 +1,5 @@
 import pygame
+from entities.enemy.enemy import Enemy
 
 class HUD:
     def __init__(self, player):
@@ -159,7 +160,48 @@ class HUD:
             text_rect = direction_text.get_rect(center=(self.screen_width // 2, self.screen_height // 2))
             surface.blit(direction_text, text_rect)
 
-    def draw(self, surface, game_world, fade_surface=None, fade_alpha=0, transition_direction=None, transition_in_progress=False):
+    def display_enemy_debug(self, surface, entities):
+        """Display debug info for each enemy instance."""
+        x = self.screen_width - 300  # Right side
+        y = 40  # Start below the world info
+        line_gap = 20
+
+        any_found = False
+
+        for entity in entities:
+            if isinstance(entity, Enemy):
+                any_found = True
+                name = getattr(entity, 'name', entity.__class__.__name__)
+                level = getattr(entity, 'level', 0)
+                difficulty = getattr(entity, 'difficulty', 'normal')
+                state = getattr(entity, 'state', 'unknown')
+
+                attributes = getattr(entity, 'attributes', None)
+                if not attributes:
+                    continue
+
+                max_health = getattr(attributes, 'max_health', 0)
+                current_health = getattr(attributes, 'current_health', 0)
+                attack = getattr(attributes, 'attack_power', 0)
+                defense = getattr(attributes, 'defense', 0)
+
+                # Choose color
+                color = {
+                    'normal': (200, 200, 200),
+                    'fast': (0, 255, 0),
+                    'strong': (255, 0, 0),
+                }.get(difficulty, (255, 255, 255))
+
+                text = f"{name} (Lvl {level}, {difficulty}) HP {current_health}/{max_health} ATK {attack} DEF {defense} State: {state}"
+                debug_surface = self.font.render(text, True, color)
+                surface.blit(debug_surface, (x, y))
+                y += line_gap
+
+        if not any_found:
+            no_data_text = self.font.render("No enemy debug info available.", True, (255, 255, 0))
+            surface.blit(no_data_text, (x, y))
+
+    def draw(self, surface, game_world, fade_surface=None, fade_alpha=0, transition_direction=None, transition_in_progress=False, entities=None, show_enemy_debug=False):
         """Draw all HUD elements"""
         # Draw status bars
         self.draw_status_bars(surface)
@@ -174,6 +216,10 @@ class HUD:
         # Display controls
         self.display_controls(surface)
         
+        # Draw enemy debug info if enabled
+        if show_enemy_debug and entities:
+            self.display_enemy_debug(surface, entities)
+
         # Draw transition effect if in progress
         if transition_in_progress and fade_surface:
             self.draw_transition_effect(surface, fade_surface, fade_alpha, transition_direction)

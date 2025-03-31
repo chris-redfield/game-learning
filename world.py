@@ -53,7 +53,7 @@ class WorldBlock:
     def add_entity(self, entity):
         """Add an entity to this block"""
         self.entities.append(entity)
-        entity_type = type(entity).__name__
+        # entity_type = type(entity).__name__
         # print(f"DEBUG: Added {entity_type} to block ({self.x_coord}, {self.y_coord})")
         
     def remove_entity(self, entity):
@@ -338,7 +338,6 @@ class World:
                 
                 # Add to block and collision list
                 block.add_entity(enemy)
-                existing_entities.append(enemy)
                 return True
         
         return False  # Failed to add enemy after max attempts

@@ -168,6 +168,9 @@ while running:
             elif event.key == pygame.K_RETURN:
                 if not game_map.is_visible() and not death_screen.is_active():
                     character_screen.toggle()
+            elif event.key == pygame.K_F3:
+                show_enemy_debug = not show_enemy_debug
+                print(f"Enemy debug info: {'ON' if show_enemy_debug else 'OFF'}")
         
         # Handle controller inputs
         elif event.type == pygame.JOYBUTTONDOWN:
@@ -281,12 +284,6 @@ while running:
             for entity in game_world.get_current_entities():
                 if hasattr(entity, 'show_detection_radius'):
                     entity.show_detection_radius = True
-
-        # Also add this key handler to toggle enemy debug info
-        # Add this in the keyboard events section:
-        elif keys[pygame.K_F3]:  # F3 key for enemy debug toggle
-            show_enemy_debug = not show_enemy_debug
-            print(f"Enemy debug info: {'ON' if show_enemy_debug else 'OFF'}")
 
         else:
             show_collision_boxes = False
@@ -408,7 +405,7 @@ while running:
         # Draw world entities
         for entity in game_world.get_current_entities():
             entity.draw(screen)
-        
+
         # Draw player
         player.draw(screen)
         
@@ -423,7 +420,16 @@ while running:
         
         # Draw HUD if not in death screen
         if not death_screen.is_active():
-            game_hud.draw(screen, game_world, fade_surface, fade_alpha, transition_direction, transition_in_progress)
+            game_hud.draw(
+                surface=screen,
+                game_world=game_world,
+                fade_surface=fade_surface,
+                fade_alpha=fade_alpha,
+                transition_direction=transition_direction,
+                transition_in_progress=transition_in_progress,
+                entities=game_world.get_current_entities(),
+                show_enemy_debug=show_enemy_debug
+            )
 
         # Draw death screen if active
         if death_screen.is_active():
