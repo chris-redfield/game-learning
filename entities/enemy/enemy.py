@@ -1,6 +1,7 @@
 import pygame
 import random
 import math
+from entities.enemy.enemy_attribute import EnemyAttributes
 
 class Enemy:
     def __init__(self, x, y, width, height, speed=1):
@@ -28,12 +29,20 @@ class Enemy:
         self.dx = 0  # Current movement direction (x component)
         self.dy = 0  # Current movement direction (y component)
         
-        # Health and combat properties
-        self.health = 3
-        self.attack_power = 1
+        # Add enemy type for attribute system
+        self.enemy_type = "normal"
+        # Whether the enemy uses magic
+        self.has_magic = False
+        
+        # Initialize the attribute system with default level 1
+        self.attributes = EnemyAttributes(self, level=1, enemy_type=self.enemy_type)
+        
+        # Health and combat properties (from attributes)
+        self.health = self.attributes.max_health
+        self.attack_power = self.attributes.get_attack_power()
         self.attack_range = 50
         self.detection_range = 150
-        self.defense = 0  # Base defense value (can be overridden by subclasses)
+        self.defense = self.attributes.defense
         
         # Hit effect properties
         self.hit = False
@@ -54,6 +63,26 @@ class Enemy:
         
         # Sprite dictionary - to be populated by subclasses
         self.sprites = {}
+        
+        # Knockback properties
+        self.is_being_knocked_back = False
+        self.knockback_timer = 0
+        self.knockback_duration = 300  # milliseconds
+        self.knockback_direction = (0, 0)
+        self.current_knockback = 0
+    
+    def set_level(self, level, difficulty_factor=1.0):
+        """Set the enemy level and apply difficulty scaling"""
+        self.attributes = EnemyAttributes(self, level, self.enemy_type)
+        
+        # Apply area difficulty scaling if specified
+        if difficulty_factor > 1.0:
+            self.attributes.scale_by_difficulty(difficulty_factor)
+        
+        # Update enemy stats from attributes
+        self.health = self.attributes.max_health
+        self.attack_power = self.attributes.get_attack_power()
+        self.defense = self.attributes.defense
     
     def update(self, player=None, obstacles=None):
         """Update enemy state and animation with death handling"""
@@ -74,6 +103,47 @@ class Enemy:
                     self.will_drop_soul = True
             
             return  # Skip regular updates when dying
+        
+        # Handle knockback if active
+        if self.is_being_knocked_back and obstacles is not None:
+            # Update knockback timer
+            self.knockback_timer += 16.67  # Approx ms per frame at 60fps
+            
+            # Apply knockback with diminishing effect
+            if self.knockback_timer < self.knockback_duration:
+                # Gradually decrease knockback effect
+                progress = self.knockback_timer / self.knockback_duration
+                knockback_factor = 1 - progress
+                
+                # Calculate movement for this frame
+                dir_x, dir_y = self.knockback_direction
+                move_x = dir_x * self.current_knockback * knockback_factor * 0.5
+                move_y = dir_y * self.current_knockback * knockback_factor * 0.5
+                
+                # Move with collision detection
+                self.move(move_x, move_y, obstacles)
+            else:
+                # End knockback
+                self.is_being_knocked_back = False
+        
+        # Skip regular movement updates if being knocked back
+        if self.is_being_knocked_back:
+            # Update collision rect position
+            self.rect.x = self.x
+            self.rect.y = self.y
+            
+            # Update hit effect timer
+            if self.hit:
+                self.hit_timer += 16.67  # Approximate time between frames at 60 FPS
+                if self.hit_timer >= self.hit_duration:
+                    self.hit = False
+                    self.hit_timer = 0
+            
+            # Update blood particles
+            if obstacles is not None and hasattr(self, 'blood_particles'):
+                self.update_blood_particles(obstacles)
+                
+            return
         
         # Regular update code
         # Update animation frame
@@ -144,10 +214,13 @@ class Enemy:
         """Handle collision with player - override in subclasses for specific behavior"""
         self.stop_moving()
         
+        # Get attack power from attributes
+        attack_power = self.attributes.get_attack_power()
+        
         # Damage player and pass enemy position for knockback direction
         enemy_center_x = self.x + (self.width / 2)
         enemy_center_y = self.y + (self.height / 2)
-        player.take_damage(self.attack_power, enemy_center_x, enemy_center_y)
+        player.take_damage(attack_power, enemy_center_x, enemy_center_y)
     
     def start_moving(self):
         """Start movement in a random direction"""
@@ -223,20 +296,28 @@ class Enemy:
         """Start attack animation and deal damage - may be overridden by subclasses"""
         self.state = "attacking"
         self.animation_counter = 0
+        
+        # Get attack power from attributes
+        attack_power = self.attributes.get_attack_power()
+        
         # Basic attack logic - subclasses can override for specific behavior
-        print(f"{self.__class__.__name__} attacks!")
+        print(f"{self.__class__.__name__} attacks for {attack_power} damage!")
     
-    def take_damage(self, damage):
-        """Take damage with defense calculation"""
+    def take_damage(self, damage, attacker_x=None, attacker_y=None, player_x=None, player_y=None):
+        """Take damage with defense calculation and trigger knockback
+        
+        Parameters:
+        - damage: Amount of damage before defense reduction
+        - attacker_x, attacker_y: Position of the attack (e.g., sword hitbox)
+        - player_x, player_y: Position of the player's center (for knockback direction)
+        """
         # Skip if already dying
         if self.state == "dying":
             return False
             
-        # Apply damage, accounting for defense
-        defense_factor = 1.0 - (self.defense * 0.1)  # 10% reduction per defense point
-        final_damage = max(1, int(damage * defense_factor))  # At least 1 damage
-        
-        self.health -= final_damage
+        # Apply damage through attribute system
+        final_damage = self.attributes.take_damage(damage)
+        self.health = self.attributes.current_health
         
         # Set hit flag for visual feedback
         self.hit = True
@@ -244,12 +325,81 @@ class Enemy:
         
         print(f"Enemy {self.__class__.__name__} took {final_damage} damage, {self.health} health remaining")
         
+        # Start knockback effect - use player position for direction if provided
+        self.start_knockback(damage, player_x, player_y)
+        
         if self.health <= 0:
             print(f"Enemy {self.__class__.__name__} died!")
             self.die()
             return True  # Enemy died
         else:
             return False  # Enemy still alive
+    
+    def start_knockback(self, damage_amount, player_x=None, player_y=None):
+        """Start knockback animation when taking damage
+        
+        Parameters:
+        - damage_amount: Amount of damage taken (affects knockback strength)
+        - player_x, player_y: Position of the player's center (for knockback direction)
+        """
+        # Skip if already being knocked back or in special state
+        if self.is_being_knocked_back or self.state == "dying":
+            return False
+        
+        # Calculate knockback resistance from attributes
+        knockback_resistance = self.attributes.get_knockback_factor()
+        
+        # Calculate knockback amount based on damage and resistance
+        # Higher damage = more knockback, higher resistance = less knockback
+        knockback_factor = min(1.0, damage_amount / self.attributes.max_health * 2)
+        base_knockback = 40  # Increased base knockback for better feel
+        actual_knockback = base_knockback * knockback_factor * (1 - knockback_resistance)
+        
+        # Skip knockback if negligible
+        if actual_knockback < 3:
+            return False
+        
+        # Calculate direction vector for knockback
+        if player_x is not None and player_y is not None:
+            # Get enemy center
+            enemy_center_x = self.x + (self.width / 2)
+            enemy_center_y = self.y + (self.height / 2)
+            
+            # Direction FROM player TO enemy (pushes enemy away from player)
+            dir_x = enemy_center_x - player_x
+            dir_y = enemy_center_y - player_y
+            
+            # Normalize the vector
+            length = max(0.1, math.sqrt(dir_x**2 + dir_y**2))
+            dir_x /= length
+            dir_y /= length
+            
+            print(f"Knockback: Enemy at ({enemy_center_x:.0f},{enemy_center_y:.0f}) pushed AWAY from player at ({player_x:.0f},{player_y:.0f})")
+        else:
+            # If no player position provided, use a default direction based on enemy's facing
+            if self.direction == "right":
+                dir_x = 1.0
+                dir_y = 0.0
+            elif self.direction == "left":
+                dir_x = -1.0
+                dir_y = 0.0
+            else:
+                # Random direction as last resort
+                angle = random.uniform(0, 2 * math.pi)
+                dir_x = math.cos(angle)
+                dir_y = math.sin(angle)
+            
+            print(f"Knockback: No player position provided, using default direction ({dir_x:.2f}, {dir_y:.2f})")
+        
+        # Store knockback parameters
+        self.knockback_direction = (dir_x, dir_y)
+        self.current_knockback = actual_knockback
+        
+        # Start knockback state
+        self.is_being_knocked_back = True
+        self.knockback_timer = 0
+        
+        return True
     
     def die(self):
         """Start death animation and prepare to drop a soul"""
@@ -437,3 +587,13 @@ class Enemy:
         that should be overridden by subclasses
         """
         pass
+        
+    def render_debug_info(self, surface, font, x, y):
+        """Display enemy attribute information for debugging"""
+        if hasattr(self, 'attributes'):
+            info_text = self.attributes.get_info_text()
+            debug_text = font.render(info_text, True, (255, 0, 0))
+            surface.blit(debug_text, (x, y))
+        else:
+            debug_text = font.render(f"No attributes", True, (255, 0, 0))
+            surface.blit(debug_text, (x, y))

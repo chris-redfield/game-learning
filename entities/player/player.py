@@ -426,7 +426,7 @@ class Player:
     def is_swinging(self):
         """Check if player is currently swinging the sword"""
         return self.swinging
-    
+
     def check_sword_collisions(self, obstacles):
         """Check if the sword is colliding with any enemies and apply damage"""
         if not self.swinging:
@@ -447,6 +447,10 @@ class Player:
             
         hit_something = False
         
+        # Get player's center position for knockback direction
+        player_center_x = self.x + (self.width / 2)
+        player_center_y = self.y + (self.height / 2)
+        
         # Check collisions with enemies
         from entities.enemy.enemy import Enemy  # Import here to avoid circular imports
         for obstacle in obstacles:
@@ -460,8 +464,15 @@ class Player:
                 # Calculate attack damage based on player's strength
                 damage = self.attributes.get_attack_power()
                 
-                # Apply damage to the enemy
-                obstacle.take_damage(damage)
+                # Apply damage to the enemy - PASS PLAYER POSITION for knockback
+                # This ensures enemies are always knocked AWAY from player
+                obstacle.take_damage(
+                    damage,
+                    attacker_x=sword_rect.centerx,  # Still pass sword position (for future use)
+                    attacker_y=sword_rect.centery,
+                    player_x=player_center_x,       # Pass player center for knockback direction
+                    player_y=player_center_y
+                )
                 
                 # Add blood effects
                 self.particles.spawn_enemy_blood(obstacle)
