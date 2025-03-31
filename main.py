@@ -13,6 +13,8 @@ from hud import HUD
 
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GREEN, DESERT
 
+
+
 # Set working directory to script location
 abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
@@ -20,6 +22,7 @@ os.chdir(dname)
 
 # Initialize pygame
 pygame.init()
+font = pygame.font.SysFont(None, 24)
 
 # Create the game window
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -80,6 +83,7 @@ initial_block = None
 game_map = None
 character_screen = None
 game_hud = None
+show_enemy_debug = False
 
 # Create death screen (only created once)
 death_screen = DeathScreen()
@@ -272,6 +276,18 @@ while running:
                         entity.debug_show_radius = True
                     else:
                         entity.debug_show_radius = True
+                        
+            # Add this new code to enable skeleton detection radius visualization
+            for entity in game_world.get_current_entities():
+                if hasattr(entity, 'show_detection_radius'):
+                    entity.show_detection_radius = True
+
+        # Also add this key handler to toggle enemy debug info
+        # Add this in the keyboard events section:
+        elif keys[pygame.K_F3]:  # F3 key for enemy debug toggle
+            show_enemy_debug = not show_enemy_debug
+            print(f"Enemy debug info: {'ON' if show_enemy_debug else 'OFF'}")
+
         else:
             show_collision_boxes = False
             if hasattr(player, 'debug_sword_rect'):
@@ -280,6 +296,11 @@ while running:
             for entity in game_world.get_current_entities():
                 if hasattr(entity, 'collect') and hasattr(entity, 'debug_show_radius'):
                     entity.debug_show_radius = False
+                    
+            # Add this new code to disable skeleton detection radius visualization
+            for entity in game_world.get_current_entities():
+                if hasattr(entity, 'show_detection_radius'):
+                    entity.show_detection_radius = False
         
         # Get current entities from world
         current_entities = game_world.get_current_entities()

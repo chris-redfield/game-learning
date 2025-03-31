@@ -3,6 +3,7 @@ import random
 import math
 from PIL import Image, ImageSequence
 from entities.enemy.enemy import Enemy
+from entities.enemy.enemy_attribute import EnemyAttributes
 
 class Slime(Enemy):
     def __init__(self, x, y):
@@ -13,10 +14,12 @@ class Slime(Enemy):
         # Call parent constructor with SLOWER speed (skeletons use 1.0)
         super().__init__(x, y, width, height, speed=0.5)
         
-        # Slime-specific properties
-        self.health = 5  # Slimes have less health than skeletons
-        self.attack_power = 1
-        self.defense = 0  # Slimes have no defense
+        # Override enemy type to "fast" for slimes
+        self.enemy_type = "fast"
+        
+        # Override attributes with slime-specific defaults
+        # This ensures proper base stats even before setting level
+        self.attributes = EnemyAttributes(self, level=1, enemy_type=self.enemy_type)
         
         # SLOWER animation speed (reduced from the default 0.1)
         self.animation_speed = 0.03  # Half the default animation speed
@@ -100,10 +103,13 @@ class Slime(Enemy):
         # Don't call super() here as it would stop movement
         
         # Attack the player but keep moving
+        # Get attack power from attributes
+        attack_power = self.attributes.get_attack_power()
+        
         # Pass position for knockback calculation
         enemy_center_x = self.x + (self.width / 2)
         enemy_center_y = self.y + (self.height / 2)
-        player.take_damage(self.attack_power, enemy_center_x, enemy_center_y)
+        player.take_damage(attack_power, enemy_center_x, enemy_center_y)
     
     def update(self, player=None, obstacles=None):
         """Override update method to properly handle death state for slimes"""
@@ -221,3 +227,13 @@ class Slime(Enemy):
                 for particle in self.blood_particles:
                     if particle:  # Make sure particle is not None
                         particle.draw(surface)
+                        
+    def render_debug_info(self, surface, font, x, y):
+        """Display enemy attribute information for debugging"""
+        if hasattr(self, 'attributes'):
+            info_text = self.attributes.get_info_text()
+            debug_text = font.render(info_text, True, (0, 180, 0))  # Green for slimes
+            surface.blit(debug_text, (x, y))
+        else:
+            debug_text = font.render(f"No attributes", True, (0, 180, 0))
+            surface.blit(debug_text, (x, y))

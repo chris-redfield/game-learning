@@ -1,5 +1,6 @@
 import pygame
 import random
+import math
 from entities.grass import Grass
 from entities.enemy.skeleton import Skeleton
 from entities.enemy.slime import Slime
@@ -10,32 +11,32 @@ from constants import SCREEN_WIDTH, SCREEN_HEIGHT
 ENEMY_TIERS = {
     # Level 1: Only slimes (easiest)
     1: [
-        {"type": Slime, "weight": 100, "min_count": 1, "max_count": 3}
+        {"type": Slime, "weight": 100, "enemy_type": "fast"}
     ],
     # Level 2: Mostly slimes, few skeletons
     2: [
-        {"type": Slime, "weight": 80, "min_count": 2, "max_count": 4},
-        {"type": Skeleton, "weight": 20, "min_count": 0, "max_count": 1}
+        {"type": Slime, "weight": 80, "enemy_type": "fast"},
+        {"type": Skeleton, "weight": 20, "enemy_type": "normal"}
     ],
     # Level 3: Mix of slimes and skeletons
     3: [
-        {"type": Slime, "weight": 60, "min_count": 2, "max_count": 5},
-        {"type": Skeleton, "weight": 40, "min_count": 1, "max_count": 2}
+        {"type": Slime, "weight": 60, "enemy_type": "fast"},
+        {"type": Skeleton, "weight": 40, "enemy_type": "normal"}
     ],
     # Level 4: Balanced mix
     4: [
-        {"type": Slime, "weight": 50, "min_count": 2, "max_count": 6},
-        {"type": Skeleton, "weight": 50, "min_count": 2, "max_count": 3}
+        {"type": Slime, "weight": 50, "enemy_type": "fast"},
+        {"type": Skeleton, "weight": 50, "enemy_type": "normal"}
     ],
     # Level 5: More skeletons than slimes
     5: [
-        {"type": Slime, "weight": 30, "min_count": 1, "max_count": 4},
-        {"type": Skeleton, "weight": 70, "min_count": 3, "max_count": 5}
+        {"type": Slime, "weight": 30, "enemy_type": "fast"},
+        {"type": Skeleton, "weight": 70, "enemy_type": "brute"}
     ],
     # Level 6+: Mostly skeletons (hardest)
     6: [
-        {"type": Slime, "weight": 20, "min_count": 1, "max_count": 3},
-        {"type": Skeleton, "weight": 80, "min_count": 4, "max_count": 8}
+        {"type": Slime, "weight": 20, "enemy_type": "fast"},
+        {"type": Skeleton, "weight": 80, "enemy_type": "brute"}
     ]
 }
 
@@ -180,70 +181,119 @@ class World:
         else:
             return 6  # Max difficulty level
     
+    def _calculate_difficulty_points(self, x_coord, y_coord):
+        """Calculate total difficulty points for a block based on distance from origin"""
+        # Base difficulty level (1-6)
+        base_difficulty = self._get_difficulty_level(x_coord, y_coord)
+        
+        # Convert to difficulty points - higher levels have more points
+        # We'll use a simple formula: difficulty^2 + 2
+        difficulty_points = base_difficulty * base_difficulty + 2
+        
+        # Add some randomness (-2 to +2)
+        difficulty_points += random.randint(-2, 2)
+        
+        # Ensure minimum of 2 difficulty points
+        return max(2, difficulty_points)
+    
+    def _get_difficulty_factor(self, x_coord, y_coord):
+        """Calculate a difficulty scaling factor based on distance from origin"""
+        # Calculate the Manhattan distance from origin
+        distance = abs(x_coord) + abs(y_coord)
+        
+        # Calculate base difficulty factor (1.0 = normal, higher = harder)
+        if distance == 0:
+            return 1.0  # Normal difficulty at origin
+        elif distance <= 1:
+            return 1.2  # 20% harder at distance 1
+        elif distance <= 2:
+            return 1.4  # 40% harder at distance 2
+        elif distance <= 4:
+            return 1.6  # 60% harder at distance 4
+        elif distance <= 6:
+            return 1.8  # 80% harder at distance 6
+        else:
+            return 2.0 + min(1.0, (distance - 6) * 0.1)  # +10% per distance beyond 6, up to +100%
+    
     def _add_enemies(self, block, safe_area=None):
-        """Add enemies to a block with dynamic scaling based on distance from origin"""
-        # Calculate difficulty level based on distance from origin
+        """Add enemies to a block using difficulty points system"""
+        # Get block coordinates
         x_coord, y_coord = block.x_coord, block.y_coord
+        
+        # Calculate total difficulty points for this block
+        total_difficulty_points = self._calculate_difficulty_points(x_coord, y_coord)
+        remaining_points = total_difficulty_points
+        
+        # Get difficulty level for enemy selection
         difficulty_level = self._get_difficulty_level(x_coord, y_coord)
         
         # Get enemy tier data for this difficulty level
-        # If difficulty level exceeds our defined tiers, use the highest tier
         max_tier = max(ENEMY_TIERS.keys())
         tier_data = ENEMY_TIERS.get(min(difficulty_level, max_tier))
         
-        print(f"DEBUG: Block ({x_coord}, {y_coord}) - Difficulty level: {difficulty_level}")
-        
-        # Calculate total enemies based on difficulty
-        base_count = 3 + difficulty_level  # Base count increases with difficulty
-        variation = random.randint(-1, 2)  # Add some randomness
-        total_enemies = max(1, base_count + variation)
+        print(f"DEBUG: Block ({x_coord}, {y_coord}) - Difficulty level: {difficulty_level}, Points: {total_difficulty_points}")
         
         # Get existing entities to check for collisions
         existing_entities = block.get_entities()
         
-        print(f"DEBUG: Adding approximately {total_enemies} enemies to block ({x_coord}, {y_coord})")
+        # Calculate max level for enemies in this block (25% of total difficulty points)
+        max_enemy_level = max(1, round(total_difficulty_points * 0.25))
         
-        # Weighted selection of enemy types
+        # Extract enemy types and weights
         enemy_types = []
         weights = []
+        enemy_type_map = {}
         
         for enemy_data in tier_data:
             enemy_types.append(enemy_data["type"])
             weights.append(enemy_data["weight"])
+            enemy_type_map[enemy_data["type"]] = enemy_data["enemy_type"]
         
         # Normalize weights
         total_weight = sum(weights)
         normalized_weights = [w / total_weight for w in weights]
         
-        # Add enemies of different types
+        # Keep adding enemies until we run out of difficulty points
         enemies_added = 0
-        max_attempts = 100  # Limit attempts
-        
-        # First, ensure minimum requirements for each enemy type
-        for enemy_data in tier_data:
-            enemy_type = enemy_data["type"]
-            min_count = enemy_data["min_count"]
-            
-            # Add minimum number of this enemy type
-            for _ in range(min_count):
-                if self._add_single_enemy(block, enemy_type, existing_entities, safe_area):
-                    enemies_added += 1
-        
-        # Then add remaining enemies based on weighted probabilities
-        remaining_enemies = total_enemies - enemies_added
-        
+        max_attempts = 100  # Prevent infinite loops
         attempts = 0
-        while enemies_added < total_enemies and attempts < max_attempts:
+        
+        print(f"DEBUG: Adding enemies with max level {max_enemy_level}, total difficulty points: {total_difficulty_points}")
+        
+        while remaining_points > 0 and attempts < max_attempts:
             # Select enemy type based on weights
             enemy_type = random.choices(enemy_types, weights=normalized_weights, k=1)[0]
             
-            if self._add_single_enemy(block, enemy_type, existing_entities, safe_area):
+            # Determine enemy level based on remaining points and max level
+            max_level_for_this_enemy = min(max_enemy_level, remaining_points)
+            
+            if max_level_for_this_enemy < 1:
+                # Not enough points for even a level 1 enemy
+                break
+                
+            # Randomly select a level between 1 and max allowed
+            enemy_level = random.randint(1, max_level_for_this_enemy)
+            
+            # Get the enemy_type string (fast, normal, brute, etc.)
+            enemy_type_string = enemy_type_map[enemy_type]
+            
+            # Try to add the enemy
+            if self._add_single_enemy(block, enemy_type, enemy_level, enemy_type_string, existing_entities, safe_area):
+                # Successfully added an enemy, subtract its level from remaining points
+                remaining_points -= enemy_level
                 enemies_added += 1
+                print(f"DEBUG: Added level {enemy_level} {enemy_type.__name__} ({enemy_type_string}), remaining points: {remaining_points}")
             
             attempts += 1
+        
+        print(f"DEBUG: Added {enemies_added} enemies to block ({x_coord}, {y_coord}), using {total_difficulty_points - remaining_points} difficulty points")
+        
+        # If we have unused points but couldn't place more enemies, we might need to increase existing enemy levels
+        if remaining_points > 0 and enemies_added > 0 and attempts >= max_attempts:
+            print(f"DEBUG: Had {remaining_points} unused difficulty points, could not place more enemies")
     
-    def _add_single_enemy(self, block, enemy_type, existing_entities, safe_area=None):
-        """Add a single enemy of specified type to the block"""
+    def _add_single_enemy(self, block, enemy_type, enemy_level, enemy_type_string, existing_entities, safe_area=None):
+        """Add a single enemy of specified type and level to the block"""
         # Determine entity dimensions based on type
         if enemy_type == Skeleton:
             width, height = 48, 52
@@ -274,9 +324,21 @@ class World:
             
             # If there's no collision, add the enemy
             if not collision:
+                # Create the enemy
                 enemy = enemy_type(pos_x, pos_y)
+                
+                # Set enemy type
+                enemy.enemy_type = enemy_type_string
+                
+                # Get difficulty factor for the block
+                difficulty_factor = self._get_difficulty_factor(block.x_coord, block.y_coord)
+                
+                # Set enemy level with the specified level
+                enemy.set_level(enemy_level, difficulty_factor)
+                
+                # Add to block and collision list
                 block.add_entity(enemy)
-                existing_entities.append(enemy)  # Add to collision check list
+                existing_entities.append(enemy)
                 return True
         
         return False  # Failed to add enemy after max attempts
@@ -382,9 +444,10 @@ class World:
             
             player.set_current_block(new_x, new_y)
             
-            # Log difficulty level of the new block
+            # Log difficulty level and points of the new block
             difficulty = self._get_difficulty_level(new_x, new_y)
-            print(f"DEBUG: Moved to block ({new_x}, {new_y}) - Difficulty level: {difficulty}")
+            difficulty_points = self._calculate_difficulty_points(new_x, new_y)
+            print(f"DEBUG: Moved to block ({new_x}, {new_y}) - Difficulty level: {difficulty}, Points: {difficulty_points}")
             
             return True, direction
         
@@ -401,4 +464,5 @@ class World:
         """Get a description of the current block for display"""
         x, y = self.current_block_coords
         difficulty = self._get_difficulty_level(x, y)
-        return f"Block ({x}, {y}) - Difficulty: {difficulty}"
+        difficulty_points = self._calculate_difficulty_points(x, y)
+        return f"Block ({x}, {y}) - Difficulty: {difficulty}, Points: {difficulty_points}"

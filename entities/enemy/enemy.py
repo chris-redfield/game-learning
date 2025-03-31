@@ -70,6 +70,15 @@ class Enemy:
         self.knockback_duration = 300  # milliseconds
         self.knockback_direction = (0, 0)
         self.current_knockback = 0
+        
+        # Recovery state properties - NEW
+        self.should_recover = False  # Flag to indicate recovery should start after knockback
+        self.is_recovering = False   # Flag indicating enemy is recovering from being hit
+        self.recovery_timer = 0      # Timer for recovery state
+        self.recovery_duration = 1000  # Default 1-second recovery duration
+        
+        # Debug visualization
+        self.show_detection_radius = False
     
     def set_level(self, level, difficulty_factor=1.0):
         """Set the enemy level and apply difficulty scaling"""
@@ -104,6 +113,44 @@ class Enemy:
             
             return  # Skip regular updates when dying
         
+        # Check if recovering from being hit - NEW
+        if self.is_recovering:
+            # Update recovery timer
+            self.recovery_timer += 16.67  # ~60 FPS
+            
+            # Check if recovery time is over
+            if self.recovery_timer >= self.recovery_duration:
+                self.is_recovering = False
+                self.recovery_timer = 0
+                print(f"{self.__class__.__name__} recovery complete, resuming activity")
+                
+            # Update basic animation during recovery
+            self.animation_counter += self.animation_speed
+            animation_frames = self.get_animation_frames()
+            
+            if len(animation_frames) > 0:
+                if self.animation_counter >= len(animation_frames):
+                    self.animation_counter = 0
+                
+                self.frame = int(self.animation_counter)
+                
+            # Update collision rect position
+            self.rect.x = self.x
+            self.rect.y = self.y
+            
+            # Update hit effect timer
+            if self.hit:
+                self.hit_timer += 16.67
+                if self.hit_timer >= self.hit_duration:
+                    self.hit = False
+                    self.hit_timer = 0
+            
+            # Update blood particles
+            if obstacles is not None and hasattr(self, 'blood_particles'):
+                self.update_blood_particles(obstacles)
+                
+            return  # Skip the rest of the update while recovering
+        
         # Handle knockback if active
         if self.is_being_knocked_back and obstacles is not None:
             # Update knockback timer
@@ -125,6 +172,14 @@ class Enemy:
             else:
                 # End knockback
                 self.is_being_knocked_back = False
+                
+                # Check if we should transition to recovery state - NEW
+                if hasattr(self, 'should_recover') and self.should_recover:
+                    self.state = "idle"  # Set idle state during recovery
+                    self.is_recovering = True
+                    self.recovery_timer = 0
+                    self.should_recover = False  # Reset flag
+                    print(f"{self.__class__.__name__} starting recovery after knockback")
         
         # Skip regular movement updates if being knocked back
         if self.is_being_knocked_back:
@@ -212,6 +267,10 @@ class Enemy:
     
     def handle_player_collision(self, player):
         """Handle collision with player - override in subclasses for specific behavior"""
+        # Skip if recovering - NEW
+        if self.is_recovering:
+            return
+            
         self.stop_moving()
         
         # Get attack power from attributes
@@ -294,6 +353,10 @@ class Enemy:
     
     def attack(self, player):
         """Start attack animation and deal damage - may be overridden by subclasses"""
+        # Skip if recovering - NEW
+        if self.is_recovering:
+            return
+            
         self.state = "attacking"
         self.animation_counter = 0
         
@@ -314,6 +377,9 @@ class Enemy:
         # Skip if already dying
         if self.state == "dying":
             return False
+        
+        # Store current hit state - NEW
+        was_hit = self.hit
             
         # Apply damage through attribute system
         final_damage = self.attributes.take_damage(damage)
@@ -324,6 +390,10 @@ class Enemy:
         self.hit_timer = 0
         
         print(f"Enemy {self.__class__.__name__} took {final_damage} damage, {self.health} health remaining")
+        
+        # If this is a new hit (not already in hit state), set recovery flag - NEW
+        if not was_hit:
+            self.should_recover = True
         
         # Start knockback effect - use player position for direction if provided
         self.start_knockback(damage, player_x, player_y)
@@ -507,6 +577,10 @@ class Enemy:
     
     def draw(self, surface):
         """Draw the enemy with appropriate animation frame and death effects"""
+        # Draw detection radius if enabled - NEW
+        if hasattr(self, 'show_detection_radius') and self.show_detection_radius:
+            self.draw_detection_radius(surface)
+        
         # If dying, only draw death particles
         if self.state == "dying":
             self.draw_death_particles(surface)
@@ -540,6 +614,22 @@ class Enemy:
                 for particle in self.blood_particles:
                     if particle:
                         particle.draw(surface)
+    
+    def draw_detection_radius(self, surface):
+        """Draw the detection radius as a circle for debugging - NEW"""
+        # Get center of the enemy
+        center_x = self.x + self.width // 2
+        center_y = self.y + self.height // 2
+        
+        # Draw detection range (light blue, semi-transparent)
+        detection_surface = pygame.Surface((self.detection_range * 2, self.detection_range * 2), pygame.SRCALPHA)
+        pygame.draw.circle(detection_surface, (0, 150, 255, 40), (self.detection_range, self.detection_range), self.detection_range)
+        surface.blit(detection_surface, (center_x - self.detection_range, center_y - self.detection_range))
+        
+        # Draw attack range (red, semi-transparent)
+        attack_surface = pygame.Surface((self.attack_range * 2, self.attack_range * 2), pygame.SRCALPHA)
+        pygame.draw.circle(attack_surface, (255, 0, 0, 40), (self.attack_range, self.attack_range), self.attack_range)
+        surface.blit(attack_surface, (center_x - self.attack_range, center_y - self.attack_range))
     
     def draw_death_particles(self, surface):
         """Draw death particles"""
@@ -591,7 +681,14 @@ class Enemy:
     def render_debug_info(self, surface, font, x, y):
         """Display enemy attribute information for debugging"""
         if hasattr(self, 'attributes'):
-            info_text = self.attributes.get_info_text()
+            # Add state information to debug display - NEW
+            state_text = f"State: {self.state}"
+            if self.is_recovering:
+                state_text += " (recovering)"
+            elif self.is_being_knocked_back:
+                state_text += " (knockback)"
+                
+            info_text = self.attributes.get_info_text() + " | " + state_text
             debug_text = font.render(info_text, True, (255, 0, 0))
             surface.blit(debug_text, (x, y))
         else:
