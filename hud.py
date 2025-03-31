@@ -162,7 +162,7 @@ class HUD:
 
     def display_enemy_debug(self, surface, entities):
         """Display debug info for each enemy instance."""
-        x = self.screen_width - 300  # Right side
+        x = self.screen_width - 400  # Right side
         y = 40  # Start below the world info
         line_gap = 20
 
@@ -172,7 +172,9 @@ class HUD:
             if isinstance(entity, Enemy):
                 any_found = True
                 name = getattr(entity, 'name', entity.__class__.__name__)
-                level = getattr(entity, 'level', 0)
+                level = entity.attributes.level
+                speed = round(entity.speed,3)
+                
                 difficulty = getattr(entity, 'difficulty', 'normal')
                 state = getattr(entity, 'state', 'unknown')
 
@@ -182,8 +184,8 @@ class HUD:
 
                 max_health = getattr(attributes, 'max_health', 0)
                 current_health = getattr(attributes, 'current_health', 0)
-                attack = getattr(attributes, 'attack_power', 0)
-                defense = getattr(attributes, 'defense', 0)
+                attack = round(getattr(attributes, 'attack_power', 0),3)
+                defense = round(getattr(attributes, 'defense', 0),3)
 
                 # Choose color
                 color = {
@@ -192,7 +194,7 @@ class HUD:
                     'strong': (255, 0, 0),
                 }.get(difficulty, (255, 255, 255))
 
-                text = f"{name} (Lvl {level}, {difficulty}) HP {current_health}/{max_health} ATK {attack} DEF {defense} State: {state}"
+                text = f"{name} (Lvl {level}, {difficulty}) HP {current_health}/{max_health} ATK {attack} DEF {defense} SPEED: {speed} State: {state}"
                 debug_surface = self.font.render(text, True, color)
                 surface.blit(debug_surface, (x, y))
                 y += line_gap

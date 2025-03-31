@@ -397,80 +397,57 @@ class Enemy:
         
         # Start knockback effect - use player position for direction if provided
         self.start_knockback(damage, player_x, player_y)
-        
+                # Cancel recovery if hit again
+        self.is_recovering = False
+        self.recovery_timer = 0
+
         if self.health <= 0:
             print(f"Enemy {self.__class__.__name__} died!")
             self.die()
             return True  # Enemy died
         else:
             return False  # Enemy still alive
-    
+
     def start_knockback(self, damage_amount, player_x=None, player_y=None):
-        """Start knockback animation when taking damage
-        
-        Parameters:
-        - damage_amount: Amount of damage taken (affects knockback strength)
-        - player_x, player_y: Position of the player's center (for knockback direction)
-        """
-        # Skip if already being knocked back or in special state
-        if self.is_being_knocked_back or self.state == "dying":
+        """Start or refresh knockback animation when taking damage"""
+        if self.state == "dying":
             return False
-        
+
         # Calculate knockback resistance from attributes
         knockback_resistance = self.attributes.get_knockback_factor()
-        
-        # Calculate knockback amount based on damage and resistance
-        # Higher damage = more knockback, higher resistance = less knockback
+
+        # Calculate knockback amount
         knockback_factor = min(1.0, damage_amount / self.attributes.max_health * 2)
-        base_knockback = 40  # Increased base knockback for better feel
+        base_knockback = 40
         actual_knockback = base_knockback * knockback_factor * (1 - knockback_resistance)
-        
-        # Skip knockback if negligible
+
         if actual_knockback < 3:
             return False
-        
-        # Calculate direction vector for knockback
+
+        # Calculate knockback direction
         if player_x is not None and player_y is not None:
-            # Get enemy center
             enemy_center_x = self.x + (self.width / 2)
             enemy_center_y = self.y + (self.height / 2)
-            
-            # Direction FROM player TO enemy (pushes enemy away from player)
+
             dir_x = enemy_center_x - player_x
             dir_y = enemy_center_y - player_y
-            
-            # Normalize the vector
+
             length = max(0.1, math.sqrt(dir_x**2 + dir_y**2))
             dir_x /= length
             dir_y /= length
-            
-            print(f"Knockback: Enemy at ({enemy_center_x:.0f},{enemy_center_y:.0f}) pushed AWAY from player at ({player_x:.0f},{player_y:.0f})")
         else:
-            # If no player position provided, use a default direction based on enemy's facing
-            if self.direction == "right":
-                dir_x = 1.0
-                dir_y = 0.0
-            elif self.direction == "left":
-                dir_x = -1.0
-                dir_y = 0.0
-            else:
-                # Random direction as last resort
-                angle = random.uniform(0, 2 * math.pi)
-                dir_x = math.cos(angle)
-                dir_y = math.sin(angle)
-            
-            print(f"Knockback: No player position provided, using default direction ({dir_x:.2f}, {dir_y:.2f})")
-        
-        # Store knockback parameters
+            # Fallback direction
+            dir_x = 1.0 if self.direction == "right" else -1.0
+            dir_y = 0.0
+
+        # ✅ Always restart knockback
         self.knockback_direction = (dir_x, dir_y)
         self.current_knockback = actual_knockback
-        
-        # Start knockback state
-        self.is_being_knocked_back = True
         self.knockback_timer = 0
-        
+        self.is_being_knocked_back = True
+
         return True
-    
+
     def die(self):
         """Start death animation and prepare to drop a soul"""
         # Set dying state to trigger death animation
