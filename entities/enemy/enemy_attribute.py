@@ -106,7 +106,7 @@ class EnemyAttributes:
         
         # Speed calculation
         base_speed = getattr(self.enemy, 'speed', 1.0)
-        dex_bonus = self.dex * 0.05  # 5% per DEX point
+        dex_bonus = self.dex * 0.08  # 5% per DEX point
         
         self.speed_multiplier = 1.0 + dex_bonus
         
