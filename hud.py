@@ -162,7 +162,7 @@ class HUD:
 
     def display_enemy_debug(self, surface, entities):
         """Display debug info for each enemy instance."""
-        x = self.screen_width - 400  # Right side
+        x = self.screen_width - 450  # Right side
         y = 40  # Start below the world info
         line_gap = 20
 
