@@ -139,27 +139,30 @@ class Slime(Enemy):
         # Set dying state
         self.state = "dying"
         self.animation_counter = 0
-        
+
         # Force creation of death particles 
         self.create_death_particles()
-        
+
         # Set a timer for removing the entity
         self.death_timer = 0
         self.death_duration = 500  # ms before removing entity
         self.should_remove = False  # Will be set to True when death animation completes
-        
+
         # Prepare to drop a soul
         self.will_drop_soul = True
-        
+
+        # Add this line to clear the collision rectangle immediately when dying
+        self.rect = pygame.Rect(0, 0, 0, 0)
+
         print(f"Slime is dying!")
     
     def create_death_particles(self):
         """Create particles for slime death animation - with green tint"""
         self.death_particles = []
-        
+
         # Create more particles for slimes
         particle_count = random.randint(20, 25)
-        
+
         # Enemy center coordinates
         center_x = self.x + self.width / 2
         center_y = self.y + self.height / 2
