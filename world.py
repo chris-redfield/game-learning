@@ -551,7 +551,7 @@ class World:
             return new_block
         
         return self.blocks[block_key]
-    
+
     def check_player_block_transition(self, player):
         """Check if player has moved out of the current block and handle transition"""
         # Get player position
@@ -600,8 +600,12 @@ class World:
             # Update current block
             self.current_block_coords = new_block_coords
             
-            # Move player to new position
-            player.x, player.y = new_player_pos
+            # ADDED: Check if there's grass at the spawn position and find a safe position if needed
+            new_player_rect = pygame.Rect(new_player_pos[0], new_player_pos[1], player.width, player.height)
+            safe_position = self._find_safe_spawn_position(new_block, new_player_rect, direction)
+            
+            # Move player to safe position
+            player.x, player.y = safe_position
             
             player.set_current_block(new_x, new_y)
             
@@ -613,7 +617,76 @@ class World:
             return True, direction
         
         return False, None
-    
+
+    def _find_safe_spawn_position(self, block, player_rect, direction):
+        """Find a safe position for the player to spawn without overlapping grass or other obstacles"""
+        # Get all entities in the block
+        entities = block.get_entities()
+        
+        # Check if the initial position is safe
+        initial_x, initial_y = player_rect.x, player_rect.y
+        
+        # Check for collisions with any entity in the target position
+        collision = False
+        for entity in entities:
+            if isinstance(entity, Grass) and player_rect.colliderect(entity.get_rect()):
+                collision = True
+                break
+        
+        # If no collision, return the initial position
+        if not collision:
+            return initial_x, initial_y
+        
+        # If there's a collision, find a nearby safe position
+        # Try moving along the edge based on the entry direction
+        offset_distance = 40  # pixels to move for each attempt
+        max_attempts = 10
+        
+        for i in range(1, max_attempts + 1):
+            test_positions = []
+            
+            # Generate test positions based on entry direction
+            if direction == "left" or direction == "right":
+                # Try positions along the vertical edge
+                test_positions.append((initial_x, initial_y + (i * offset_distance)))
+                test_positions.append((initial_x, initial_y - (i * offset_distance)))
+            else:  # up or down
+                # Try positions along the horizontal edge
+                test_positions.append((initial_x + (i * offset_distance), initial_y))
+                test_positions.append((initial_x - (i * offset_distance), initial_y))
+            
+            # Check each test position
+            for test_x, test_y in test_positions:
+                # Ensure position is within screen bounds
+                if test_x < 0 or test_x > SCREEN_WIDTH - player_rect.width or \
+                test_y < 0 or test_y > SCREEN_HEIGHT - player_rect.height:
+                    continue
+                    
+                # Create test rect
+                test_rect = pygame.Rect(test_x, test_y, player_rect.width, player_rect.height)
+                
+                # Check for collisions
+                collision = False
+                for entity in entities:
+                    if isinstance(entity, Grass) and test_rect.colliderect(entity.get_rect()):
+                        collision = True
+                        break
+                
+                # If no collision, return this position
+                if not collision:
+                    print(f"DEBUG: Found safe spawn position at ({test_x}, {test_y})")
+                    return test_x, test_y
+        
+        # If we couldn't find a safe position, try to remove grass at the initial position
+        for entity in entities[:]:  # Create a copy of the list to safely modify it during iteration
+            if isinstance(entity, Grass) and player_rect.colliderect(entity.get_rect()):
+                block.remove_entity(entity)
+                print(f"DEBUG: Removed grass at player spawn position ({initial_x}, {initial_y})")
+                break
+        
+        print(f"DEBUG: Using initial spawn position after removing grass: ({initial_x}, {initial_y})")
+        return initial_x, initial_y
+
     def get_current_entities(self):
         """Get all entities in the current block"""
         current_block = self.get_current_block()
