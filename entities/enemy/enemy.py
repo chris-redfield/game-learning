@@ -654,7 +654,7 @@ class Enemy:
         center_y = self.y + self.height / 2
         
         # Create a soul at the enemy's position
-        soul = Soul(center_x - 10, center_y - 10)  # Offset for centering
+        soul = Soul(center_x - 10, center_y - 10, self.attributes.level)  # Offset for centering
         
         # Return the soul so it can be added to the world
         return soul
