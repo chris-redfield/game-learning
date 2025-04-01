@@ -1,6 +1,17 @@
 import math
 import random
 
+# XP Tables for different progression rates
+XP_TABLE_1_5 = [10]  # Base XP needed for level 1 -> 2
+XP_TABLE_1_3 = [10]  # Initialize with just the base value, will be populated during initialization
+XP_TABLE_1_2 = [10]  # Initialize with just the base value, will be populated during initialization
+
+# Generate all XP tables up to level 50
+for i in range(49):  # 49 more levels for a total of 50
+    XP_TABLE_1_5.append(int(XP_TABLE_1_5[-1] * 1.5))
+    XP_TABLE_1_3.append(int(XP_TABLE_1_3[-1] * 1.3))
+    XP_TABLE_1_2.append(int(XP_TABLE_1_2[-1] * 1.2))
+
 class PlayerAttributes:
     """Handles player attributes, leveling and XP system"""
     def __init__(self, player):
@@ -19,32 +30,87 @@ class PlayerAttributes:
         self.current_mana = self.max_mana
         self.stat_points = 0  # Available points to spend
 
-        # XP system
+        # XP system with tables
         self.xp = 0
-        self.xp_needed = 10  # XP needed for first level up
+        self.current_xp_table = "1.5"  # Default table uses 1.5 multiplier
+        self.xp_table_1_5 = XP_TABLE_1_5  # Original progression
+        self.xp_table_1_3 = XP_TABLE_1_3  # Medium progression
+        self.xp_table_1_2 = XP_TABLE_1_2  # Fast progression
         
         # Level system
         self.level = 1
-        self.max_level = 4
-        
+        self.max_level = 50  # Increased from 4 to 50
+        # XP table progression items
+        self.found_ancient_scroll = False  # When found, enable 1.3 progression
+        self.found_dragon_heart = False   # When found, enable 1.2 progression
+        self.xp_needed = self.get_xp_needed()  # Get XP needed for next level
+
         # Level 2: Dash (temporary speed boost)
-        self.can_dash = False  # Level 2 ability
+        self.can_dash = False  # Unlocked at level 2
         self.dash_duration = 1500  # 1.5 seconds in milliseconds
         self.dash_cooldown = 3000  # 3 seconds in milliseconds
         self.dash_timer = 0  # For cooldown tracking
         self.dash_end_time = 0  # For duration tracking
         self.dashing = False
-        
+
         # Level 4: Blink (teleport)
-        self.can_blink = False  # Level 4 ability
+        self.can_blink = False  # Unlocked at level 4
         self.blink_distance = 80
         self.blink_cooldown = 2000  # in milliseconds
         self.blink_timer = 0
-        
+
         # Default sword length (will be increased at level 3)
         self.sword_length = 24
         self.base_sword_length = 24  # Store the base value for reference
+
+        # Initialize any abilities the player should have at level 1
+        self.initialize_abilities()
     
+    def get_xp_needed(self):
+        """Get XP needed for next level based on current level and XP table"""
+        if self.level >= self.max_level:
+            return 0  # Max level reached
+            
+        # Get appropriate XP table based on which artifacts have been found
+        if self.found_dragon_heart:
+            return self.xp_table_1_2[self.level - 1]
+        elif self.found_ancient_scroll:
+            return self.xp_table_1_3[self.level - 1]
+        else:
+            return self.xp_table_1_5[self.level - 1]
+            
+    def find_ancient_scroll(self):
+        """Player has found the Ancient Scroll, enabling faster leveling"""
+        if not self.found_ancient_scroll:
+            self.found_ancient_scroll = True
+            self.current_xp_table = "1.3"
+            self.xp_needed = self.get_xp_needed()
+            print("You found an Ancient Scroll of Knowledge! Your XP gains are now more efficient.")
+            return True
+        return False
+        
+    def find_dragon_heart(self):
+        """Player has found the Dragon Heart, enabling fastest leveling"""
+        if not self.found_dragon_heart:
+            self.found_dragon_heart = True
+            self.current_xp_table = "1.2"
+            self.xp_needed = self.get_xp_needed()
+            print("You found a Dragon Heart! Your XP gains are now greatly amplified!")
+            return True
+        return False
+    
+    def initialize_abilities(self):
+        """Initialize default abilities based on starting level"""
+        # This now only handles the original 3 basic abilities
+        if self.level >= 2:
+            self.can_dash = True
+        
+        if self.level >= 3:
+            self.sword_length = int(self.base_sword_length * 1.5)
+            
+        if self.level >= 4:
+            self.can_blink = True
+                
     def increase_stat(self, stat_name):
         """Increase a stat if stat points are available"""
         if self.stat_points <= 0:
@@ -86,24 +152,43 @@ class PlayerAttributes:
     def level_up(self):
         """Increase player level and unlock abilities"""
         if self.level < self.max_level:
+            old_level = self.level
             self.level += 1
             self.stat_points += 1  # Gain a stat point on level up
+            
+            # Log level up
             print(f"Level up! Player is now level {self.level} and gained a stat point!")
             
-            # Level 2: Unlock dash ability (temporary speed boost)
+            # Check for the original 3 ability unlocks
             if self.level == 2:
                 self.can_dash = True
                 print("Unlocked dash ability! Press SHIFT for a temporary speed boost.")
-            
-            # Level 3: Increase sword length by 50%
             elif self.level == 3:
                 self.sword_length = int(self.base_sword_length * 1.5)
                 print(f"Increased sword length! ({self.base_sword_length} -> {self.sword_length})")
-                
-            # Level 4: Unlock blink ability (teleport)
             elif self.level == 4:
                 self.can_blink = True
                 print("Unlocked blink ability! Press B to teleport in the direction you're facing.")
+            
+            # Update XP needed for next level
+            self.xp_needed = self.get_xp_needed()
+            
+            # Apply any level milestone bonuses
+            if self.level == 10:
+                self.stat_points += 1  # Extra stat point at level 10
+                print("Reached level 10! Gained an additional stat point!")
+            elif self.level == 20:
+                self.stat_points += 2  # Extra stat points at level 20
+                print("Reached level 20! Gained two additional stat points!")
+            elif self.level == 30:
+                self.stat_points += 3  # Extra stat points at level 30
+                print("Reached level 30! Gained three additional stat points!")
+            elif self.level == 40:
+                self.stat_points += 4  # Extra stat points at level 40
+                print("Reached level 40! Gained four additional stat points!")
+            elif self.level == 50:
+                self.stat_points += 5  # Extra stat points at max level
+                print("Reached level 50! Gained five additional stat points!")
             
             return True
         else:
@@ -112,19 +197,28 @@ class PlayerAttributes:
     
     def gain_xp(self, amount):
         """Add XP to the player and check for level up"""
+        # Don't add XP if already at max level
+        if self.level >= self.max_level:
+            return False
+            
         self.xp += amount
         
         # Check for level up
-        if self.xp >= self.xp_needed and self.level < self.max_level:
+        if self.xp >= self.xp_needed:
+            # Store excess XP
+            excess_xp = self.xp - self.xp_needed
+            
+            # Perform level up
             self.level_up()
             
-            # Increase XP requirement for next level (50% more each time)
-            self.xp_needed = int(self.xp_needed * 1.5)
+            # Apply excess XP toward next level
+            self.xp = excess_xp
             
-            # Display message
-            print(f"LEVEL UP! Now level {self.level}. Next level at {self.xp_needed} XP")
-            return True
-        
+            # Check if we can level up again with the excess XP
+            return self.gain_xp(0)  # Pass 0 to just check for level up, don't add more XP
+            
+        # Display message for current progress
+        print(f"XP: {self.xp}/{self.xp_needed} ({(self.xp/self.xp_needed*100):.1f}%)")
         return False
     
     def get_attack_power(self):
@@ -157,12 +251,29 @@ class PlayerAttributes:
         level_text = font.render(f"Level: {self.level}/{self.max_level}", True, (255, 255, 255))
         surface.blit(level_text, (x, y))
         
-        # Display XP info
-        xp_text = font.render(f"XP: {self.xp}/{self.xp_needed}", True, (255, 215, 0))  # Gold text
+        # Display XP info with progress percentage
+        if self.level < self.max_level:
+            xp_percentage = (self.xp / self.xp_needed * 100) if self.xp_needed > 0 else 100
+            xp_text = font.render(f"XP: {self.xp}/{self.xp_needed} ({xp_percentage:.1f}%)", True, (255, 215, 0))
+        else:
+            xp_text = font.render(f"MAX LEVEL", True, (255, 215, 0))
         surface.blit(xp_text, (x, y + 20))
         
+        # Display XP table info
+        xp_table_text = font.render(f"XP Table: {self.current_xp_table}x", True, (200, 200, 200))
+        surface.blit(xp_table_text, (x, y + 40))
+        
+        # Display stats
+        stats_text = font.render(f"STR:{self.str} CON:{self.con} DEX:{self.dex} INT:{self.int}", True, (200, 255, 200))
+        surface.blit(stats_text, (x, y + 60))
+        
+        # Show available stat points
+        if self.stat_points > 0:
+            points_text = font.render(f"Stat Points: {self.stat_points}", True, (255, 255, 100))
+            surface.blit(points_text, (x, y + 80))
+        
         # Adjust the starting position for abilities
-        abilities_y = y + 45
+        abilities_y = y + 105
         
         # Display ability info
         # Level 2: Dash
@@ -193,3 +304,10 @@ class PlayerAttributes:
             blink_color = (255, 255, 255) if self.blink_timer == 0 else (255, 165, 0)
             blink_text = font.render(f"Blink: {blink_status}", True, blink_color)
             surface.blit(blink_text, (x, abilities_y))
+            abilities_y += 25
+            
+        # Skill points available indicator
+        if self.stat_points > 0:
+            skill_text = font.render(f"Skill Points: {self.stat_points} (Press Enter for menu)", True, (255, 255, 100))
+            surface.blit(skill_text, (x, abilities_y))
+            abilities_y += 25
