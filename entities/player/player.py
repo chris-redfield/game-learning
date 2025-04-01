@@ -1,6 +1,6 @@
 import pygame
 import math
-import random
+from inventory import Inventory
 from .attributes import PlayerAttributes
 from .particles import ParticleSystem
 
@@ -48,6 +48,8 @@ class Player:
         
         # Debug flag for sword collision visualization
         self.debug_sword_rect = False
+
+        self.inventory = Inventory(max_slots=20)
 
         # Load spritesheet
         try:
@@ -684,3 +686,16 @@ class Player:
     def render_level_info(self, surface, font, x, y):
         """Display player level information on screen"""
         self.attributes.render_info(surface, font, x, y)
+
+    def use_item(self, item_index):
+        """Use an item from the inventory"""
+        if 0 <= item_index < len(self.inventory.items):
+            item = self.inventory.items[item_index]
+            
+            # Use the item
+            if item.use(self):
+                # If the item was successfully used, remove it from inventory
+                self.inventory.remove_item(item_index)
+                return True
+        
+        return False

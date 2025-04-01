@@ -6,10 +6,11 @@ class HealthPotion(Item):
         super().__init__(x, y)
         self.name = "Health Potion"
         self.description = "Restores health when consumed"
-        self.heal_amount = 2  # Amount of health to restore
+        self.heal_amount = 15  # Amount of health to restore
+        self.stackable = True  # Health potions can stack in inventory
         
         # Rotation properties
-        self.rotation_angle = 45  # 45 degrees counter-clockwise
+        self.rotation_angle = -45  # 45 degrees counter-clockwise
         self.original_sprite = None
         
         # Try to load the health potion sprite
@@ -37,14 +38,6 @@ class HealthPotion(Item):
             # Rotate the placeholder sprite
             self.sprite = pygame.transform.rotate(self.original_sprite, self.rotation_angle)
     
-    def update(self, player=None):
-        """Update potion animation and check for collection"""
-        # Call the parent update method for basic animation and collection logic
-        result = super().update(player)
-        
-        # Return the result from the parent method
-        return result
-    
     def draw(self, surface):
         """Draw the rotated potion with bobbing animation"""
         if not self.collected:
@@ -54,6 +47,23 @@ class HealthPotion(Item):
             
             # Draw with bobbing animation effect and adjusted position for rotation
             surface.blit(self.sprite, (self.x - offset_x, self.y + self.bob_offset - offset_y))
+    
+    def get_icon(self):
+        """Get a display icon for inventory"""
+        # For potions, use the non-rotated version as the icon
+        icon_size = 40
+        icon = pygame.Surface((icon_size, icon_size), pygame.SRCALPHA)
+        
+        # Scale the original (non-rotated) sprite
+        if self.original_sprite:
+            temp = pygame.transform.scale(self.original_sprite, (icon_size - 8, icon_size - 8))
+            # Center the sprite in the icon
+            icon.blit(temp, (4, 4))
+        else:
+            # Fallback if somehow original sprite is missing
+            icon.fill((220, 50, 50))
+        
+        return icon
         
     def use(self, player):
         """Use the potion to heal the player"""
@@ -68,3 +78,41 @@ class HealthPotion(Item):
         else:
             print("Health is already full!")
             return False
+        
+    def get_rect(self):
+        """Return the collision rectangle for the rotated potion"""
+        # For rotated potions, we need to account for the rotation when checking collisions
+        # Create a slightly larger collision rect to be more forgiving
+        rotated_width = int(self.sprite.get_width() * 0.9)  # 90% of the rotated sprite width
+        rotated_height = int(self.sprite.get_height() * 0.9)  # 90% of the rotated sprite height
+        
+        # Calculate the offset to center the collision rect on the visible sprite
+        offset_x = (self.sprite.get_width() - self.width) // 2
+        offset_y = (self.sprite.get_height() - self.height) // 2
+        
+        # Update the pickup rect to match the visible part of the rotated sprite
+        self.pickup_rect.x = self.x - offset_x + (self.sprite.get_width() - rotated_width) // 2
+        self.pickup_rect.y = self.y + self.bob_offset - offset_y + (self.sprite.get_height() - rotated_height) // 2
+        self.pickup_rect.width = rotated_width
+        self.pickup_rect.height = rotated_height
+        
+        return self.pickup_rect
+    
+    def update(self, player=None):
+        """Update potion animation and check for collection"""
+        # Update bobbing animation using parent logic
+        super().update(None)  # Call parent but don't pass player yet
+        
+        # Custom collision detection for rotated potion
+        if player and not self.collected:
+            # Get player rect
+            player_rect = player.get_rect()
+            # Get our updated pickup rect
+            potion_rect = self.get_rect()
+            
+            # Check collision with slightly expanded player rect for better pickup
+            expanded_player_rect = player_rect.inflate(8, 8)  # Make player collision area larger
+            if potion_rect.colliderect(expanded_player_rect):
+                return self.collect(player)
+        
+        return False

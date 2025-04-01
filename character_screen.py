@@ -395,44 +395,64 @@ class CharacterScreen:
                 surface.blit(desc_text, (x + 20, ability_y + 25))
                 
     def draw_items_grid(self, surface, x, y):
-        """Draw an item grid below the portrait"""
-        # Title for items section
-        items_title = self.stat_font.render("ITEMS", True, self.colors['title'])
-        surface.blit(items_title, (x, y))
-        
-        # Calculate grid dimensions
-        grid_width = self.cell_size * self.grid_cols + self.grid_padding * (self.grid_cols + 1)
-        grid_height = self.cell_size * self.grid_rows + self.grid_padding * (self.grid_rows + 1)
-        
-        # Draw grid background
-        grid_rect = pygame.Rect(x, y + 35, grid_width, grid_height)
-        pygame.draw.rect(surface, self.colors['grid_bg'], grid_rect)
-        pygame.draw.rect(surface, self.colors['border'], grid_rect, 2)
-        
-        # Draw grid cells
-        for row in range(self.grid_rows):
-            for col in range(self.grid_cols):
-                cell_x = x + col * (self.cell_size + self.grid_padding) + self.grid_padding
-                cell_y = y + 35 + row * (self.cell_size + self.grid_padding) + self.grid_padding
-                
-                # Draw cell background
-                cell_rect = pygame.Rect(cell_x, cell_y, self.cell_size, self.cell_size)
-                pygame.draw.rect(surface, self.colors['grid_border'], cell_rect, 1)
-                
-                # Get item index
-                item_idx = row * self.grid_cols + col
-                
-                # Draw item if it exists
-                if item_idx < len(self.items):
-                    item = self.items[item_idx]
+            """Draw an item grid below the portrait"""
+            # Title for items section
+            items_title = self.stat_font.render("ITEMS", True, self.colors['title'])
+            surface.blit(items_title, (x, y))
+            
+            # Calculate grid dimensions
+            grid_width = self.cell_size * self.grid_cols + self.grid_padding * (self.grid_cols + 1)
+            grid_height = self.cell_size * self.grid_rows + self.grid_padding * (self.grid_rows + 1)
+            
+            # Draw grid background
+            grid_rect = pygame.Rect(x, y + 35, grid_width, grid_height)
+            pygame.draw.rect(surface, self.colors['grid_bg'], grid_rect)
+            pygame.draw.rect(surface, self.colors['border'], grid_rect, 2)
+            
+            # Get player inventory items
+            if hasattr(self.player, 'inventory'):
+                inventory_items = self.player.inventory.get_items_and_counts()
+            else:
+                # Use placeholder items if player doesn't have inventory
+                inventory_items = [
+                    {"item": None, "count": 0} for _ in range(min(len(self.items), self.grid_cols * self.grid_rows))
+                ]
+            
+            # Draw grid cells
+            for row in range(self.grid_rows):
+                for col in range(self.grid_cols):
+                    cell_x = x + col * (self.cell_size + self.grid_padding) + self.grid_padding
+                    cell_y = y + 35 + row * (self.cell_size + self.grid_padding) + self.grid_padding
                     
-                    # Draw placeholder for item icon (replace with actual icons later)
-                    icon_rect = pygame.Rect(cell_x + 5, cell_y + 5, self.cell_size - 10, self.cell_size - 25)
-                    pygame.draw.rect(surface, (150, 150, 150), icon_rect)
+                    # Draw cell background
+                    cell_rect = pygame.Rect(cell_x, cell_y, self.cell_size, self.cell_size)
+                    pygame.draw.rect(surface, self.colors['grid_border'], cell_rect, 1)
                     
-                    # Draw item count
-                    if item['count'] > 1:
-                        count_text = self.text_font.render(f"{item['count']}", True, self.colors['text'])
-                        count_x = cell_x + self.cell_size - count_text.get_width() - 5
-                        count_y = cell_y + self.cell_size - count_text.get_height() - 3
-                        surface.blit(count_text, (count_x, count_y))
+                    # Get item index
+                    item_idx = row * self.grid_cols + col
+                    
+                    # Draw item if it exists in inventory
+                    if item_idx < len(inventory_items):
+                        item_data = inventory_items[item_idx]
+                        item = item_data['item']
+                        count = item_data['count']
+                        
+                        if item:
+                            # Get item icon if available
+                            if hasattr(item, 'get_icon'):
+                                icon = item.get_icon()
+                                # Center the icon in the cell
+                                icon_x = cell_x + (self.cell_size - icon.get_width()) // 2
+                                icon_y = cell_y + (self.cell_size - icon.get_height()) // 2
+                                surface.blit(icon, (icon_x, icon_y))
+                            else:
+                                # Fallback to a colored rectangle
+                                icon_rect = pygame.Rect(cell_x + 5, cell_y + 5, self.cell_size - 10, self.cell_size - 10)
+                                pygame.draw.rect(surface, (150, 150, 150), icon_rect)
+                            
+                            # Draw item count if more than 1
+                            if count > 1:
+                                count_text = self.text_font.render(f"{count}", True, self.colors['text'])
+                                count_x = cell_x + self.cell_size - count_text.get_width() - 5
+                                count_y = cell_y + self.cell_size - count_text.get_height() - 3
+                                surface.blit(count_text, (count_x, count_y))
