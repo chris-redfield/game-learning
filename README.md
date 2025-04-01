@@ -113,8 +113,8 @@ A 2D action-adventure game with procedural world generation, RPG-inspired charac
 ### Installation
 1. Clone the repository
 ```console
-git clone https://github.com/yourusername/DynamicWorldGame.git
-cd DynamicWorldGame
+git clone https://github.com/chris-redfield/game-learning.git
+cd game-learning
 ```
 <br>
 
