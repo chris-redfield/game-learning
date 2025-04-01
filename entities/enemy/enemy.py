@@ -96,6 +96,12 @@ class Enemy:
     def update(self, player=None, obstacles=None):
         """Update enemy state and animation with death handling"""
         # If in dying state, update death animation
+        # Safety check - if health is <= 0 but not in dying state, trigger death
+        if self.health <= 0 and self.state != "dying":
+            print(f"Caught zombie skeleton with {self.health} health!")
+            self.die()
+            return
+
         if self.state == "dying":
             self.death_timer += 16.67  # Approximate milliseconds per frame at 60 FPS
             
