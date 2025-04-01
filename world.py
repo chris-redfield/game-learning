@@ -6,6 +6,8 @@ from entities.enemy.skeleton import Skeleton
 from entities.enemy.slime import Slime
 from entities.bonfire import Bonfire  # Import the new Bonfire class
 from items.health_potion import HealthPotion  # Import the HealthPotion class
+from items.ancient_scroll import AncientScroll  # Import the Ancient Scroll class
+from items.dragon_heart import DragonHeart  # Import the Dragon Heart class
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
 # Define enemy tiers based on difficulty levels
@@ -148,7 +150,7 @@ class World:
                 positions=[(potion_x, potion_y)]
             )
             
-            # Extend safe area to include bonfire
+            # Extend safe area to include bonfire and potion
             if safe_area:
                 # Create a new larger safe area that includes player, bonfire, and potion
                 safe_area = pygame.Rect(
@@ -174,6 +176,72 @@ class World:
         
         # Mark as populated
         block.mark_as_visited()
+    
+    def place_special_items(self, item_type=None, coords=None):
+        """Place special items like XP modifiers in specific world locations or random locations
+        
+        Args:
+            item_type (str, optional): Type of item to place ("ancient_scroll" or "dragon_heart")
+            coords (list, optional): [x, y] coordinates for the block where the item should be placed.
+                                    If None, a random suitable location will be chosen.
+        """
+        # If no specific item type is requested, place both items
+        if item_type is None or item_type.lower() == "ancient_scroll":
+            # Place Ancient Scroll
+            if coords is None:
+                # If no coordinates provided, place at origin by default
+                scroll_coords = [0, 0]
+            else:
+                scroll_coords = coords
+                
+            scroll_block = self.get_or_generate_block(scroll_coords[0], scroll_coords[1])
+            
+            # If placing at origin, use a specific position relative to player spawn
+            if scroll_coords[0] == 0 and scroll_coords[1] == 0:
+                player_center_x = SCREEN_WIDTH // 2
+                player_center_y = SCREEN_HEIGHT // 2
+                scroll_x = player_center_x + 50  # 50 pixels to the right
+                scroll_y = player_center_y + 80  # 80 pixels down
+                positions = [(scroll_x, scroll_y)]
+            else:
+                # For other blocks, place it randomly
+                positions = None
+                
+            # Add the Ancient Scroll
+            added = self._add_items(
+                block=scroll_block,
+                count=1,
+                item_type=AncientScroll,
+                positions=positions
+            )
+            
+            if added > 0:
+                print(f"Ancient Scroll placed in block ({scroll_coords[0]}, {scroll_coords[1]})")
+            else:
+                print(f"Failed to place Ancient Scroll in block ({scroll_coords[0]}, {scroll_coords[1]})")
+        
+        # Place Dragon Heart if requested or if placing all items
+        if item_type is None or item_type.lower() == "dragon_heart":
+            # Place Dragon Heart
+            if coords is None:
+                # If no coordinates provided, place in a challenging location
+                heart_coords = [5, 5]
+            else:
+                heart_coords = coords
+                
+            heart_block = self.get_or_generate_block(heart_coords[0], heart_coords[1])
+            
+            # Add the Dragon Heart with random position in the block
+            added = self._add_items(
+                block=heart_block,
+                count=1,
+                item_type=DragonHeart
+            )
+            
+            if added > 0:
+                print(f"Dragon Heart placed in block ({heart_coords[0]}, {heart_coords[1]})")
+            else:
+                print(f"Failed to place Dragon Heart in block ({heart_coords[0]}, {heart_coords[1]})")
     
     def _get_difficulty_level(self, x_coord, y_coord):
         """Calculate difficulty level based on distance from origin"""
@@ -465,6 +533,22 @@ class World:
         if block_key not in self.blocks:
             # Generate a new block if it doesn't exist
             return self.generate_block(x_coord, y_coord)
+        
+        return self.blocks[block_key]
+    
+    def get_or_generate_block(self, x_coord, y_coord):
+        """Get or generate a block without changing the current block"""
+        block_key = (x_coord, y_coord)
+        
+        if block_key not in self.blocks:
+            # Create a new block
+            block_id = f"block_{self.next_block_id}"
+            self.next_block_id += 1
+            
+            print(f"DEBUG: Creating block at ({x_coord}, {y_coord}) with ID {block_id}")
+            new_block = WorldBlock(block_id, x_coord, y_coord)
+            self.blocks[block_key] = new_block
+            return new_block
         
         return self.blocks[block_key]
     
