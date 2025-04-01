@@ -470,6 +470,9 @@ class Enemy:
         # Prepare to drop a soul
         self.will_drop_soul = True
         
+        # Add this line to clear the collision rectangle immediately when dying
+        self.rect = pygame.Rect(0, 0, 0, 0)
+        
         print(f"{self.__class__.__name__} is dying!")
     
     def create_death_particles(self):
@@ -556,6 +559,8 @@ class Enemy:
     
     def get_rect(self):
         """Return collision rectangle"""
+        if self.state == "dying":
+            return pygame.Rect(0, 0, 0, 0)
         return self.rect
     
     def draw(self, surface):
