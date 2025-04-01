@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Type
 class Inventory:
     """Manages the player's collected items"""
     
-    def __init__(self, max_slots=15):
+    def __init__(self, max_slots=24):
         self.max_slots = max_slots
         self.items = []  # List of items
         self.item_counts = {}  # Dictionary to track quantities of stackable items

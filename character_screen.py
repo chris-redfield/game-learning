@@ -42,19 +42,19 @@ class CharacterScreen:
         self.button_order = ['inc_str', 'inc_con', 'inc_dex', 'inc_int']
         
         # Item grid configuration
-        self.grid_cols = 5
-        self.grid_rows = 3
+        self.grid_cols = 6
+        self.grid_rows = 4
         self.cell_size = 50
         self.grid_padding = 5
         
         # Placeholder items (replace with actual player items later)
-        self.items = [
-            {"id": "potion", "name": "Health Potion", "count": 3},
-            {"id": "key", "name": "Dungeon Key", "count": 1},
-            {"id": "sword", "name": "Silver Sword", "count": 1},
-            {"id": "shield", "name": "Wooden Shield", "count": 1},
-            {"id": "arrow", "name": "Arrows", "count": 20}
-        ]
+        #self.items = [
+        #    {"id": "potion", "name": "Health Potion", "count": 3},
+        #    {"id": "key", "name": "Dungeon Key", "count": 1},
+        #    {"id": "sword", "name": "Silver Sword", "count": 1},
+        #    {"id": "shield", "name": "Wooden Shield", "count": 1},
+        #    {"id": "arrow", "name": "Arrows", "count": 20}
+        #]
         
     def load_portrait(self):
         """Load Link portrait from file with fallback to placeholder"""
