@@ -5,6 +5,7 @@ from entities.grass import Grass
 from entities.enemy.skeleton import Skeleton
 from entities.enemy.slime import Slime
 from entities.bonfire import Bonfire  # Import the new Bonfire class
+from items.health_potion import HealthPotion  # Import the HealthPotion class
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
 # Define enemy tiers based on difficulty levels
@@ -135,22 +136,34 @@ class World:
             block.add_entity(bonfire)
             print(f"DEBUG: Added bonfire to origin block at ({bonfire_x}, {bonfire_y})")
             
+            # Add a health potion near player using the _add_items method
+            potion_x = player_center_x - 80  # 80 pixels to the left
+            potion_y = player_center_y + 50   # 50 pixels down
+            
+            # Use the enhanced _add_items method with specific position
+            self._add_items(
+                block=block,
+                count=1, 
+                item_type=HealthPotion, 
+                positions=[(potion_x, potion_y)]
+            )
+            
             # Extend safe area to include bonfire
             if safe_area:
-                # Create a new larger safe area that includes both player and bonfire
+                # Create a new larger safe area that includes player, bonfire, and potion
                 safe_area = pygame.Rect(
-                    min(player_center_x - 100, bonfire_x - 50),
-                    min(player_center_y - 100, bonfire_y - 50),
-                    max(200, abs(bonfire_x - player_center_x) + 150),
-                    max(200, abs(bonfire_y - player_center_y) + 150)
+                    min(player_center_x - 100, bonfire_x - 50, potion_x - 50),
+                    min(player_center_y - 100, bonfire_y - 50, potion_y - 50),
+                    max(200, abs(bonfire_x - player_center_x) + 150, abs(potion_x - player_center_x) + 150),
+                    max(200, abs(bonfire_y - player_center_y) + 150, abs(potion_y - player_center_y) + 150)
                 )
             else:
-                # Create a safe area around bonfire if there wasn't one already
+                # Create a safe area around bonfire and potion if there wasn't one already
                 safe_area = pygame.Rect(
-                    bonfire_x - 50,
-                    bonfire_y - 50,
-                    150,
-                    150
+                    min(bonfire_x - 50, potion_x - 50),
+                    min(bonfire_y - 50, potion_y - 50),
+                    max(150, abs(bonfire_x - potion_x) + 100),
+                    max(150, abs(bonfire_y - potion_y) + 100)
                 )
         
         # Add grass patches
@@ -375,6 +388,71 @@ class World:
                 block.add_entity(new_grass)
             
             attempts += 1
+    
+    def _add_items(self, block, count, item_type, safe_area=None, positions=None):
+        """Add items of a specific type to a block
+        
+        Args:
+            block: The world block to add items to
+            count: Number of items to add
+            item_type: The class of item to create
+            safe_area: Area where items shouldn't be placed (unless explicit positions given)
+            positions: Optional list of (x,y) tuples for precise placement. If provided, overrides random placement.
+        
+        Returns:
+            Number of items successfully added
+        """
+        min_distance_between_items = 48
+        existing_entities = block.get_entities()
+        
+        items_added = 0
+        attempts = 0
+        
+        # If specific positions are provided, use those instead of random placement
+        if positions and len(positions) > 0:
+            for pos in positions[:count]:  # Limit to requested count
+                x, y = pos
+                
+                # Create and add the item at the specified position
+                new_item = item_type(x, y)
+                block.add_entity(new_item)
+                items_added += 1
+                print(f"DEBUG: Added {new_item.name} to block at specified position ({x}, {y})")
+                
+            return items_added
+        
+        # Random placement if no specific positions were provided
+        while items_added < count and attempts < 100:
+            x = random.randint(80, SCREEN_WIDTH - 80)
+            y = random.randint(80, SCREEN_HEIGHT - 80)
+            
+            new_item_rect = pygame.Rect(x, y, 32, 32)
+            
+            # Check if in safe area
+            if safe_area and safe_area.colliderect(new_item_rect):
+                attempts += 1
+                continue
+                
+            # Check collision with existing entities
+            collision = False
+            for entity in existing_entities:
+                entity_rect = entity.get_rect()
+                if new_item_rect.colliderect(entity_rect) or \
+                   pygame.math.Vector2(new_item_rect.center).distance_to(
+                       pygame.math.Vector2(entity_rect.center)) < min_distance_between_items:
+                    collision = True
+                    break
+            
+            if not collision:
+                new_item = item_type(x, y)
+                block.add_entity(new_item)
+                existing_entities.append(new_item)
+                items_added += 1
+                print(f"DEBUG: Added {new_item.name} to block at random position ({x}, {y})")
+            
+            attempts += 1
+            
+        return items_added
     
     def get_current_block(self):
         """Get the current block the player is in"""

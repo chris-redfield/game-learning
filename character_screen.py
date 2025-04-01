@@ -19,7 +19,9 @@ class CharacterScreen:
             'health': (220, 50, 50),          # Health bar
             'mana': (50, 50, 220),            # Mana bar
             'portrait_bg': (30, 30, 40),      # Portrait background
-            'cursor': (255, 255, 0)           # Cursor highlight color
+            'cursor': (255, 255, 0),          # Cursor highlight color
+            'grid_bg': (40, 40, 50),          # Item grid background
+            'grid_border': (100, 100, 120)    # Item grid cell border
         }
         
         # Fonts
@@ -38,6 +40,21 @@ class CharacterScreen:
         # Controller navigation
         self.selected_index = 0
         self.button_order = ['inc_str', 'inc_con', 'inc_dex', 'inc_int']
+        
+        # Item grid configuration
+        self.grid_cols = 5
+        self.grid_rows = 3
+        self.cell_size = 50
+        self.grid_padding = 5
+        
+        # Placeholder items (replace with actual player items later)
+        self.items = [
+            {"id": "potion", "name": "Health Potion", "count": 3},
+            {"id": "key", "name": "Dungeon Key", "count": 1},
+            {"id": "sword", "name": "Silver Sword", "count": 1},
+            {"id": "shield", "name": "Wooden Shield", "count": 1},
+            {"id": "arrow", "name": "Arrows", "count": 20}
+        ]
         
     def load_portrait(self):
         """Load Link portrait from file with fallback to placeholder"""
@@ -101,15 +118,17 @@ class CharacterScreen:
         
     def init_buttons(self):
         """Initialize button elements"""
-        # Stat increase buttons - moved further right
+        # Stat increase buttons positioned to the right of each attribute name
         button_width = 30
         button_height = 30
-        button_x = SCREEN_WIDTH // 2 + 120  # Moved further right
         
+        # These buttons will now be positioned relative to the attribute section
+        # Will be used in draw() method to position them correctly
         stats = ['str', 'con', 'dex', 'int']
         for i, stat in enumerate(stats):
+            # Just initialize with temporary positions, we'll update them in draw()
             self.buttons[f'inc_{stat}'] = {
-                'rect': pygame.Rect(button_x, 130 + i * 40, button_width, button_height),
+                'rect': pygame.Rect(0, 0, button_width, button_height),
                 'text': '+',
                 'action': lambda s=stat: self.player.increase_stat(s)
             }
@@ -211,15 +230,20 @@ class CharacterScreen:
         portrait_y = margin + 80
         surface.blit(self.portrait, (portrait_x, portrait_y))
         
-        # Draw level info under portrait
+        # Draw character stats to the RIGHT of the portrait instead of below it
+        stats_x = portrait_x + self.portrait.get_width() + 30
+        stats_y = portrait_y
+        
+        # Draw level info next to portrait
         level_text = self.stat_font.render(f"Level: {self.player.attributes.level}", True, self.colors['stat_text'])
-        surface.blit(level_text, (portrait_x, portrait_y + self.portrait.get_height() + 20))
+        surface.blit(level_text, (stats_x, stats_y))
         
         # Draw stat points
+        stat_points_y = stats_y + 30
         stat_points_text = self.stat_font.render(f"Stat Points: {self.player.attributes.stat_points}", True, self.colors['title'])
-        surface.blit(stat_points_text, (portrait_x, portrait_y + self.portrait.get_height() + 50))
+        surface.blit(stat_points_text, (stats_x, stat_points_y))
         
-        # Draw attribute values under portrait
+        # Draw attribute values next to portrait
         attributes_text = [
             f"STR: {self.player.attributes.str}",
             f"CON: {self.player.attributes.con}",
@@ -229,19 +253,19 @@ class CharacterScreen:
         
         for i, text in enumerate(attributes_text):
             attr_text = self.text_font.render(text, True, self.colors['stat_text'])
-            surface.blit(attr_text, (portrait_x, portrait_y + self.portrait.get_height() + 80 + i * 25))
+            surface.blit(attr_text, (stats_x, stat_points_y + 30 + i * 25))
         
-        # Draw health and mana bars
-        self.draw_resource_bars(surface, portrait_x, portrait_y + self.portrait.get_height() + 190)
+        # Draw health and mana bars next to portrait
+        self.draw_resource_bars(surface, stats_x, stat_points_y + 150)
         
-        # Draw attributes section with improved spacing
+        # Draw attributes section
         attributes_x = SCREEN_WIDTH // 2
         attributes_y = 90
         
         attribute_title = self.stat_font.render("ATTRIBUTES", True, self.colors['title'])
         surface.blit(attribute_title, (attributes_x, attributes_y))
         
-        # Draw attributes with buttons - fixed spacing
+        # Draw attributes with buttons
         attribute_data = [
             {"name": "Strength", "key": "str"},
             {"name": "Constitution", "key": "con"},
@@ -250,15 +274,21 @@ class CharacterScreen:
         ]
         
         for i, attr in enumerate(attribute_data):
-            y_pos = attributes_y + 40 + i * 40  # Increased spacing
+            y_pos = attributes_y + 40 + i * 40
             
             # Attribute name
             name_text = self.text_font.render(attr["name"], True, self.colors['text'])
             surface.blit(name_text, (attributes_x, y_pos))
             
-            # Draw increase button
+            # Update button position (to the right of the attribute name)
             button_id = f'inc_{attr["key"]}'
             button = self.buttons[button_id]
+            
+            # Position button to the right of the attributes section
+            button_x = attributes_x + 200  # Fixed position on the right
+            button_y = y_pos - 5  # Align vertically with attribute name
+            button['rect'].x = button_x
+            button['rect'].y = button_y
             
             button_color = self.colors['button_disabled']
             if self.player.attributes.stat_points > 0:
@@ -296,6 +326,9 @@ class CharacterScreen:
         
         # Draw abilities section based on level
         self.draw_abilities_section(surface, attributes_x, attributes_y + 210)
+        
+        # NEW: Draw items grid below the portrait
+        self.draw_items_grid(surface, portrait_x, portrait_y + self.portrait.get_height() + 30)
         
     def draw_resource_bars(self, surface, x, y):
         """Draw health and mana bars"""
@@ -360,3 +393,46 @@ class CharacterScreen:
             if self.player.attributes.level >= ability["level"]:
                 desc_text = self.text_font.render(ability["desc"], True, (180, 180, 180))
                 surface.blit(desc_text, (x + 20, ability_y + 25))
+                
+    def draw_items_grid(self, surface, x, y):
+        """Draw an item grid below the portrait"""
+        # Title for items section
+        items_title = self.stat_font.render("ITEMS", True, self.colors['title'])
+        surface.blit(items_title, (x, y))
+        
+        # Calculate grid dimensions
+        grid_width = self.cell_size * self.grid_cols + self.grid_padding * (self.grid_cols + 1)
+        grid_height = self.cell_size * self.grid_rows + self.grid_padding * (self.grid_rows + 1)
+        
+        # Draw grid background
+        grid_rect = pygame.Rect(x, y + 35, grid_width, grid_height)
+        pygame.draw.rect(surface, self.colors['grid_bg'], grid_rect)
+        pygame.draw.rect(surface, self.colors['border'], grid_rect, 2)
+        
+        # Draw grid cells
+        for row in range(self.grid_rows):
+            for col in range(self.grid_cols):
+                cell_x = x + col * (self.cell_size + self.grid_padding) + self.grid_padding
+                cell_y = y + 35 + row * (self.cell_size + self.grid_padding) + self.grid_padding
+                
+                # Draw cell background
+                cell_rect = pygame.Rect(cell_x, cell_y, self.cell_size, self.cell_size)
+                pygame.draw.rect(surface, self.colors['grid_border'], cell_rect, 1)
+                
+                # Get item index
+                item_idx = row * self.grid_cols + col
+                
+                # Draw item if it exists
+                if item_idx < len(self.items):
+                    item = self.items[item_idx]
+                    
+                    # Draw placeholder for item icon (replace with actual icons later)
+                    icon_rect = pygame.Rect(cell_x + 5, cell_y + 5, self.cell_size - 10, self.cell_size - 25)
+                    pygame.draw.rect(surface, (150, 150, 150), icon_rect)
+                    
+                    # Draw item count
+                    if item['count'] > 1:
+                        count_text = self.text_font.render(f"{item['count']}", True, self.colors['text'])
+                        count_x = cell_x + self.cell_size - count_text.get_width() - 5
+                        count_y = cell_y + self.cell_size - count_text.get_height() - 3
+                        surface.blit(count_text, (count_x, count_y))
