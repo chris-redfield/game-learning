@@ -3,7 +3,7 @@
 
 A 2D action-adventure game with procedural world generation, RPG-inspired character progression, and dynamic combat mechanics.
 
-![Game Screenshot](assets/game_screenshot.png)
+<img src="assets/game-screenshot.png" alt="Screenshot" width="600"/>
 
 ## Key Features
 
