@@ -159,8 +159,8 @@ class AncientScroll(Item):
         
     def use(self, player):
         """Using the scroll from inventory does nothing as its effect is applied on pickup"""
-        print(f"The {self.name} has already imparted its knowledge to you.")
-        return False
+        # Instead of printing, return a message
+        return f"The {self.name} has already imparted its knowledge to you."
     
     def get_rect(self):
         """Return the collision rectangle for pickup"""

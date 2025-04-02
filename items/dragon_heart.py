@@ -221,8 +221,8 @@ class DragonHeart(Item):
         
     def use(self, player):
         """Using the heart from inventory does nothing as its effect is applied on pickup"""
-        print(f"The {self.name} has already been absorbed into your being.")
-        return False
+        # Instead of printing, return a message
+        return f"The {self.name} has already been absorbed into your being."
     
     def get_rect(self):
         """Return the collision rectangle for pickup"""

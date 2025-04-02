@@ -21,14 +21,25 @@ class CharacterScreen:
             'portrait_bg': (30, 30, 40),      # Portrait background
             'cursor': (255, 255, 0),          # Cursor highlight color
             'grid_bg': (40, 40, 50),          # Item grid background
-            'grid_border': (100, 100, 120)    # Item grid cell border
+            'grid_border': (100, 100, 120),   # Item grid cell border
+            'item_hover': (80, 80, 100),      # Highlighted item background
+            'item_selected': (100, 100, 150), # Selected item background
+            'usable': (100, 180, 100),        # Usable item indicator
+            'unusable': (180, 100, 100),      # Unusable item indicator
+            'feedback_bg': (0, 0, 0, 180),    # Item feedback message background
+            'feedback_text': (255, 220, 100)  # Item feedback message text
         }
+        
+        # Item feedback message variables
+        self.item_feedback_message = None
+        self.item_feedback_timer = 0
         
         # Fonts
         self.title_font = pygame.font.SysFont('Arial', 26, bold=True)
         self.stat_font = pygame.font.SysFont('Arial', 22, bold=True)
         self.text_font = pygame.font.SysFont('Arial', 18)
         self.button_font = pygame.font.SysFont('Arial', 16)
+        self.desc_font = pygame.font.SysFont('Arial', 16)
         
         # Load portrait
         self.portrait = self.load_portrait()
@@ -47,14 +58,17 @@ class CharacterScreen:
         self.cell_size = 50
         self.grid_padding = 5
         
-        # Placeholder items (replace with actual player items later)
-        #self.items = [
-        #    {"id": "potion", "name": "Health Potion", "count": 3},
-        #    {"id": "key", "name": "Dungeon Key", "count": 1},
-        #    {"id": "sword", "name": "Silver Sword", "count": 1},
-        #    {"id": "shield", "name": "Wooden Shield", "count": 1},
-        #    {"id": "arrow", "name": "Arrows", "count": 20}
-        #]
+        # Item selection variables
+        self.selected_item_index = -1  # No item selected initially
+        self.hovered_item_index = -1   # No item hovered initially
+        self.is_inventory_focused = False  # Whether navigation is focused on inventory grid
+        self.tooltip_visible = False   # Whether to show item tooltip
+        self.tooltip_item = None       # Current item for tooltip
+        
+        # Add variables for navigation mode
+        self.current_section = "stats"  # Can be "stats" or "inventory"
+        self.grid_selected_row = 0
+        self.grid_selected_col = 0
         
     def load_portrait(self):
         """Load Link portrait from file with fallback to placeholder"""
@@ -139,6 +153,10 @@ class CharacterScreen:
         # Reset selection on open
         if self.visible:
             self.selected_index = 0
+            self.current_section = "stats"
+            self.selected_item_index = -1
+            self.grid_selected_row = 0
+            self.grid_selected_col = 0
         return self.visible
         
     def is_visible(self):
@@ -146,12 +164,141 @@ class CharacterScreen:
         return self.visible
     
     def select_next(self):
-        """Move to next button"""
-        self.selected_index = (self.selected_index + 1) % len(self.button_order)
+        """Move to next button or inventory item based on current section"""
+        if self.current_section == "stats":
+            self.selected_index = (self.selected_index + 1) % len(self.button_order)
+        elif self.current_section == "inventory":
+            # Move to next column or wrap to next row
+            self.grid_selected_col = (self.grid_selected_col + 1) % self.grid_cols
+            # Update selected item index
+            self.selected_item_index = self.grid_selected_row * self.grid_cols + self.grid_selected_col
+            
+            # Validate selection is within inventory bounds
+            if hasattr(self.player, 'inventory'):
+                inventory_size = len(self.player.inventory.get_items_and_counts())
+                if self.selected_item_index >= inventory_size:
+                    # Reset to first column
+                    self.grid_selected_col = 0
+                    # Move to next row or wrap around
+                    self.grid_selected_row = (self.grid_selected_row + 1) % self.grid_rows
+                    self.selected_item_index = self.grid_selected_row * self.grid_cols
+                    
+                    # Check again if we've gone past inventory bounds
+                    if self.selected_item_index >= inventory_size:
+                        self.grid_selected_row = 0
+                        self.grid_selected_col = 0
+                        self.selected_item_index = 0
         
     def select_prev(self):
-        """Move to previous button"""
-        self.selected_index = (self.selected_index - 1) % len(self.button_order)
+        """Move to previous button or inventory item based on current section"""
+        if self.current_section == "stats":
+            self.selected_index = (self.selected_index - 1) % len(self.button_order)
+        elif self.current_section == "inventory":
+            # Move to previous column or wrap to previous row
+            self.grid_selected_col = (self.grid_selected_col - 1) % self.grid_cols
+            # Update selected item index
+            self.selected_item_index = self.grid_selected_row * self.grid_cols + self.grid_selected_col
+            
+            # Validate selection is within inventory bounds
+            if hasattr(self.player, 'inventory'):
+                inventory_size = len(self.player.inventory.get_items_and_counts())
+                if self.selected_item_index >= inventory_size:
+                    # Set to last valid item
+                    self.selected_item_index = inventory_size - 1
+                    self.grid_selected_row = self.selected_item_index // self.grid_cols
+                    self.grid_selected_col = self.selected_item_index % self.grid_cols
+    
+    def select_up(self):
+        """Move selection up in the inventory grid"""
+        if self.current_section == "inventory":
+            # Move to previous row or wrap to bottom
+            self.grid_selected_row = (self.grid_selected_row - 1) % self.grid_rows
+            # Update selected item index
+            self.selected_item_index = self.grid_selected_row * self.grid_cols + self.grid_selected_col
+            
+            # Validate selection is within inventory bounds
+            if hasattr(self.player, 'inventory'):
+                inventory_size = len(self.player.inventory.get_items_and_counts())
+                if self.selected_item_index >= inventory_size:
+                    # Set to last valid item in the previous row
+                    if self.grid_selected_row > 0:
+                        self.grid_selected_row -= 1
+                    else:
+                        # Wrap to bottom row
+                        self.grid_selected_row = (inventory_size - 1) // self.grid_cols
+                    
+                    # Adjust column if needed
+                    max_col = min(self.grid_cols - 1, inventory_size - 1 - (self.grid_selected_row * self.grid_cols))
+                    if self.grid_selected_col > max_col:
+                        self.grid_selected_col = max_col
+                    
+                    self.selected_item_index = self.grid_selected_row * self.grid_cols + self.grid_selected_col
+    
+    def select_down(self):
+        """Move selection down in the inventory grid"""
+        if self.current_section == "inventory":
+            # Move to next row or wrap to top
+            self.grid_selected_row = (self.grid_selected_row + 1) % self.grid_rows
+            # Update selected item index
+            self.selected_item_index = self.grid_selected_row * self.grid_cols + self.grid_selected_col
+            
+            # Validate selection is within inventory bounds
+            if hasattr(self.player, 'inventory'):
+                inventory_size = len(self.player.inventory.get_items_and_counts())
+                if self.selected_item_index >= inventory_size:
+                    # Wrap to first row
+                    self.grid_selected_row = 0
+                    self.selected_item_index = self.grid_selected_col
+    
+    def switch_section(self):
+        """Switch between stats and inventory sections"""
+        if self.current_section == "stats":
+            self.current_section = "inventory"
+            # Initialize inventory selection
+            if hasattr(self.player, 'inventory') and len(self.player.inventory.get_items_and_counts()) > 0:
+                self.selected_item_index = 0
+                self.grid_selected_row = 0
+                self.grid_selected_col = 0
+            else:
+                self.selected_item_index = -1
+        else:
+            self.current_section = "stats"
+            self.selected_item_index = -1
+    
+    def use_selected_item(self):
+        """Use the currently selected inventory item"""
+        if self.current_section == "inventory" and self.selected_item_index >= 0:
+            if hasattr(self.player, 'inventory'):
+                inventory_items = self.player.inventory.get_items_and_counts()
+                if self.selected_item_index < len(inventory_items):
+                    item_data = inventory_items[self.selected_item_index]
+                    item = item_data['item']
+                    
+                    if item and hasattr(item, 'use'):
+                        # Try to use the item
+                        use_result = item.use(self.player)
+                        
+                        # If use_result is a string, it's a message to display
+                        if isinstance(use_result, str):
+                            self.item_feedback_message = use_result
+                            self.item_feedback_timer = 120  # Display for 120 frames (about 2 seconds)
+                            return False
+                        # If use_result is True, item was used successfully
+                        elif use_result is True:
+                            # Item was used successfully, remove from inventory
+                            # Find the actual index in the items list
+                            actual_index = self.player.inventory.items.index(item)
+                            self.player.inventory.remove_item(actual_index)
+                            
+                            # If inventory is now empty, reset selection
+                            if len(self.player.inventory.get_items_and_counts()) == 0:
+                                self.selected_item_index = -1
+                            # Otherwise adjust selection if it's now invalid
+                            elif self.selected_item_index >= len(self.player.inventory.get_items_and_counts()):
+                                self.selected_item_index = len(self.player.inventory.get_items_and_counts()) - 1
+                                self.grid_selected_row = self.selected_item_index // self.grid_cols
+                                self.grid_selected_col = self.selected_item_index % self.grid_cols
+                            return True
         
     def handle_event(self, event):
         """Handle mouse and controller events for the character screen"""
@@ -168,35 +315,159 @@ class CharacterScreen:
                     if self.player.attributes.stat_points > 0:
                         result = button['action']()
                         return True
+            
+            # Check inventory item clicks
+            if hasattr(self.player, 'inventory'):
+                inventory_items = self.player.inventory.get_items_and_counts()
+                
+                # Find the hovered item
+                for idx, item_data in enumerate(inventory_items):
+                    row = idx // self.grid_cols
+                    col = idx % self.grid_cols
+                    
+                    # Calculate cell position
+                    portrait_x = 50 + 30  # Same as in draw_items_grid
+                    portrait_y = 80 + 30  # Same as in draw_items_grid
+                    cell_x = portrait_x + col * (self.cell_size + self.grid_padding) + self.grid_padding
+                    cell_y = portrait_y + self.portrait.get_height() + 30 + 35 + row * (self.cell_size + self.grid_padding) + self.grid_padding
+                    
+                    # Create a rect for the cell
+                    cell_rect = pygame.Rect(cell_x, cell_y, self.cell_size, self.cell_size)
+                    
+                    if cell_rect.collidepoint(mouse_pos):
+                        item = item_data['item']
+                        
+                        # Toggle selection of this item
+                        if self.selected_item_index == idx:
+                            # If already selected, use the item
+                            if item and hasattr(item, 'use'):
+                                if item.use(self.player):
+                                    # Item was used successfully, remove from inventory
+                                    actual_index = self.player.inventory.items.index(item)
+                                    self.player.inventory.remove_item(actual_index)
+                        else:
+                            # Select this item
+                            self.selected_item_index = idx
+                            self.grid_selected_row = row
+                            self.grid_selected_col = col
+                            self.current_section = "inventory"
+                        
+                        return True
+        
+        # Mouse movement for item hovering
+        elif event.type == pygame.MOUSEMOTION:
+            mouse_pos = pygame.mouse.get_pos()
+            
+            # Check if mouse is over inventory items
+            self.hovered_item_index = -1
+            self.tooltip_visible = False
+            self.tooltip_item = None
+            
+            if hasattr(self.player, 'inventory'):
+                inventory_items = self.player.inventory.get_items_and_counts()
+                
+                # Calculate grid starting position (must match draw_items_grid)
+                portrait_x = 50 + 30  # Margin + portrait offset
+                portrait_y = 80 + 30  # Margin + portrait offset
+                grid_start_y = portrait_y + self.portrait.get_height() + 30 + 35  # Below portrait + title
+                
+                for idx, item_data in enumerate(inventory_items):
+                    row = idx // self.grid_cols
+                    col = idx % self.grid_cols
+                    
+                    # Calculate cell position
+                    cell_x = portrait_x + col * (self.cell_size + self.grid_padding) + self.grid_padding
+                    cell_y = grid_start_y + row * (self.cell_size + self.grid_padding) + self.grid_padding
+                    
+                    # Create a rect for the cell
+                    cell_rect = pygame.Rect(cell_x, cell_y, self.cell_size, self.cell_size)
+                    
+                    if cell_rect.collidepoint(mouse_pos):
+                        self.hovered_item_index = idx
+                        self.tooltip_visible = True
+                        self.tooltip_item = item_data['item']
+                        break
         
         # Controller button handling
         elif event.type == pygame.JOYBUTTONDOWN:
-               
-            # Button 0 (A) to activate selected button
+            # Button 0 (A) to activate selected button or use selected item
             if event.button == 0:
-                if self.player.attributes.stat_points > 0:
-                    button_id = self.button_order[self.selected_index]
-                    result = self.buttons[button_id]['action']()
+                if self.current_section == "stats":
+                    if self.player.attributes.stat_points > 0:
+                        button_id = self.button_order[self.selected_index]
+                        result = self.buttons[button_id]['action']()
+                        return True
+                elif self.current_section == "inventory" and self.selected_item_index >= 0:
+                    self.use_selected_item()
                     return True
-                    
+            
+            # Button 1 (B) to switch between stats and inventory sections
+            elif event.button == 1:
+                self.switch_section()
+                return True
+                
+            # Button 2 (X) for secondary action (not used here)
+            elif event.button == 2:
+                # Additional functionality could be added here
+                pass
+                
         # D-pad handling
         elif event.type == pygame.JOYHATMOTION:
             hat_value = event.value
+            
+            # D-pad up/down
             if hat_value[1] == 1:  # D-pad up
-                self.select_prev()
+                if self.current_section == "stats":
+                    self.select_prev()
+                else:
+                    self.select_up()
                 return True
             elif hat_value[1] == -1:  # D-pad down
-                self.select_next()
+                if self.current_section == "stats":
+                    self.select_next()
+                else:
+                    self.select_down()
+                return True
+                
+            # D-pad left/right
+            if hat_value[0] == -1:  # D-pad left
+                if self.current_section == "inventory":
+                    self.select_prev()
+                return True
+            elif hat_value[0] == 1:  # D-pad right
+                if self.current_section == "inventory":
+                    self.select_next()
                 return True
             
         # Keyboard handling for navigation
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_UP:
-                self.select_prev()
+                if self.current_section == "stats":
+                    self.select_prev()
+                else:
+                    self.select_up()
                 return True
             elif event.key == pygame.K_DOWN:
-                self.select_next()
+                if self.current_section == "stats":
+                    self.select_next()
+                else:
+                    self.select_down()
                 return True
+            elif event.key == pygame.K_LEFT:
+                if self.current_section == "inventory":
+                    self.select_prev()
+                return True
+            elif event.key == pygame.K_RIGHT:
+                if self.current_section == "inventory":
+                    self.select_next()
+                return True
+            elif event.key == pygame.K_TAB:
+                self.switch_section()
+                return True
+            elif event.key == pygame.K_e:
+                if self.current_section == "inventory" and self.selected_item_index >= 0:
+                    self.use_selected_item()
+                    return True
             
         return False
         
@@ -298,7 +569,7 @@ class CharacterScreen:
                     button_color = self.colors['button_hover']
             
             # Check if this is the selected button with controller
-            is_selected = self.button_order[self.selected_index] == button_id
+            is_selected = self.current_section == "stats" and self.button_order[self.selected_index] == button_id
             
             # Draw button with potentially highlighted background
             pygame.draw.rect(surface, button_color, button['rect'])
@@ -327,8 +598,12 @@ class CharacterScreen:
         # Draw abilities section based on level
         self.draw_abilities_section(surface, attributes_x, attributes_y + 210)
         
-        # NEW: Draw items grid below the portrait
+        # Draw items grid below the portrait
         self.draw_items_grid(surface, portrait_x, portrait_y + self.portrait.get_height() + 30)
+        
+        # Draw item tooltip if needed
+        if self.tooltip_visible and self.tooltip_item:
+            self.draw_item_tooltip(surface, self.tooltip_item, pygame.mouse.get_pos())
         
     def draw_resource_bars(self, surface, x, y):
         """Draw health and mana bars"""
@@ -395,64 +670,294 @@ class CharacterScreen:
                 surface.blit(desc_text, (x + 20, ability_y + 25))
                 
     def draw_items_grid(self, surface, x, y):
-            """Draw an item grid below the portrait"""
-            # Title for items section
-            items_title = self.stat_font.render("ITEMS", True, self.colors['title'])
-            surface.blit(items_title, (x, y))
-            
-            # Calculate grid dimensions
-            grid_width = self.cell_size * self.grid_cols + self.grid_padding * (self.grid_cols + 1)
-            grid_height = self.cell_size * self.grid_rows + self.grid_padding * (self.grid_rows + 1)
-            
-            # Draw grid background
-            grid_rect = pygame.Rect(x, y + 35, grid_width, grid_height)
-            pygame.draw.rect(surface, self.colors['grid_bg'], grid_rect)
-            pygame.draw.rect(surface, self.colors['border'], grid_rect, 2)
-            
-            # Get player inventory items
-            if hasattr(self.player, 'inventory'):
-                inventory_items = self.player.inventory.get_items_and_counts()
-            else:
-                # Use placeholder items if player doesn't have inventory
-                inventory_items = [
-                    {"item": None, "count": 0} for _ in range(min(len(self.items), self.grid_cols * self.grid_rows))
-                ]
-            
-            # Draw grid cells
-            for row in range(self.grid_rows):
-                for col in range(self.grid_cols):
-                    cell_x = x + col * (self.cell_size + self.grid_padding) + self.grid_padding
-                    cell_y = y + 35 + row * (self.cell_size + self.grid_padding) + self.grid_padding
+        """Draw an item grid below the portrait with selection and usage indicators"""
+        # Title for items section
+        items_title = self.stat_font.render("ITEMS", True, self.colors['title'])
+        surface.blit(items_title, (x, y))
+        
+        # Draw control instructions
+        if self.current_section == "inventory" and hasattr(self.player, 'inventory') and len(self.player.inventory.get_items_and_counts()) > 0:
+            instructions = "Press E/Button A to use selected item"
+            instr_text = self.text_font.render(instructions, True, self.colors['text'])
+            surface.blit(instr_text, (x + 100, y))
+        
+        # Calculate grid dimensions
+        grid_width = self.cell_size * self.grid_cols + self.grid_padding * (self.grid_cols + 1)
+        grid_height = self.cell_size * self.grid_rows + self.grid_padding * (self.grid_rows + 1)
+        
+        # Draw grid background
+        grid_rect = pygame.Rect(x, y + 35, grid_width, grid_height)
+        pygame.draw.rect(surface, self.colors['grid_bg'], grid_rect)
+        pygame.draw.rect(surface, self.colors['border'], grid_rect, 2)
+        
+        # Get player inventory items
+        if hasattr(self.player, 'inventory'):
+            inventory_items = self.player.inventory.get_items_and_counts()
+        else:
+            # Use placeholder items if player doesn't have inventory
+            inventory_items = []
+        
+        # Draw grid cells
+        for row in range(self.grid_rows):
+            for col in range(self.grid_cols):
+                cell_x = x + col * (self.cell_size + self.grid_padding) + self.grid_padding
+                cell_y = y + 35 + row * (self.cell_size + self.grid_padding) + self.grid_padding
+                
+                # Get item index
+                item_idx = row * self.grid_cols + col
+                
+                # Determine cell background color based on selection status
+                cell_color = self.colors['grid_border']
+                
+                # Check if this is the selected cell
+                is_selected = item_idx == self.selected_item_index
+                is_hovered = item_idx == self.hovered_item_index
+                
+                # Draw selected or hovered item with different background
+                if is_selected and self.current_section == "inventory":
+                    cell_color = self.colors['item_selected']
+                elif is_hovered:
+                    cell_color = self.colors['item_hover']
+                
+                # Draw cell background
+                cell_rect = pygame.Rect(cell_x, cell_y, self.cell_size, self.cell_size)
+                pygame.draw.rect(surface, cell_color, cell_rect)
+                pygame.draw.rect(surface, self.colors['grid_border'], cell_rect, 1)
+                
+                # Draw item if it exists in inventory
+                if item_idx < len(inventory_items):
+                    item_data = inventory_items[item_idx]
+                    item = item_data['item']
+                    count = item_data['count']
                     
-                    # Draw cell background
-                    cell_rect = pygame.Rect(cell_x, cell_y, self.cell_size, self.cell_size)
-                    pygame.draw.rect(surface, self.colors['grid_border'], cell_rect, 1)
-                    
-                    # Get item index
-                    item_idx = row * self.grid_cols + col
-                    
-                    # Draw item if it exists in inventory
-                    if item_idx < len(inventory_items):
-                        item_data = inventory_items[item_idx]
-                        item = item_data['item']
-                        count = item_data['count']
+                    if item:
+                        # Get item icon if available
+                        if hasattr(item, 'get_icon'):
+                            icon = item.get_icon()
+                            # Center the icon in the cell
+                            icon_x = cell_x + (self.cell_size - icon.get_width()) // 2
+                            icon_y = cell_y + (self.cell_size - icon.get_height()) // 2
+                            surface.blit(icon, (icon_x, icon_y))
+                        else:
+                            # Fallback to a colored rectangle
+                            icon_rect = pygame.Rect(cell_x + 5, cell_y + 5, self.cell_size - 10, self.cell_size - 10)
+                            pygame.draw.rect(surface, (150, 150, 150), icon_rect)
                         
-                        if item:
-                            # Get item icon if available
-                            if hasattr(item, 'get_icon'):
-                                icon = item.get_icon()
-                                # Center the icon in the cell
-                                icon_x = cell_x + (self.cell_size - icon.get_width()) // 2
-                                icon_y = cell_y + (self.cell_size - icon.get_height()) // 2
-                                surface.blit(icon, (icon_x, icon_y))
-                            else:
-                                # Fallback to a colored rectangle
-                                icon_rect = pygame.Rect(cell_x + 5, cell_y + 5, self.cell_size - 10, self.cell_size - 10)
-                                pygame.draw.rect(surface, (150, 150, 150), icon_rect)
+                        # Draw item count if more than 1
+                        if count > 1:
+                            count_text = self.text_font.render(f"{count}", True, self.colors['text'])
+                            count_x = cell_x + self.cell_size - count_text.get_width() - 5
+                            count_y = cell_y + self.cell_size - count_text.get_height() - 3
+                            surface.blit(count_text, (count_x, count_y))
+                        
+                        # Add visual indication if item is usable
+                        if hasattr(item, 'use') and not getattr(item, 'one_time_use', False):
+                            # Small indicator in the corner
+                            usable_rect = pygame.Rect(cell_x + 2, cell_y + 2, 6, 6)
+                            pygame.draw.rect(surface, self.colors['usable'], usable_rect)
+                        
+                        # Draw selection outline
+                        if is_selected and self.current_section == "inventory":
+                            # Draw a bright border around the selected item
+                            selection_rect = cell_rect.inflate(4, 4)
+                            pygame.draw.rect(surface, self.colors['cursor'], selection_rect, 2)
                             
-                            # Draw item count if more than 1
-                            if count > 1:
-                                count_text = self.text_font.render(f"{count}", True, self.colors['text'])
-                                count_x = cell_x + self.cell_size - count_text.get_width() - 5
-                                count_y = cell_y + self.cell_size - count_text.get_height() - 3
-                                surface.blit(count_text, (count_x, count_y))
+                            # Show controller button prompt if using controller navigation
+                            prompt_text = self.button_font.render("E/A", True, self.colors['cursor'])
+                            prompt_x = cell_x + self.cell_size - prompt_text.get_width() - 2
+                            prompt_y = cell_y + 2
+                            surface.blit(prompt_text, (prompt_x, prompt_y))
+        
+        # Draw feedback message BELOW the grid if active
+        if self.item_feedback_message and self.item_feedback_timer > 0:
+            self.item_feedback_timer -= 1
+            self.draw_item_feedback(surface, x + 100, y + 35 + grid_height + 10)  # Position below the grid with 10px padding
+        
+        # Calculate grid dimensions
+        grid_width = self.cell_size * self.grid_cols + self.grid_padding * (self.grid_cols + 1)
+        grid_height = self.cell_size * self.grid_rows + self.grid_padding * (self.grid_rows + 1)
+        
+        # Draw grid background
+        grid_rect = pygame.Rect(x, y + 35, grid_width, grid_height)
+        pygame.draw.rect(surface, self.colors['grid_bg'], grid_rect)
+        pygame.draw.rect(surface, self.colors['border'], grid_rect, 2)
+        
+        # Get player inventory items
+        if hasattr(self.player, 'inventory'):
+            inventory_items = self.player.inventory.get_items_and_counts()
+        else:
+            # Use placeholder items if player doesn't have inventory
+            inventory_items = []
+        
+        # Draw grid cells
+        for row in range(self.grid_rows):
+            for col in range(self.grid_cols):
+                cell_x = x + col * (self.cell_size + self.grid_padding) + self.grid_padding
+                cell_y = y + 35 + row * (self.cell_size + self.grid_padding) + self.grid_padding
+                
+                # Get item index
+                item_idx = row * self.grid_cols + col
+                
+                # Determine cell background color based on selection status
+                cell_color = self.colors['grid_border']
+                
+                # Check if this is the selected cell
+                is_selected = item_idx == self.selected_item_index
+                is_hovered = item_idx == self.hovered_item_index
+                
+                # Draw selected or hovered item with different background
+                if is_selected and self.current_section == "inventory":
+                    cell_color = self.colors['item_selected']
+                elif is_hovered:
+                    cell_color = self.colors['item_hover']
+                
+                # Draw cell background
+                cell_rect = pygame.Rect(cell_x, cell_y, self.cell_size, self.cell_size)
+                pygame.draw.rect(surface, cell_color, cell_rect)
+                pygame.draw.rect(surface, self.colors['grid_border'], cell_rect, 1)
+                
+                # Draw item if it exists in inventory
+                if item_idx < len(inventory_items):
+                    item_data = inventory_items[item_idx]
+                    item = item_data['item']
+                    count = item_data['count']
+                    
+                    if item:
+                        # Get item icon if available
+                        if hasattr(item, 'get_icon'):
+                            icon = item.get_icon()
+                            # Center the icon in the cell
+                            icon_x = cell_x + (self.cell_size - icon.get_width()) // 2
+                            icon_y = cell_y + (self.cell_size - icon.get_height()) // 2
+                            surface.blit(icon, (icon_x, icon_y))
+                        else:
+                            # Fallback to a colored rectangle
+                            icon_rect = pygame.Rect(cell_x + 5, cell_y + 5, self.cell_size - 10, self.cell_size - 10)
+                            pygame.draw.rect(surface, (150, 150, 150), icon_rect)
+                        
+                        # Draw item count if more than 1
+                        if count > 1:
+                            count_text = self.text_font.render(f"{count}", True, self.colors['text'])
+                            count_x = cell_x + self.cell_size - count_text.get_width() - 5
+                            count_y = cell_y + self.cell_size - count_text.get_height() - 3
+                            surface.blit(count_text, (count_x, count_y))
+                        
+                        # Add visual indication if item is usable
+                        if hasattr(item, 'use') and not getattr(item, 'one_time_use', False):
+                            # Small indicator in the corner
+                            usable_rect = pygame.Rect(cell_x + 2, cell_y + 2, 6, 6)
+                            pygame.draw.rect(surface, self.colors['usable'], usable_rect)
+                        
+                        # Draw selection outline
+                        if is_selected and self.current_section == "inventory":
+                            # Draw a bright border around the selected item
+                            selection_rect = cell_rect.inflate(4, 4)
+                            pygame.draw.rect(surface, self.colors['cursor'], selection_rect, 2)
+                            
+                            # Show controller button prompt if using controller navigation
+                            prompt_text = self.button_font.render("E/A", True, self.colors['cursor'])
+                            prompt_x = cell_x + self.cell_size - prompt_text.get_width() - 2
+                            prompt_y = cell_y + 2
+                            surface.blit(prompt_text, (prompt_x, prompt_y))
+    
+    def draw_item_feedback(self, surface, x, y):
+        """Draw a feedback message when an item can't be used"""
+        if not self.item_feedback_message:
+            return
+            
+        # Calculate message position - center horizontally at the specified position
+        padding = 8
+        message = self.stat_font.render(self.item_feedback_message, True, self.colors['feedback_text'])
+        
+        # Position centered at the given coordinates
+        msg_x = x + (self.grid_cols * (self.cell_size + self.grid_padding)) // 2 - message.get_width() // 2
+        msg_y = y  # Just use the provided y-coordinate
+        
+        # Draw message background
+        bg_rect = pygame.Rect(
+            msg_x - padding, 
+            msg_y - padding,
+            message.get_width() + padding * 2,
+            message.get_height() + padding * 2
+        )
+        
+        # Create semi-transparent background
+        bg_surface = pygame.Surface((bg_rect.width, bg_rect.height), pygame.SRCALPHA)
+        bg_surface.fill(self.colors['feedback_bg'])
+        surface.blit(bg_surface, (bg_rect.x, bg_rect.y))
+        
+        # Draw border
+        pygame.draw.rect(surface, self.colors['border'], bg_rect, 2)
+        
+        # Draw message text
+        surface.blit(message, (msg_x, msg_y))
+        
+        # If message is about to expire, start fading it out
+        if self.item_feedback_timer < 30:
+            # Apply alpha fade out
+            alpha = int(255 * (self.item_feedback_timer / 30))
+            message.set_alpha(alpha)
+    
+    def draw_item_tooltip(self, surface, item, mouse_pos):
+        """Draw tooltip with item information"""
+        if not item:
+            return
+            
+        # Get item information
+        name = item.name if hasattr(item, 'name') else "Unknown Item"
+        description = item.description if hasattr(item, 'description') else "No description available."
+        
+        # Add usage hint if applicable
+        usable = hasattr(item, 'use') and not getattr(item, 'one_time_use', False)
+        if usable:
+            description += " (Click to use)"
+        
+        # Calculate tooltip dimensions
+        padding = 10
+        max_width = 250
+        
+        # Render text
+        name_text = self.stat_font.render(name, True, self.colors['title'])
+        
+        # Word wrap description if needed
+        wrapped_desc = []
+        words = description.split()
+        current_line = ""
+        
+        for word in words:
+            test_line = current_line + " " + word if current_line else word
+            test_width = self.desc_font.size(test_line)[0]
+            
+            if test_width < max_width:
+                current_line = test_line
+            else:
+                wrapped_desc.append(current_line)
+                current_line = word
+                
+        if current_line:
+            wrapped_desc.append(current_line)
+            
+        # Render description lines
+        desc_surfaces = [self.desc_font.render(line, True, self.colors['text']) for line in wrapped_desc]
+        
+        # Calculate tooltip size
+        tooltip_width = max(max_width, name_text.get_width()) + padding * 2
+        tooltip_height = padding * 2 + name_text.get_height() + sum(surf.get_height() for surf in desc_surfaces) + 5
+        
+        # Position tooltip near mouse but ensure it stays on screen
+        tooltip_x = min(mouse_pos[0] + 15, SCREEN_WIDTH - tooltip_width - 10)
+        tooltip_y = min(mouse_pos[1] + 15, SCREEN_HEIGHT - tooltip_height - 10)
+        
+        # Draw tooltip background
+        tooltip_rect = pygame.Rect(tooltip_x, tooltip_y, tooltip_width, tooltip_height)
+        pygame.draw.rect(surface, self.colors['background'], tooltip_rect)
+        pygame.draw.rect(surface, self.colors['border'], tooltip_rect, 2)
+        
+        # Draw name
+        surface.blit(name_text, (tooltip_x + padding, tooltip_y + padding))
+        
+        # Draw description
+        y_offset = tooltip_y + padding + name_text.get_height() + 5
+        for desc_surface in desc_surfaces:
+            surface.blit(desc_surface, (tooltip_x + padding, y_offset))
+            y_offset += desc_surface.get_height()

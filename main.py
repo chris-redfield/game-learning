@@ -113,9 +113,12 @@ def initialize_game():
     game_world = World()
     initial_block = game_world.generate_block(0, 0)
 
-    # Place only the Ancient Scroll at the origin block
-    game_world.place_special_items("ancient_scroll", [0, 0])
-    game_world.place_special_items("dragon_heart", [0,0])
+    # Placement of the special_items
+    game_world.place_special_items("ancient_scroll", [-4, 3])
+    game_world.place_special_items("dragon_heart", [8,-9])
+
+    # game_world.place_special_items("ancient_scroll", [1, 0])
+    # game_world.place_special_items("dragon_heart", [0,1])
 
     # Create UI components
     game_map = Map(game_world)

@@ -73,11 +73,11 @@ class HealthPotion(Item):
                 player.attributes.current_health + self.heal_amount,
                 player.attributes.max_health
             )
-            print(f"Used {self.name}, healed for {self.heal_amount} health!")
+            # Return success (True)
             return True
         else:
-            print("Health is already full!")
-            return False
+            # Return descriptive message instead of False
+            return "Health is already full!"
         
     def get_rect(self):
         """Return the collision rectangle for the rotated potion"""
