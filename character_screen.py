@@ -418,10 +418,17 @@ class CharacterScreen:
                         if self.selected_item_index == idx:
                             # If already selected, use the item
                             if item and hasattr(item, 'use'):
-                                if item.use(self.player):
-                                    # Item was used successfully, remove from inventory
+                                use_result = item.use(self.player)
+                                # Check the type of result
+                                if isinstance(use_result, str):
+                                    # Show feedback message instead of using
+                                    self.item_feedback_message = use_result
+                                    self.item_feedback_timer = 120
+                                elif use_result is True:
+                                    # Only remove if True was returned
                                     actual_index = self.player.inventory.items.index(item)
                                     self.player.inventory.remove_item(actual_index)
+
                         else:
                             # Select this item
                             self.selected_item_index = idx
