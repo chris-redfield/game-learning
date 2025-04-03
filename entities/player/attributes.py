@@ -29,6 +29,7 @@ class PlayerAttributes:
         self.max_mana = 1 + self.int  # Base mana + INT bonus
         self.current_mana = self.max_mana
         self.stat_points = 0  # Available points to spend
+        self.skill_points = 0  # Available skill points for the skill tree
 
         # XP system with tables
         self.xp = 0
@@ -101,16 +102,10 @@ class PlayerAttributes:
     
     def initialize_abilities(self):
         """Initialize default abilities based on starting level"""
-        # This now only handles the original 3 basic abilities
-        if self.level >= 2:
-            self.can_dash = True
-        
-        if self.level >= 3:
-            self.sword_length = int(self.base_sword_length * 1.5)
-            
-        if self.level >= 4:
-            self.can_blink = True
-                
+        # This is now handled by the skill tree system
+        # The basic sword is always available
+        pass
+    
     def increase_stat(self, stat_name):
         """Increase a stat if stat points are available"""
         if self.stat_points <= 0:
@@ -156,19 +151,15 @@ class PlayerAttributes:
             self.level += 1
             self.stat_points += 1  # Gain a stat point on level up
             
+            # Award skill points every 3 levels starting at level 4
+            if self.level >= 4 and (self.level - 4) % 3 == 0:
+                self.skill_points += 1
+                print(f"Gained a skill point! Total skill points: {self.skill_points}")
+            
             # Log level up
             print(f"Level up! Player is now level {self.level} and gained a stat point!")
             
-            # Check for the original 3 ability unlocks
-            if self.level == 2:
-                self.can_dash = True
-                print("Unlocked dash ability! Press SHIFT for a temporary speed boost.")
-            elif self.level == 3:
-                self.sword_length = int(self.base_sword_length * 1.5)
-                print(f"Increased sword length! ({self.base_sword_length} -> {self.sword_length})")
-            elif self.level == 4:
-                self.can_blink = True
-                print("Unlocked blink ability! Press B to teleport in the direction you're facing.")
+            # No longer automatically unlock abilities - this is now handled by the skill tree
             
             # Update XP needed for next level
             self.xp_needed = self.get_xp_needed()
@@ -271,13 +262,18 @@ class PlayerAttributes:
         if self.stat_points > 0:
             points_text = font.render(f"Stat Points: {self.stat_points}", True, (255, 255, 100))
             surface.blit(points_text, (x, y + 80))
+            
+        # Show available skill points
+        if self.skill_points > 0:
+            skill_points_text = font.render(f"Skill Points: {self.skill_points}", True, (255, 255, 100))
+            surface.blit(skill_points_text, (x, y + 100))
+            abilities_y = y + 125
+        else:
+            abilities_y = y + 105
         
-        # Adjust the starting position for abilities
-        abilities_y = y + 105
-        
-        # Display ability info
-        # Level 2: Dash
-        if self.level >= 2:
+        # Display ability info based on skill tree unlocks
+        # Dash ability
+        if self.player.skill_tree.is_skill_unlocked("dash"):
             if self.dashing:
                 dash_status = "ACTIVE"
                 color = (0, 255, 0)  # Green when active
@@ -292,22 +288,22 @@ class PlayerAttributes:
             surface.blit(dash_text, (x, abilities_y))
             abilities_y += 25
         
-        # Level 3: Extended Sword    
-        if self.level >= 3:
+        # Extended Sword ability
+        if self.player.skill_tree.is_skill_unlocked("extended_sword"):
             sword_text = font.render(f"Extended Sword: Active", True, (255, 255, 255))
             surface.blit(sword_text, (x, abilities_y))
             abilities_y += 25
             
-        # Level 4: Blink
-        if self.level >= 4:
+        # Blink ability
+        if self.player.skill_tree.is_skill_unlocked("blink"):
             blink_status = "Ready" if self.blink_timer == 0 else "Cooling Down"
             blink_color = (255, 255, 255) if self.blink_timer == 0 else (255, 165, 0)
             blink_text = font.render(f"Blink: {blink_status}", True, blink_color)
             surface.blit(blink_text, (x, abilities_y))
             abilities_y += 25
             
-        # Skill points available indicator
-        if self.stat_points > 0:
-            skill_text = font.render(f"Skill Points: {self.stat_points} (Press Enter for menu)", True, (255, 255, 100))
-            surface.blit(skill_text, (x, abilities_y))
+        # Skill/stat points available indicator
+        if self.stat_points > 0 or self.skill_points > 0:
+            points_text = font.render(f"Press ENTER to open menu", True, (255, 255, 100))
+            surface.blit(points_text, (x, abilities_y))
             abilities_y += 25

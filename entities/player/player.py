@@ -17,6 +17,11 @@ class Player:
         self.attributes = PlayerAttributes(self)
         self.particles = ParticleSystem(self)
         
+        # Import here to avoid circular imports
+        from entities.player.skill_tree import SkillTree
+        # Initialize skill tree after attributes are created
+        self.skill_tree = SkillTree(self)
+        
         # Direction states
         self.facing = 'down'  # 'up', 'down', 'left', 'right'
         self.moving = False
@@ -368,7 +373,8 @@ class Player:
     
     def dash(self, current_time):
         """Activate a temporary speed boost"""
-        if (not self.attributes.can_dash or 
+        # Check if dash is unlocked in skill tree
+        if (not self.skill_tree.is_skill_unlocked("dash") or 
             self.attributes.dashing or 
             current_time < self.attributes.dash_timer):
             return False
@@ -386,7 +392,8 @@ class Player:
         
     def blink(self, obstacles, current_time):
         """Teleport in the current facing direction"""
-        if (not self.attributes.can_blink or 
+        # Check if blink is unlocked in skill tree
+        if (not self.skill_tree.is_skill_unlocked("blink") or 
             current_time < self.attributes.blink_timer):
             return False
         

@@ -191,7 +191,7 @@ while running:
             elif event.button == 6:  # Map toggle
                 if not character_screen.is_visible() and not death_screen.is_active():
                     game_map.toggle()
-            elif event.button == 1 and player.attributes.level >= 4:  # Blink
+            elif event.button == 1 and player.skill_tree.is_skill_unlocked("blink"):  # Blink
                 obstacles = game_world.get_current_entities()
                 player.blink(obstacles, current_time)
         
@@ -242,7 +242,7 @@ while running:
                 dy = y_axis * player.speed
             
             # Dash ability (controller)
-            if joystick.get_button(4) and player.attributes.level >= 2:
+            if joystick.get_button(4) and player.skill_tree.is_skill_unlocked("dash"):
                 player.dash(current_time)
         
         # Handle keyboard movement
@@ -262,11 +262,11 @@ while running:
                 dy = player.speed
         
         # Dash ability (keyboard)
-        if (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) and player.attributes.level >= 2:
+        if (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) and player.skill_tree.is_skill_unlocked("dash"):
             player.dash(current_time)
             
         # Blink ability
-        if keys[pygame.K_b] and player.attributes.level >= 4:
+        if keys[pygame.K_b] and player.skill_tree.is_skill_unlocked("blink"):
             obstacles = game_world.get_current_entities()
             player.blink(obstacles, current_time)
         

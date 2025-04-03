@@ -27,8 +27,15 @@ class CharacterScreen:
             'usable': (100, 180, 100),        # Usable item indicator
             'unusable': (180, 100, 100),      # Unusable item indicator
             'feedback_bg': (0, 0, 0, 180),    # Item feedback message background
-            'feedback_text': (255, 220, 100)  # Item feedback message text
+            'feedback_text': (255, 220, 100), # Item feedback message text
+            'skill_unlocked': (0, 150, 0),    # Unlocked skill
+            'skill_available': (150, 150, 0), # Available to unlock
+            'skill_unavailable': (100, 100, 100) # Unavailable skill
         }
+        
+        # Current tab and skill selection
+        self.current_tab = "attributes"  # Can be "attributes" or "skills"
+        self.skill_selected = None  # Currently selected skill for viewing details
         
         # Item feedback message variables
         self.item_feedback_message = None
@@ -157,6 +164,8 @@ class CharacterScreen:
         if self.visible:
             self.selected_index = 0
             self.current_section = "stats"
+            self.current_tab = "attributes"  # Default to attributes tab
+            self.skill_selected = None       # Reset skill selection
             self.selected_item_index = -1
             self.grid_selected_row = 0
             self.grid_selected_col = 0
@@ -376,7 +385,75 @@ class CharacterScreen:
                                 self.grid_selected_row = self.selected_item_index // self.grid_cols
                                 self.grid_selected_col = self.selected_item_index % self.grid_cols
                             return True
+                            
+    def navigate_skills(self, direction):
+        """Navigate through the skill tree with controller/keyboard"""
+        if not hasattr(self, 'skill_rects') or not self.skill_rects:
+            return False
+            
+        branches = self.player.skill_tree.get_skills_by_branch()
+        branch_ids = ["mind", "body", "magic_sword"]
         
+        # If no skill is currently selected, select the first available one
+        if not self.skill_selected:
+            for branch_id in branch_ids:
+                if branches[branch_id]:
+                    self.skill_selected = branches[branch_id][0].id
+                    return True
+            return False
+            
+        # Get current branch and position
+        current_skill = self.player.skill_tree.skills[self.skill_selected]
+        current_branch = None
+        current_index = -1
+        
+        for branch_id in branch_ids:
+            for i, skill in enumerate(branches[branch_id]):
+                if skill.id == current_skill.id:
+                    current_branch = branch_id
+                    current_index = i
+                    break
+            if current_branch:
+                break
+                
+        if not current_branch:
+            return False
+            
+        # Current branch index
+        branch_index = branch_ids.index(current_branch)
+        
+        # Handle navigation based on direction
+        if direction == "up":
+            # Move to previous skill in same branch
+            if current_index > 0:
+                self.skill_selected = branches[current_branch][current_index - 1].id
+                return True
+        elif direction == "down":
+            # Move to next skill in same branch
+            if current_index < len(branches[current_branch]) - 1:
+                self.skill_selected = branches[current_branch][current_index + 1].id
+                return True
+        elif direction == "left":
+            # Move to previous branch
+            if branch_index > 0:
+                new_branch = branch_ids[branch_index - 1]
+                # Try to select skill at same position or closest available
+                if branches[new_branch]:
+                    new_index = min(current_index, len(branches[new_branch]) - 1)
+                    self.skill_selected = branches[new_branch][new_index].id
+                    return True
+        elif direction == "right":
+            # Move to next branch
+            if branch_index < len(branch_ids) - 1:
+                new_branch = branch_ids[branch_index + 1]
+                # Try to select skill at same position or closest available
+                if branches[new_branch]:
+                    new_index = min(current_index, len(branches[new_branch]) - 1)
+                    self.skill_selected = branches[new_branch][new_index].id
+                    return True
+                    
+        return False
+    
     def handle_event(self, event):
         """Handle mouse and controller events for the character screen"""
         if not self.visible:
@@ -385,60 +462,85 @@ class CharacterScreen:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Left click
             mouse_pos = pygame.mouse.get_pos()
             
-            # Check button clicks
-            for button_id, button in self.buttons.items():
-                if button['rect'].collidepoint(mouse_pos):
-                    # Only allow clicking if player has stat points
-                    if self.player.attributes.stat_points > 0:
-                        result = button['action']()
+            # Check tab clicks
+            if hasattr(self, 'tab_rects'):
+                for tab_id, tab_rect in self.tab_rects.items():
+                    if tab_rect.collidepoint(mouse_pos):
+                        self.current_tab = tab_id
+                        self.skill_selected = None  # Reset selected skill
                         return True
             
-            # Check inventory item clicks
-            if hasattr(self.player, 'inventory'):
-                inventory_items = self.player.inventory.get_items_and_counts()
+            # Handle tab-specific clicks
+            if self.current_tab == "attributes":
+                # Check button clicks
+                for button_id, button in self.buttons.items():
+                    if button['rect'].collidepoint(mouse_pos):
+                        # Only allow clicking if player has stat points
+                        if self.player.attributes.stat_points > 0:
+                            result = button['action']()
+                            return True
                 
-                # Find the hovered item
-                for idx, item_data in enumerate(inventory_items):
-                    row = idx // self.grid_cols
-                    col = idx % self.grid_cols
+                # Check inventory item clicks
+                if hasattr(self.player, 'inventory'):
+                    inventory_items = self.player.inventory.get_items_and_counts()
                     
-                    # Calculate cell position
-                    portrait_x = 50 + 30  # Same as in draw_items_grid
-                    portrait_y = 80 + 30  # Same as in draw_items_grid
-                    cell_x = portrait_x + col * (self.cell_size + self.grid_padding) + self.grid_padding
-                    cell_y = portrait_y + self.portrait.get_height() + 30 + 35 + row * (self.cell_size + self.grid_padding) + self.grid_padding
-                    
-                    # Create a rect for the cell
-                    cell_rect = pygame.Rect(cell_x, cell_y, self.cell_size, self.cell_size)
-                    
-                    if cell_rect.collidepoint(mouse_pos):
-                        item = item_data['item']
+                    # Find the hovered item
+                    for idx, item_data in enumerate(inventory_items):
+                        row = idx // self.grid_cols
+                        col = idx % self.grid_cols
                         
-                        # Toggle selection of this item
-                        if self.selected_item_index == idx:
-                            # If already selected, use the item
-                            if item and hasattr(item, 'use'):
-                                use_result = item.use(self.player)
-                                # Check the type of result
-                                if isinstance(use_result, str):
-                                    # Show feedback message instead of using
-                                    self.item_feedback_message = use_result
-                                    self.item_feedback_timer = 120
-                                elif use_result is True:
-                                    # Only remove if True was returned
-                                    actual_index = self.player.inventory.items.index(item)
-                                    self.player.inventory.remove_item(actual_index)
-
-                        else:
-                            # Select this item
-                            self.selected_item_index = idx
-                            self.grid_selected_row = row
-                            self.grid_selected_col = col
-                            self.current_section = "inventory"
+                        # Calculate cell position
+                        portrait_x = 50 + 30  # Same as in draw_items_grid
+                        portrait_y = 80 + 30  # Same as in draw_items_grid
+                        cell_x = portrait_x + col * (self.cell_size + self.grid_padding) + self.grid_padding
+                        cell_y = portrait_y + self.portrait.get_height() + 30 + 35 + row * (self.cell_size + self.grid_padding) + self.grid_padding
+                        
+                        # Create a rect for the cell
+                        cell_rect = pygame.Rect(cell_x, cell_y, self.cell_size, self.cell_size)
+                        
+                        if cell_rect.collidepoint(mouse_pos):
+                            item = item_data['item']
                             
-                            # Update cursor position for tooltip
-                            self.update_selected_item_position()
-                        
+                            # Toggle selection of this item
+                            if self.selected_item_index == idx:
+                                # If already selected, use the item
+                                if item and hasattr(item, 'use'):
+                                    use_result = item.use(self.player)
+                                    # Check the type of result
+                                    if isinstance(use_result, str):
+                                        # Show feedback message instead of using
+                                        self.item_feedback_message = use_result
+                                        self.item_feedback_timer = 120
+                                    elif use_result is True:
+                                        # Only remove if True was returned
+                                        actual_index = self.player.inventory.items.index(item)
+                                        self.player.inventory.remove_item(actual_index)
+
+                            else:
+                                # Select this item
+                                self.selected_item_index = idx
+                                self.grid_selected_row = row
+                                self.grid_selected_col = col
+                                self.current_section = "inventory"
+                                
+                                # Update cursor position for tooltip
+                                self.update_selected_item_position()
+                            
+                            return True
+            
+            elif self.current_tab == "skills":
+                # Check skill clicks
+                if hasattr(self, 'skill_rects'):
+                    for skill_id, skill_rect in self.skill_rects.items():
+                        if skill_rect.collidepoint(mouse_pos):
+                            self.skill_selected = skill_id
+                            return True
+                
+                # Check unlock button click
+                if hasattr(self, 'unlock_button_rect') and self.unlock_button_rect and self.unlock_button_rect.collidepoint(mouse_pos):
+                    if self.skill_selected:
+                        # Try to unlock the selected skill
+                        self.player.skill_tree.unlock_skill(self.skill_selected)
                         return True
         
         # Mouse movement for item hovering
@@ -479,24 +581,35 @@ class CharacterScreen:
         elif event.type == pygame.JOYBUTTONDOWN:
             # Button 0 (A) to activate selected button or use selected item
             if event.button == 0:
-                if self.current_section == "stats":
-                    if self.player.attributes.stat_points > 0:
-                        button_id = self.button_order[self.selected_index]
-                        result = self.buttons[button_id]['action']()
+                if self.current_tab == "attributes":
+                    if self.current_section == "stats":
+                        if self.player.attributes.stat_points > 0:
+                            button_id = self.button_order[self.selected_index]
+                            result = self.buttons[button_id]['action']()
+                            return True
+                    elif self.current_section == "inventory" and self.selected_item_index >= 0:
+                        self.use_selected_item()
                         return True
-                elif self.current_section == "inventory" and self.selected_item_index >= 0:
-                    self.use_selected_item()
-                    return True
+                elif self.current_tab == "skills" and self.skill_selected:
+                    # Try to unlock the selected skill
+                    if not self.player.skill_tree.skills[self.skill_selected].unlocked:
+                        self.player.skill_tree.unlock_skill(self.skill_selected)
+                        return True
             
-            # Button 1 (B) to switch between stats and inventory sections
+            # Button 1 (B) to switch between stats and inventory sections or go back
             elif event.button == 1:
-                self.switch_section()
-                return True
+                if self.current_tab == "attributes":
+                    self.switch_section()
+                    return True
+                elif self.current_tab == "skills":
+                    self.skill_selected = None  # Clear skill selection
+                    return True
                 
-            # Button 2 (X) for secondary action (not used here)
+            # Button 2 (X) for switching tabs (attributes/skills)
             elif event.button == 2:
-                # Additional functionality could be added here
-                pass
+                self.current_tab = "skills" if self.current_tab == "attributes" else "attributes"
+                self.skill_selected = None  # Clear skill selection when switching tabs
+                return True
                 
         # D-pad handling
         elif event.type == pygame.JOYHATMOTION:
@@ -504,53 +617,96 @@ class CharacterScreen:
             
             # D-pad up/down
             if hat_value[1] == 1:  # D-pad up
-                if self.current_section == "stats":
-                    self.select_prev()
-                else:
-                    self.select_up()
+                if self.current_tab == "attributes":
+                    if self.current_section == "stats":
+                        self.select_prev()
+                    else:
+                        self.select_up()
+                elif self.current_tab == "skills":
+                    # Navigate skills - implementation depends on layout
+                    self.navigate_skills("up")
                 return True
             elif hat_value[1] == -1:  # D-pad down
-                if self.current_section == "stats":
-                    self.select_next()
-                else:
-                    self.select_down()
+                if self.current_tab == "attributes":
+                    if self.current_section == "stats":
+                        self.select_next()
+                    else:
+                        self.select_down()
+                elif self.current_tab == "skills":
+                    # Navigate skills - implementation depends on layout
+                    self.navigate_skills("down")
                 return True
                 
             # D-pad left/right - modified to work in both sections
             if hat_value[0] == -1:  # D-pad left
-                self.select_prev()
+                if self.current_tab == "attributes":
+                    self.select_prev()
+                elif self.current_tab == "skills":
+                    # Navigate skills - implementation depends on layout
+                    self.navigate_skills("left")
                 return True
             elif hat_value[0] == 1:  # D-pad right
-                self.select_next()
+                if self.current_tab == "attributes":
+                    self.select_next()
+                elif self.current_tab == "skills":
+                    # Navigate skills - implementation depends on layout
+                    self.navigate_skills("right")
                 return True
             
         # Keyboard handling for navigation
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_UP:
-                if self.current_section == "stats":
-                    self.select_prev()
-                else:
-                    self.select_up()
+                if self.current_tab == "attributes":
+                    if self.current_section == "stats":
+                        self.select_prev()
+                    else:
+                        self.select_up()
+                elif self.current_tab == "skills":
+                    self.navigate_skills("up")
                 return True
             elif event.key == pygame.K_DOWN:
-                if self.current_section == "stats":
-                    self.select_next()
-                else:
-                    self.select_down()
+                if self.current_tab == "attributes":
+                    if self.current_section == "stats":
+                        self.select_next()
+                    else:
+                        self.select_down()
+                elif self.current_tab == "skills":
+                    self.navigate_skills("down")
                 return True
             elif event.key == pygame.K_LEFT:
-                self.select_prev()
+                if self.current_tab == "attributes":
+                    self.select_prev()
+                elif self.current_tab == "skills":
+                    self.navigate_skills("left")
                 return True
             elif event.key == pygame.K_RIGHT:
-                self.select_next()
+                if self.current_tab == "attributes":
+                    self.select_next()
+                elif self.current_tab == "skills":
+                    self.navigate_skills("right")
                 return True
             elif event.key == pygame.K_TAB:
-                self.switch_section()
+                if self.current_tab == "attributes":
+                    self.switch_section()
                 return True
             elif event.key == pygame.K_e:
-                if self.current_section == "inventory" and self.selected_item_index >= 0:
-                    self.use_selected_item()
-                    return True
+                if self.current_tab == "attributes":
+                    if self.current_section == "inventory" and self.selected_item_index >= 0:
+                        self.use_selected_item()
+                        return True
+                elif self.current_tab == "skills" and self.skill_selected:
+                    # Try to unlock the selected skill
+                    if not self.player.skill_tree.skills[self.skill_selected].unlocked:
+                        self.player.skill_tree.unlock_skill(self.skill_selected)
+                        return True
+            elif event.key == pygame.K_1 or event.key == pygame.K_a:
+                self.current_tab = "attributes"
+                self.skill_selected = None
+                return True
+            elif event.key == pygame.K_2 or event.key == pygame.K_s:
+                self.current_tab = "skills"
+                self.skill_selected = None
+                return True
             
         return False
         
@@ -579,6 +735,58 @@ class CharacterScreen:
         close_text = self.text_font.render("Press ENTER or START to close", True, self.colors['text'])
         surface.blit(close_text, (SCREEN_WIDTH - close_text.get_width() - margin - 10, margin + 20))
         
+        # Draw tabs for switching between attributes and skills
+        self.draw_tabs(surface, margin)
+        
+        # Draw the appropriate tab content
+        if self.current_tab == "attributes":
+            self.draw_attributes_tab(surface, margin)
+        elif self.current_tab == "skills":
+            self.draw_skills_tab(surface, margin)
+        
+        # Draw item tooltip if needed - only once (for attributes tab)
+        if self.current_tab == "attributes" and self.tooltip_visible and self.tooltip_item:
+            # Determine tooltip position - prefer mouse position if mouse is hovering, 
+            # otherwise use stored cursor position
+            tooltip_pos = pygame.mouse.get_pos() if self.hovered_item_index >= 0 else self.cursor_pos
+            self.draw_item_tooltip(surface, self.tooltip_item, tooltip_pos)
+            
+    def draw_tabs(self, surface, margin):
+        """Draw tabs for switching between attributes and skills"""
+        tab_width = 150
+        tab_height = 30
+        tab_y = margin + 50
+        
+        # Attributes tab
+        attr_tab_x = SCREEN_WIDTH // 2 - tab_width - 5
+        attr_tab_rect = pygame.Rect(attr_tab_x, tab_y, tab_width, tab_height)
+        attr_color = self.colors['button_hover'] if self.current_tab == "attributes" else self.colors['button']
+        pygame.draw.rect(surface, attr_color, attr_tab_rect)
+        pygame.draw.rect(surface, self.colors['border'], attr_tab_rect, 1)
+        
+        attr_text = self.button_font.render("ATTRIBUTES", True, self.colors['text'])
+        surface.blit(attr_text, (attr_tab_x + (tab_width - attr_text.get_width()) // 2, 
+                             tab_y + (tab_height - attr_text.get_height()) // 2))
+        
+        # Skills tab
+        skills_tab_x = SCREEN_WIDTH // 2 + 5
+        skills_tab_rect = pygame.Rect(skills_tab_x, tab_y, tab_width, tab_height)
+        skills_color = self.colors['button_hover'] if self.current_tab == "skills" else self.colors['button']
+        pygame.draw.rect(surface, skills_color, skills_tab_rect)
+        pygame.draw.rect(surface, self.colors['border'], skills_tab_rect, 1)
+        
+        skills_text = self.button_font.render("SKILLS", True, self.colors['text'])
+        surface.blit(skills_text, (skills_tab_x + (tab_width - skills_text.get_width()) // 2, 
+                              tab_y + (tab_height - skills_text.get_height()) // 2))
+        
+        # Store tab rects for click detection
+        self.tab_rects = {
+            "attributes": attr_tab_rect,
+            "skills": skills_tab_rect
+        }
+        
+    def draw_attributes_tab(self, surface, margin):
+        """Draw the attributes tab with character stats and inventory"""
         # Draw portrait section
         portrait_x = margin + 50
         portrait_y = margin + 80
@@ -683,14 +891,238 @@ class CharacterScreen:
         
         # Draw items grid below the portrait
         self.draw_items_grid(surface, portrait_x, portrait_y + self.portrait.get_height() + 30)
+
+    def draw_skills_tab(self, surface, margin):
+        """Draw the skills tab with skill tree"""
+        # Header and skill points display
+        skill_points_text = self.stat_font.render(f"Skill Points: {self.player.attributes.skill_points}", True, self.colors['title'])
+        surface.blit(skill_points_text, (margin + 50, margin + 90))
         
-        # Draw item tooltip if needed - only once
-        if self.tooltip_visible and self.tooltip_item:
-            # Determine tooltip position - prefer mouse position if mouse is hovering, 
-            # otherwise use stored cursor position
-            tooltip_pos = pygame.mouse.get_pos() if self.hovered_item_index >= 0 else self.cursor_pos
-            self.draw_item_tooltip(surface, self.tooltip_item, tooltip_pos)
+        # Instructions
+        instructions = self.text_font.render("Click on a skill to view details and unlock it", True, self.colors['text'])
+        surface.blit(instructions, (margin + 50, margin + 120))
         
+        # Get skill data
+        branches = self.player.skill_tree.get_skills_by_branch()
+        
+        # Define branch positions and names
+        branch_names = ["Mind", "Body", "Magic Sword"]
+        branch_ids = ["mind", "body", "magic_sword"]
+        
+        screen_width = SCREEN_WIDTH - margin * 2 - 100
+        branch_width = screen_width // 3
+        start_y = margin + 170  # Move branch headers down to avoid collision with instructions
+        
+        # Draw branch headers (diamond shapes)
+        for i, branch_name in enumerate(branch_names):
+            branch_x = margin + 50 + i * branch_width + branch_width // 2
+            
+            # Draw diamond for branch header
+            diamond_size = 20
+            diamond_points = [
+                (branch_x, start_y),  # Top
+                (branch_x + diamond_size, start_y + diamond_size),  # Right
+                (branch_x, start_y + diamond_size * 2),  # Bottom
+                (branch_x - diamond_size, start_y + diamond_size)   # Left
+            ]
+            
+            # Draw branch diamond
+            pygame.draw.polygon(surface, (100, 200, 100), diamond_points)
+            pygame.draw.polygon(surface, self.colors['border'], diamond_points, 2)
+            
+            # Draw branch name
+            branch_text = self.text_font.render(branch_name, True, self.colors['text'])
+            text_x = branch_x - branch_text.get_width() // 2
+            text_y = start_y - branch_text.get_height() - 5
+            surface.blit(branch_text, (text_x, text_y))
+        
+        # Map to store skill positions for drawing connections
+        skill_positions = {}
+        self.skill_rects = {}
+        
+        # Draw skills for each branch
+        for branch_idx, branch_id in enumerate(branch_ids):
+            skills = branches[branch_id]
+            
+            # Center position for this branch
+            branch_x = margin + 50 + branch_idx * branch_width + branch_width // 2
+            
+            # First level skills (direct children of the branch)
+            first_level_skills = [skill for skill in skills if not skill.parent]
+            first_level_count = len(first_level_skills)
+            
+            level_spacing = 110  # Increased vertical spacing between levels
+            skill_spacing = 170  # Much wider horizontal spacing between siblings
+            
+            # Draw first level skills (top row)
+            if first_level_count > 0:
+                # For first level, spread skills horizontally
+                for i, skill in enumerate(first_level_skills):
+                    # Calculate position spreading skills horizontally
+                    skill_x = branch_x
+                    if first_level_count > 1:
+                        # Spread skills horizontally if more than one
+                        offset = (i - (first_level_count - 1) / 2) * skill_spacing
+                        skill_x += offset
+                    
+                    skill_y = start_y + 80  # Increased vertical space from branch header to first skills
+                    
+                    # Draw connection from branch to skill
+                    pygame.draw.line(surface, self.colors['border'], 
+                                    (branch_x, start_y + diamond_size * 2), 
+                                    (skill_x, skill_y - 18), 2)
+                    
+                    # Draw the skill
+                    self.draw_skill_node(surface, skill, skill_x, skill_y)
+                    
+                    # Store position for drawing connections to children
+                    skill_positions[skill.id] = (skill_x, skill_y)
+            
+            # Group skills by their parent to organize them by levels
+            skill_levels = {}
+            for skill in skills:
+                if skill.parent:
+                    if skill.parent not in skill_levels:
+                        skill_levels[skill.parent] = []
+                    skill_levels[skill.parent].append(skill)
+            
+            # Draw remaining levels of skills
+            current_level = 1  # First level already drawn
+            done = False
+            
+            while not done:
+                done = True
+                next_parents = []
+                
+                # Process each parent at this level
+                for parent_id in list(skill_levels.keys()):
+                    if parent_id in skill_positions:
+                        parent_x, parent_y = skill_positions[parent_id]
+                        children = skill_levels.pop(parent_id)
+                        done = False
+                        
+                        # Draw children of this parent
+                        child_count = len(children)
+                        for i, child in enumerate(children):
+                            # Calculate position for this child
+                            child_x = parent_x
+                            if child_count > 1:
+                                # If multiple children, spread them horizontally
+                                offset = (i - (child_count - 1) / 2) * skill_spacing
+                                child_x += offset
+                            
+                            child_y = parent_y + level_spacing
+                            
+                            # Draw connection from parent to child
+                            pygame.draw.line(surface, self.colors['border'], 
+                                            (parent_x, parent_y + 18), 
+                                            (child_x, child_y - 18), 2)
+                            
+                            # Draw the skill
+                            self.draw_skill_node(surface, child, child_x, child_y)
+                            
+                            # Store position for drawing connections to children
+                            skill_positions[child.id] = (child_x, child_y)
+                            next_parents.append(child.id)
+                
+                current_level += 1
+        
+        # If a skill is selected, draw its details
+        if self.skill_selected and self.skill_selected in self.player.skill_tree.skills:
+            skill = self.player.skill_tree.skills[self.skill_selected]
+            
+            # Draw skill detail panel
+            detail_rect = pygame.Rect(margin + 50, SCREEN_HEIGHT - margin - 150, SCREEN_WIDTH - margin * 2 - 100, 120)
+            pygame.draw.rect(surface, self.colors['background'], detail_rect)
+            pygame.draw.rect(surface, self.colors['border'], detail_rect, 2)
+            
+            # Draw skill name
+            detail_name = self.stat_font.render(skill.name, True, self.colors['title'])
+            surface.blit(detail_name, (detail_rect.x + 10, detail_rect.y + 10))
+            
+            # Draw skill description
+            detail_desc = self.text_font.render(skill.description, True, self.colors['text'])
+            surface.blit(detail_desc, (detail_rect.x + 10, detail_rect.y + 40))
+            
+            # Draw unlock button if the skill can be unlocked
+            if not skill.unlocked and skill.can_unlock(self.player) and self.player.attributes.skill_points > 0:
+                unlock_button = pygame.Rect(detail_rect.right - 120, detail_rect.bottom - 40, 100, 30)
+                pygame.draw.rect(surface, self.colors['button'], unlock_button)
+                pygame.draw.rect(surface, self.colors['border'], unlock_button, 1)
+                
+                unlock_text = self.button_font.render("Unlock", True, self.colors['text'])
+                surface.blit(unlock_text, (unlock_button.centerx - unlock_text.get_width() // 2,
+                                        unlock_button.centery - unlock_text.get_height() // 2))
+                
+                # Store unlock button for click detection
+                self.unlock_button_rect = unlock_button
+            else:
+                self.unlock_button_rect = None
+                
+                # Show status message
+                if skill.unlocked:
+                    status_text = self.text_font.render("Skill Unlocked", True, (0, 150, 0))
+                elif not skill.implemented:
+                    status_text = self.text_font.render("Not Yet Implemented", True, (150, 0, 0))
+                elif self.player.attributes.level < skill.level_required:
+                    status_text = self.text_font.render(f"Requires Level {skill.level_required}", True, (150, 0, 0))
+                elif skill.parent and not self.player.skill_tree.is_skill_unlocked(skill.parent):
+                    parent_skill = self.player.skill_tree.skills[skill.parent]
+                    status_text = self.text_font.render(f"Requires {parent_skill.name} Skill", True, (150, 0, 0))
+                elif self.player.attributes.skill_points <= 0:
+                    status_text = self.text_font.render("No Skill Points Available", True, (150, 0, 0))
+                else:
+                    status_text = self.text_font.render("Cannot Unlock Now", True, (150, 0, 0))
+                    
+                surface.blit(status_text, (detail_rect.right - status_text.get_width() - 10, detail_rect.bottom - 30))
+
+    def draw_skill_node(self, surface, skill, x, y):
+        """Draw a skill node in the skill tree with diamond shape"""
+        # Determine skill color based on state
+        if skill.unlocked:
+            node_color = self.colors['skill_unlocked']  # Green for unlocked
+        elif skill.can_unlock(self.player) and self.player.attributes.skill_points > 0:
+            node_color = self.colors['skill_available']  # Yellow for available to unlock
+        else:
+            node_color = self.colors['skill_unavailable']  # Gray for unavailable
+        
+        # Create diamond shape points
+        diamond_size = 18  # Slightly larger diamonds
+        diamond_points = [
+            (x, y - diamond_size),  # Top
+            (x + diamond_size, y),  # Right
+            (x, y + diamond_size),  # Bottom
+            (x - diamond_size, y)   # Left
+        ]
+        
+        # Draw skill diamond
+        pygame.draw.polygon(surface, node_color, diamond_points)
+        
+        # Highlight selected skill
+        if self.skill_selected == skill.id:
+            # Draw a thicker border for selected skill
+            pygame.draw.polygon(surface, self.colors['cursor'], diamond_points, 3)
+        else:
+            pygame.draw.polygon(surface, self.colors['border'], diamond_points, 1)
+        
+        # Draw skill name above the diamond
+        skill_name = self.text_font.render(skill.name, True, self.colors['text'])
+        name_x = x - skill_name.get_width() // 2
+        name_y = y - diamond_size - skill_name.get_height() - 5  # Increased spacing
+        surface.blit(skill_name, (name_x, name_y))
+        
+        # Draw level requirement below the diamond
+        level_text = self.text_font.render(f"Level {skill.level_required}+", True, self.colors['text'])
+        level_x = x - level_text.get_width() // 2
+        level_y = y + diamond_size + 5  # Increased spacing
+        surface.blit(level_text, (level_x, level_y))
+        
+        # Create a rectangular hitbox for the skill (for mouse interaction)
+        # Make it larger than the diamond to be more user-friendly
+        hitbox_size = 50  # Larger hitbox for easier selection
+        hitbox_rect = pygame.Rect(x - hitbox_size//2, y - hitbox_size//2, hitbox_size, hitbox_size)
+        self.skill_rects[skill.id] = hitbox_rect
+
     def draw_resource_bars(self, surface, x, y):
         """Draw health and mana bars"""
         bar_width = 200
@@ -721,39 +1153,45 @@ class CharacterScreen:
         surface.blit(mana_text, (x + 10, y + 32))
         
     def draw_abilities_section(self, surface, x, y):
-        """Draw unlocked abilities based on player level"""
+        """Draw unlocked abilities based on skill tree"""
         abilities_title = self.stat_font.render("ABILITIES", True, self.colors['title'])
         surface.blit(abilities_title, (x, y))
         
         abilities = [
-            {"name": "Sword Attack", "level": 1, "desc": "Basic sword attack (SPACE/Button 2)"},
-            {"name": "Dash", "level": 2, "desc": "Temporary speed boost (SHIFT/Button 4)"},
-            {"name": "Extended Sword", "level": 3, "desc": "Increased sword reach"},
-            {"name": "Blink", "level": 4, "desc": "Short-range teleport (B/Button 1)"}
+            {"id": "basic_sword", "name": "Sword Attack", "desc": "Basic sword attack (SPACE/Button 2)"},
+            {"id": "dash", "name": "Dash", "desc": "Temporary speed boost (SHIFT/Button 4)"},
+            {"id": "extended_sword", "name": "Extended Sword", "desc": "Increased sword reach"},
+            {"id": "blink", "name": "Blink", "desc": "Short-range teleport (B/Button 1)"}
         ]
         
         # Use more vertical space for abilities
-        for i, ability in enumerate(abilities):
-            ability_y = y + 40 + i * 60  # Increased spacing between abilities
-            
-            # Ability name and status
-            if self.player.attributes.level >= ability["level"]:
+        abilities_y = y + 40
+        has_abilities = False
+        
+        # Draw only unlocked abilities
+        for ability in abilities:
+            if self.player.skill_tree.is_skill_unlocked(ability["id"]):
+                has_abilities = True
+                
+                # Get ability status
                 status_color = self.colors['stat_text']  # Green for unlocked
                 status_text = "UNLOCKED"
-            else:
-                status_color = (150, 150, 150)  # Gray for locked
-                status_text = f"Unlocks at Level {ability['level']}"
+                    
+                name_text = self.text_font.render(ability["name"], True, self.colors['text'])
+                surface.blit(name_text, (x, abilities_y))
                 
-            name_text = self.text_font.render(ability["name"], True, self.colors['text'])
-            surface.blit(name_text, (x, ability_y))
-            
-            status_text = self.text_font.render(status_text, True, status_color)
-            surface.blit(status_text, (x + 200, ability_y))
-            
-            # Description on next line (now with proper spacing)
-            if self.player.attributes.level >= ability["level"]:
+                status_text_render = self.text_font.render(status_text, True, status_color)
+                surface.blit(status_text_render, (x + 200, abilities_y))
+                
+                # Description on next line
                 desc_text = self.text_font.render(ability["desc"], True, (180, 180, 180))
-                surface.blit(desc_text, (x + 20, ability_y + 25))
+                surface.blit(desc_text, (x + 20, abilities_y + 25))
+                
+                abilities_y += 60  # Increased spacing
+                
+        if not has_abilities:
+            no_abilities_text = self.text_font.render("No abilities unlocked yet", True, (180, 180, 180))
+            surface.blit(no_abilities_text, (x, abilities_y))
                 
     def draw_items_grid(self, surface, x, y):
         """Draw an item grid below the portrait with selection and usage indicators"""
