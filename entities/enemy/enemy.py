@@ -307,56 +307,73 @@ class Enemy:
         self.state = "idle"
         self.dx = 0
         self.dy = 0
-    
+
     def move(self, dx, dy, obstacles):
-        """Move with collision detection"""
+        """Move with collision detection and screen boundary checks"""
         if dx == 0 and dy == 0:
             return False
+            
+        from constants import SCREEN_WIDTH, SCREEN_HEIGHT
             
         # Create test rectangles for movement along each axis separately
         test_rect_x = pygame.Rect(self.x + dx, self.y, self.width, self.height)
         test_rect_y = pygame.Rect(self.x, self.y + dy, self.width, self.height)
         
+        # Define how much of the enemy can go outside the screen (as a percentage of their size)
+        # Adjust these values to control how far enemies can go off-screen
+        margin_x = self.width * 0.75  # Allow 75% of width to go outside
+        margin_y = self.height * 0.75  # Allow 75% of height to go outside
+        
+        # Check if the move would take the enemy too far outside screen boundaries
+        x_boundary_violation = (test_rect_x.left < -margin_x or 
+                            test_rect_x.right > SCREEN_WIDTH + margin_x)
+        
+        y_boundary_violation = (test_rect_y.top < -margin_y or 
+                            test_rect_y.bottom > SCREEN_HEIGHT + margin_y)
+        
         # Check horizontal movement
-        x_collision = False
-        for obstacle in obstacles:
-            # Skip self-collision
-            if obstacle is self:
-                continue
-                
-            if test_rect_x.colliderect(obstacle.get_rect()):
-                x_collision = True
-                break
+        x_collision = x_boundary_violation  # Start with boundary check
+        if not x_collision:  # Only check obstacles if boundary check passed
+            for obstacle in obstacles:
+                # Skip self-collision
+                if obstacle is self:
+                    continue
+                    
+                if test_rect_x.colliderect(obstacle.get_rect()):
+                    x_collision = True
+                    break
         
         # Apply horizontal movement if no collision
         if not x_collision:
             self.x += dx
         
         # Check vertical movement
-        y_collision = False
-        for obstacle in obstacles:
-            # Skip self-collision
-            if obstacle is self:
-                continue
-                
-            if test_rect_y.colliderect(obstacle.get_rect()):
-                y_collision = True
-                break
+        y_collision = y_boundary_violation  # Start with boundary check
+        if not y_collision:  # Only check obstacles if boundary check passed
+            for obstacle in obstacles:
+                # Skip self-collision
+                if obstacle is self:
+                    continue
+                    
+                if test_rect_y.colliderect(obstacle.get_rect()):
+                    y_collision = True
+                    break
         
         # Apply vertical movement if no collision
         if not y_collision:
             self.y += dy
             
-        # If we hit an obstacle, consider changing direction
+        # If we hit an obstacle or boundary, consider changing direction
         if x_collision or y_collision:
-            # 25% chance to choose a new direction when hitting an obstacle
-            if random.random() < 0.25:
+            # Higher chance to change direction when hitting a boundary (75% vs 25% for obstacles)
+            chance = 0.75 if (x_boundary_violation or y_boundary_violation) else 0.25
+            if random.random() < chance:
                 self.start_moving()
             return False
             
         # Successfully moved
         return True
-    
+
     def attack(self, player):
         """Start attack animation and deal damage - may be overridden by subclasses"""
         # Skip if recovering - NEW
