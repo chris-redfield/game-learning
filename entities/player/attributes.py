@@ -133,7 +133,7 @@ class PlayerAttributes:
         elif stat_name == "dex":
             self.dex += 1
             # Dexterity increases movement speed slightly
-            self.player.base_speed = 3 + (self.dex * 0.05)
+            self.player.base_speed = 3 + (self.dex * 0.08)
             self.player.speed = self.player.base_speed  # Update current speed
             self.stat_points -= 1
             return True
