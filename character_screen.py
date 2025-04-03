@@ -735,7 +735,7 @@ class CharacterScreen:
         close_text = self.text_font.render("Press ENTER or START to close", True, self.colors['text'])
         surface.blit(close_text, (SCREEN_WIDTH - close_text.get_width() - margin - 10, margin + 20))
         
-        # Draw tabs for switching between attributes and skills
+        # Draw tabs at the bottom of the character sheet
         self.draw_tabs(surface, margin)
         
         # Draw the appropriate tab content
@@ -750,12 +750,14 @@ class CharacterScreen:
             # otherwise use stored cursor position
             tooltip_pos = pygame.mouse.get_pos() if self.hovered_item_index >= 0 else self.cursor_pos
             self.draw_item_tooltip(surface, self.tooltip_item, tooltip_pos)
-            
+
     def draw_tabs(self, surface, margin):
-        """Draw tabs for switching between attributes and skills"""
+        """Draw tabs for switching between attributes and skills at the bottom of the screen"""
         tab_width = 150
         tab_height = 30
-        tab_y = margin + 50
+        
+        # Position tabs at the bottom of the character sheet
+        tab_y = SCREEN_HEIGHT - margin - tab_height - 10  # 10px padding from the bottom margin
         
         # Attributes tab
         attr_tab_x = SCREEN_WIDTH // 2 - tab_width - 5
@@ -766,7 +768,7 @@ class CharacterScreen:
         
         attr_text = self.button_font.render("ATTRIBUTES", True, self.colors['text'])
         surface.blit(attr_text, (attr_tab_x + (tab_width - attr_text.get_width()) // 2, 
-                             tab_y + (tab_height - attr_text.get_height()) // 2))
+                            tab_y + (tab_height - attr_text.get_height()) // 2))
         
         # Skills tab
         skills_tab_x = SCREEN_WIDTH // 2 + 5
@@ -777,7 +779,7 @@ class CharacterScreen:
         
         skills_text = self.button_font.render("SKILLS", True, self.colors['text'])
         surface.blit(skills_text, (skills_tab_x + (tab_width - skills_text.get_width()) // 2, 
-                              tab_y + (tab_height - skills_text.get_height()) // 2))
+                            tab_y + (tab_height - skills_text.get_height()) // 2))
         
         # Store tab rects for click detection
         self.tab_rects = {
@@ -785,6 +787,10 @@ class CharacterScreen:
             "skills": skills_tab_rect
         }
         
+        # Draw a separator line above the tabs
+        sep_y = tab_y - 10
+        pygame.draw.line(surface, self.colors['border'], (margin + 10, sep_y), (SCREEN_WIDTH - margin - 10, sep_y), 1)
+
     def draw_attributes_tab(self, surface, margin):
         """Draw the attributes tab with character stats and inventory"""
         # Draw portrait section
@@ -1031,8 +1037,13 @@ class CharacterScreen:
         if self.skill_selected and self.skill_selected in self.player.skill_tree.skills:
             skill = self.player.skill_tree.skills[self.skill_selected]
             
-            # Draw skill detail panel
-            detail_rect = pygame.Rect(margin + 50, SCREEN_HEIGHT - margin - 150, SCREEN_WIDTH - margin * 2 - 100, 120)
+            # Draw skill detail panel (moved up to make room for bottom tabs)
+            tab_height = 30
+            tab_margin = 20  # Space between detail panel and tabs
+            detail_rect = pygame.Rect(margin + 50, 
+                                    SCREEN_HEIGHT - margin - 150 - tab_height - tab_margin, 
+                                    SCREEN_WIDTH - margin * 2 - 100, 
+                                    120)
             pygame.draw.rect(surface, self.colors['background'], detail_rect)
             pygame.draw.rect(surface, self.colors['border'], detail_rect, 2)
             
