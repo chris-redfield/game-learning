@@ -2,6 +2,7 @@ import pygame
 import random
 import math
 from entities.grass import Grass
+from entities.rock import Rock
 from entities.enemy.skeleton import Skeleton
 from entities.enemy.slime import Slime
 from entities.bonfire import Bonfire  # Import the new Bonfire class
@@ -168,8 +169,12 @@ class World:
                     max(150, abs(bonfire_y - potion_y) + 100)
                 )
         
-        # Add grass patches
-        self._add_grass_patches(block, 15, safe_area)
+        # Add world entities patches
+        entity_map = {
+            "grass": random.choice(list(range(5, 16))),
+            "rock": random.choice(list(range(1, 6)))
+        }
+        self._add_world_entities(block, entity_map, safe_area)
         
         # Add enemies
         self._add_enemies(block, safe_area)
@@ -423,13 +428,31 @@ class World:
         
         return False  # Failed to add enemy after max attempts
     
+    def _add_world_entities(self, block, entity_map, safe_area):
+        """entity_map example: {"grass":15, "rock":10}"""
+        if "grass" in entity_map:
+            grass_qtd = entity_map["grass"]
+        else:
+            grass_qtd = 10
+        if "rock" in entity_map:
+            rock_qtd = entity_map["rock"]
+        else:
+            rock_qtd = 5
+
+        # Add grass patches first
+        self._add_grass_patches(block, grass_qtd, safe_area)
+        
+        # When adding rocks, check against all existing entities (including grass)
+        self._add_rock_patches(block, rock_qtd, safe_area)
+
     def _add_grass_patches(self, block, count, safe_area=None):
         """Add grass patches to a block"""
-        min_distance_between_grass = 64
-        existing_grass = []
+        min_distance_between_entities = 64
+        existing_entities = block.get_entities()  # Get all existing entities to check against
         
         attempts = 0
-        while len(existing_grass) < count and attempts < 100:
+        grass_added = 0
+        while grass_added < count and attempts < 100:
             x = random.randint(50, SCREEN_WIDTH - 50)
             y = random.randint(50, SCREEN_HEIGHT - 50)
             
@@ -440,23 +463,60 @@ class World:
                 attempts += 1
                 continue
                 
-            # Check distance from other grass
+            # Check distance from other entities
             too_close = False
-            for grass in existing_grass:
-                grass_rect = grass.get_rect()
-                if new_grass_rect.colliderect(grass_rect) or \
-                   pygame.math.Vector2(new_grass_rect.center).distance_to(
-                       pygame.math.Vector2(grass_rect.center)) < min_distance_between_grass:
+            for entity in existing_entities:
+                entity_rect = entity.get_rect()
+                if new_grass_rect.colliderect(entity_rect) or \
+                pygame.math.Vector2(new_grass_rect.center).distance_to(
+                    pygame.math.Vector2(entity_rect.center)) < min_distance_between_entities:
                     too_close = True
                     break
             
             if not too_close:
                 new_grass = Grass(x, y)
-                existing_grass.append(new_grass)
+                existing_entities.append(new_grass)  # Add to our tracking list
                 block.add_entity(new_grass)
+                grass_added += 1
             
             attempts += 1
-    
+
+    def _add_rock_patches(self, block, count, safe_area=None):
+        """Add rock patches to a block"""
+        min_distance_between_entities = 64
+        existing_entities = block.get_entities()  # Get all existing entities to check against
+        
+        attempts = 0
+        rocks_added = 0
+        while rocks_added < count and attempts < 100:
+            x = random.randint(50, SCREEN_WIDTH - 50)
+            y = random.randint(50, SCREEN_HEIGHT - 50)
+            
+            new_rock_rect = pygame.Rect(x, y, 32, 32)
+            
+            # Check if in safe area
+            if safe_area and safe_area.colliderect(new_rock_rect):
+                attempts += 1
+                continue
+                
+            # Check distance from other entities
+            too_close = False
+            for entity in existing_entities:
+                entity_rect = entity.get_rect()
+                if new_rock_rect.colliderect(entity_rect) or \
+                pygame.math.Vector2(new_rock_rect.center).distance_to(
+                    pygame.math.Vector2(entity_rect.center)) < min_distance_between_entities:
+                    too_close = True
+                    break
+            
+            if not too_close:
+                new_rock = Rock(x, y)
+                existing_entities.append(new_rock)  # Add to our tracking list
+                block.add_entity(new_rock)
+                rocks_added += 1
+            
+            attempts += 1
+
     def _add_items(self, block, count, item_type, safe_area=None, positions=None):
         """Add items of a specific type to a block
         
