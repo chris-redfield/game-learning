@@ -1,4 +1,5 @@
 import pygame
+import random
 
 class Grass:
     def __init__(self, x, y):
@@ -12,7 +13,8 @@ class Grass:
         
         # Load direct bush image instead of spritesheet
         try:
-            self.sprite = pygame.image.load('assets/bush.png').convert_alpha()
+            bush_choice = random.choice(['bush1.png', 'bush2.png', 'bush3.png'])
+            self.sprite = pygame.image.load(f'assets/bush/{bush_choice}').convert_alpha()
             # Scale the sprite to match the desired dimensions
             self.sprite = pygame.transform.scale(self.sprite, (self.width, self.height))
         except Exception as e:
