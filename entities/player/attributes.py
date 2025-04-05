@@ -24,7 +24,7 @@ class PlayerAttributes:
         self.int = 1  # Intelligence
 
         # Health and mana
-        self.max_health = 3 + (self.con * 2)  # Base health + CON bonus
+        self.max_health = 3 + (self.con * 3)  # Base health + CON bonus
         self.current_health = self.max_health
         self.max_mana = 1 + self.int  # Base mana + INT bonus
         self.current_mana = self.max_mana
@@ -120,7 +120,7 @@ class PlayerAttributes:
             self.con += 1
             # Constitution increases health
             old_max_health = self.max_health
-            self.max_health = 3 + (self.con * 2)  # Using consistent formula with init
+            self.max_health = 3 + (self.con * 3)  # Using consistent formula with init
             # Increase current health by the difference
             self.current_health += (self.max_health - old_max_health)
             self.stat_points -= 1
