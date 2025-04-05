@@ -1,4 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+import platform
 
 block_cipher = None
 
@@ -81,5 +83,10 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='assets/icon.ico' if os.path.exists('assets/icon.ico') else None,  # Conditional icon
+    # Platform-specific icon handling (skip on Linux)
+icon=(
+    'assets/icon.ico' if platform.system() == 'Windows' and os.path.exists('assets/icon.ico')
+    else 'assets/icon.icns' if platform.system() == 'Darwin' and os.path.exists('assets/icon.icns')
+    else None  # Skip icon on Linux as PyInstaller doesn't support it
+),
 )

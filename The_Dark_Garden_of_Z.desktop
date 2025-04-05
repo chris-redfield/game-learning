@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=The Dark Garden of Z
+Comment=An exciting adventure game
+Exec=/home/cmoryah/proj/game-learning/dist/The_Dark_Garden_of_Z
+Icon=/home/cmoryah/proj/game-learning/assets/icon.png
+Terminal=false
+Type=Application
+Categories=Game;
