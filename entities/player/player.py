@@ -3,9 +3,10 @@ import math
 from inventory import Inventory
 from .attributes import PlayerAttributes
 from .particles import ParticleSystem
+from .sprite_sheet import SpriteSheet
 
 class Player:
-    def __init__(self, x, y):
+    def __init__(self, x, y, character_name="link"):
         self.x = x
         self.y = y
         self.width = 35
@@ -55,63 +56,34 @@ class Player:
         self.debug_sword_rect = False
 
         self.inventory = Inventory(max_slots=20)
-
-        # Load spritesheet
-        try:
-            self.spritesheet = pygame.image.load('assets/sprites.png').convert_alpha()
-            
-            # Define sprite locations for Link (x, y, width, height)
-            self.sprites = {
-                'down_idle': [(1, 3, 16, 24)],
-                'down_walk': [(1, 3, 16, 24), (19, 3, 16, 24), (36, 3, 16, 24), (53, 3, 16, 24), (70, 3, 16, 24), (87, 3, 16, 24), (104, 3, 16, 24), (121, 3, 16, 24), (138, 3, 16, 24)],
-                'up_idle': [(1, 111, 16, 24)],
-                'up_walk': [(1, 111, 16, 24), (19, 111, 16, 24), (36, 111, 16, 24), (53, 111, 16, 24), (70, 111, 16, 24), (87, 111, 16, 24), (104, 111, 16, 24), (121, 111, 16, 24), (138, 111, 16, 24)],
-                'right_idle': [(1, 56, 16, 24)],
-                'right_walk': [(1, 56, 16, 24), (19, 56, 16, 24), (36, 56, 16, 24), (54, 56, 16, 24), (72, 56, 16, 24), (89, 56, 16, 24), (107, 56, 16, 24), (125, 56, 16, 24), (142, 56, 16, 24)]
-                # We'll use flipped right sprites for left-facing animations
-            }
-            
-            # Define sword swing sprites (x, y, width, height)
-            self.sword_sprite = self.get_sword_sprite(1, 269, 8, 16)
-            
-            # Convert sprite locations into actual sprite surfaces
-            for key in self.sprites:
-                self.sprites[key] = [self.get_sprite(x, y, w, h) for x, y, w, h in self.sprites[key]]
-                
-        except Exception as e:
-            print(f"Error loading sprites: {e}")
-            # Create colored rectangle placeholders
-            self.sprites = {
-                'down_idle': [pygame.Surface((16, 24))],
-                'down_walk': [pygame.Surface((16, 24)) for _ in range(4)],
-                'up_idle': [pygame.Surface((16, 24))],
-                'up_walk': [pygame.Surface((16, 24)) for _ in range(4)],
-                'right_idle': [pygame.Surface((16, 24))],
-                'right_walk': [pygame.Surface((16, 24)) for _ in range(4)],
-                'left_idle': [pygame.Surface((16, 24))],
-                'left_walk': [pygame.Surface((16, 24)) for _ in range(4)]
-            }
-            # Fill placeholders with colors
-            for key in self.sprites:
-                for sprite in self.sprites[key]:
-                    sprite.fill((50, 50, 150))
+        
+        # Load character sprites
+        self.load_sprites(character_name)
+    
+    def load_sprites(self, character_name):
+        """Load sprites for the specified character"""
+        self.sprite_sheet = SpriteSheet(character_name)
+        self.sprites, self.sword_sprite = self.sprite_sheet.load_character_sprites(
+            character_name, self.width, self.height
+        )
     
     def get_sprite(self, x, y, width, height):
-        """Extract a sprite from the spritesheet"""
-        sprite = pygame.Surface((width, height), pygame.SRCALPHA)
-        sprite.blit(self.spritesheet, (0, 0), (x, y, width, height))
-        return pygame.transform.scale(sprite, (self.width, self.height))
+        """
+        Legacy method for backward compatibility.
+        Extract a sprite from the spritesheet.
+        """
+        return self.sprite_sheet.get_sprite(x, y, width, height, self.width, self.height)
         
     def get_sword_sprite(self, x, y, width, height):
-        """Extract a sword sprite from the spritesheet with proper dimensions"""
-        sprite = pygame.Surface((width, height), pygame.SRCALPHA)
-        sprite.blit(self.spritesheet, (0, 0), (x, y, width, height))
-        # Keep the original aspect ratio for the sword
-        return pygame.transform.scale(sprite, (width * 2, height * 2))
+        """
+        Legacy method for backward compatibility.
+        Extract a sword sprite from the spritesheet with proper dimensions.
+        """
+        return self.sprite_sheet.get_sword_sprite(x, y, width, height)
     
     def load_specific_sprite(self, sprite_x, sprite_y):
         """For debugging - load a specific sprite from coordinates"""
-        self.debug_sprite = self.get_sprite(sprite_x, sprite_y, 16, 24)
+        self.debug_sprite = self.sprite_sheet.get_sprite(sprite_x, sprite_y, 16, 24, self.width, self.height)
         print(f"Loaded sprite at ({sprite_x}, {sprite_y})")
 
     def gain_xp(self, amount):
