@@ -93,9 +93,9 @@ class HUD:
         x = 10
         y = 85  # Increased to make room for XP text under the icon
         
-        # Display ability info
-        # Level 2: Dash
-        if self.player.attributes.level >= 2:
+        # Display ability info based on skill tree unlocks
+        # Dash ability
+        if self.player.skill_tree.is_skill_unlocked("dash"):
             if self.player.attributes.dashing:
                 dash_status = "ACTIVE"
                 color = (0, 255, 0)  # Green when active
@@ -110,14 +110,14 @@ class HUD:
             surface.blit(dash_text, (x, y))
             y += 25
         
-        # Level 3: Extended Sword    
-        if self.player.attributes.level >= 3:
+        # Extended Sword ability  
+        if self.player.skill_tree.is_skill_unlocked("extended_sword"):
             sword_text = self.font.render(f"Extended Sword: Active", True, self.colors['text'])
             surface.blit(sword_text, (x, y))
             y += 25
             
-        # Level 4: Blink
-        if self.player.attributes.level >= 4:
+        # Blink ability
+        if self.player.skill_tree.is_skill_unlocked("blink"):
             blink_status = "Ready" if self.player.attributes.blink_timer == 0 else "Cooling Down"
             blink_color = self.colors['text'] if self.player.attributes.blink_timer == 0 else (255, 165, 0)
             blink_text = self.font.render(f"Blink: {blink_status}", True, blink_color)
@@ -136,8 +136,8 @@ class HUD:
             "WASD or Arrow Keys: Move",
             "SPACE: Swing Sword",
             "E: Interact",
-            "SHIFT: Dash (Level 2+)",
-            "B: Blink (Level 4+)",
+            "SHIFT: Dash (if unlocked)",
+            "B: Blink (if unlocked)",
             "+: Level Up",
             "C: Show Collision Boxes",
             "M: Toggle Map",

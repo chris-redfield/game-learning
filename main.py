@@ -168,7 +168,7 @@ while running:
             elif event.key == pygame.K_e:
                 check_entity_interaction(player)
             elif event.key == pygame.K_PLUS or event.key == pygame.K_KP_PLUS or event.key == pygame.K_EQUALS:
-                player.gain_xp(10)
+                player.gain_xp(50)
             elif event.key == pygame.K_m:
                 if not character_screen.is_visible() and not death_screen.is_active():
                     game_map.toggle()
