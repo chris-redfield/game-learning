@@ -24,10 +24,10 @@ class HUD:
         self.screen_height = pygame.display.get_surface().get_height()
         
         # Bar scaling parameters
-        self.health_base_width = 25         # Base width for initial health (5)
-        self.health_scaling = 5             # Width increase per health point
-        self.mana_base_width = 10           # Base width for initial mana (1)
-        self.mana_scaling = 5               # Width increase per mana point
+        self.health_base_width = 30         # Base width for initial health (6)
+        self.health_scaling = 7             # Width increase per health point
+        self.mana_base_width = 10           # Base width for initial mana (2)
+        self.mana_scaling = 6               # Width increase per mana point
 
     def draw_status_bars(self, surface):
         """Draw health and mana bars in the main game view"""
