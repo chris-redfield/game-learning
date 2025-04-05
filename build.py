@@ -11,8 +11,8 @@ import subprocess
 import shutil
 
 # Game details
-GAME_NAME = "DynamicWorldGame"
-VERSION = "1.0.0"
+GAME_NAME = "The Dark Garden of Z"
+VERSION = "0.2.0"
 MAIN_SCRIPT = "main.py"
 
 # Determine the current platform
@@ -36,19 +36,39 @@ def create_windows_build():
     # Data files - use Windows path separator
     data_params = [
         "--add-data", "assets;assets",
-        "--add-data", "entities;entities"
+        "--add-data", "entities;entities",
+        "--add-data", "items;items"
     ]
     
     # Hidden imports to ensure all modules are included
     hidden_imports = [
         "--hidden-import", "entities.enemy",
-        "--hidden-import", "entities.skeleton",
-        "--hidden-import", "entities.slime", 
+        "--hidden-import", "entities.enemy.enemy",
+        "--hidden-import", "entities.enemy.enemy_attribute",
+        "--hidden-import", "entities.enemy.skeleton",
+        "--hidden-import", "entities.enemy.slime", 
         "--hidden-import", "entities.grass",
         "--hidden-import", "entities.soul",
+        "--hidden-import", "entities.blood_particle",
+        "--hidden-import", "entities.bonfire",
+        "--hidden-import", "entities.rock",
         "--hidden-import", "entities.player.player",
         "--hidden-import", "entities.player.attributes",
-        "--hidden-import", "entities.player.particles"
+        "--hidden-import", "entities.player.particles",
+        "--hidden-import", "entities.player.skill_tree",
+        "--hidden-import", "entities.player.sprite_sheet",
+        "--hidden-import", "items",
+        "--hidden-import", "items.item",
+        "--hidden-import", "items.ancient_scroll",
+        "--hidden-import", "items.dragon_heart",
+        "--hidden-import", "items.health_potion",
+        "--hidden-import", "character_screen",
+        "--hidden-import", "constants",
+        "--hidden-import", "death_screen",
+        "--hidden-import", "hud",
+        "--hidden-import", "inventory",
+        "--hidden-import", "map",
+        "--hidden-import", "world"
     ]
     
     cmd = [
@@ -85,19 +105,39 @@ def create_macos_build():
     # Data files - use macOS path separator
     data_params = [
         "--add-data", "assets:assets",
-        "--add-data", "entities:entities"
+        "--add-data", "entities:entities",
+        "--add-data", "items:items"
     ]
     
     # Hidden imports to ensure all modules are included
     hidden_imports = [
         "--hidden-import", "entities.enemy",
-        "--hidden-import", "entities.skeleton",
-        "--hidden-import", "entities.slime", 
+        "--hidden-import", "entities.enemy.enemy",
+        "--hidden-import", "entities.enemy.enemy_attribute",
+        "--hidden-import", "entities.enemy.skeleton",
+        "--hidden-import", "entities.enemy.slime", 
         "--hidden-import", "entities.grass",
         "--hidden-import", "entities.soul",
+        "--hidden-import", "entities.blood_particle",
+        "--hidden-import", "entities.bonfire",
+        "--hidden-import", "entities.rock",
         "--hidden-import", "entities.player.player",
         "--hidden-import", "entities.player.attributes",
-        "--hidden-import", "entities.player.particles"
+        "--hidden-import", "entities.player.particles",
+        "--hidden-import", "entities.player.skill_tree",
+        "--hidden-import", "entities.player.sprite_sheet",
+        "--hidden-import", "items",
+        "--hidden-import", "items.item",
+        "--hidden-import", "items.ancient_scroll",
+        "--hidden-import", "items.dragon_heart",
+        "--hidden-import", "items.health_potion",
+        "--hidden-import", "character_screen",
+        "--hidden-import", "constants",
+        "--hidden-import", "death_screen",
+        "--hidden-import", "hud",
+        "--hidden-import", "inventory",
+        "--hidden-import", "map",
+        "--hidden-import", "world"
     ]
     
     cmd = [
@@ -111,7 +151,7 @@ def create_macos_build():
         cmd.append(icon_param)
     
     # Add bundle identifier for macOS
-    cmd.extend(["--osx-bundle-identifier", f"com.yourgame.{GAME_NAME.lower()}"])
+    cmd.extend(["--osx-bundle-identifier", f"com.yourgame.{GAME_NAME.lower().replace(' ', '-')}"])
     
     # Add main script last
     cmd.append(MAIN_SCRIPT)
@@ -132,19 +172,39 @@ def create_linux_build():
     # Data files - use Linux path separator
     data_params = [
         "--add-data", "assets:assets",
-        "--add-data", "entities:entities"
+        "--add-data", "entities:entities",
+        "--add-data", "items:items"
     ]
     
     # Hidden imports to ensure all modules are included
     hidden_imports = [
         "--hidden-import", "entities.enemy",
-        "--hidden-import", "entities.skeleton",
-        "--hidden-import", "entities.slime", 
+        "--hidden-import", "entities.enemy.enemy",
+        "--hidden-import", "entities.enemy.enemy_attribute",
+        "--hidden-import", "entities.enemy.skeleton",
+        "--hidden-import", "entities.enemy.slime", 
         "--hidden-import", "entities.grass",
         "--hidden-import", "entities.soul",
+        "--hidden-import", "entities.blood_particle",
+        "--hidden-import", "entities.bonfire",
+        "--hidden-import", "entities.rock",
         "--hidden-import", "entities.player.player",
         "--hidden-import", "entities.player.attributes",
-        "--hidden-import", "entities.player.particles"
+        "--hidden-import", "entities.player.particles",
+        "--hidden-import", "entities.player.skill_tree",
+        "--hidden-import", "entities.player.sprite_sheet",
+        "--hidden-import", "items",
+        "--hidden-import", "items.item",
+        "--hidden-import", "items.ancient_scroll",
+        "--hidden-import", "items.dragon_heart",
+        "--hidden-import", "items.health_potion",
+        "--hidden-import", "character_screen",
+        "--hidden-import", "constants",
+        "--hidden-import", "death_screen",
+        "--hidden-import", "hud",
+        "--hidden-import", "inventory",
+        "--hidden-import", "map",
+        "--hidden-import", "world"
     ]
     
     cmd = [

@@ -1,5 +1,5 @@
 
-# Dynamic World Game
+# The Dark Garden of Z
 
 A 2D action-adventure game with procedural world generation, RPG-inspired character progression, and dynamic combat mechanics.
 

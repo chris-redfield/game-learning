@@ -26,7 +26,7 @@ font = pygame.font.SysFont(None, 24)
 
 # Create the game window
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Dynamic World Game")
+pygame.display.set_caption("The Dark Garden of Z")
 clock = pygame.time.Clock()
 
 # Initialize joysticks
