@@ -26,7 +26,7 @@ class PlayerAttributes:
         # Health and mana
         self.max_health = 3 + (self.con * 3)  # Base health + CON bonus
         self.current_health = self.max_health
-        self.max_mana = 1 + self.int  # Base mana + INT bonus
+        self.max_mana = 1 + (self.int * 2) # Base mana + INT bonus
         self.current_mana = self.max_mana
         self.stat_points = 0  # Available points to spend
         self.skill_points = 0  # Available skill points for the skill tree
@@ -136,7 +136,7 @@ class PlayerAttributes:
             self.int += 1
             # Intelligence increases mana
             old_max_mana = self.max_mana
-            self.max_mana = 1 + self.int
+            self.max_mana = 1 + (self.int * 2)
             # Increase current mana by the difference
             self.current_mana += (self.max_mana - old_max_mana)
             self.stat_points -= 1
