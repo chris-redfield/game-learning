@@ -233,13 +233,25 @@ while running:
             y_axis = joystick.get_axis(1)
             
             # Add deadzone to prevent drift
-            deadzone = 0.5
+            deadzone = 0.45
             
+            # Only update movement and direction when outside deadzone
             if abs(x_axis) > deadzone:
                 dx = x_axis * player.speed
+                # Update horizontal facing
+                if x_axis > 0:
+                    player.facing = "right"
+                else:
+                    player.facing = "left"
             
             if abs(y_axis) > deadzone:
                 dy = y_axis * player.speed
+                # Only update vertical facing if horizontal movement isn't happening
+                if abs(x_axis) <= deadzone:
+                    if y_axis > 0:
+                        player.facing = "down"
+                    else:
+                        player.facing = "up"
             
             # Dash ability (controller)
             if joystick.get_button(4) and player.skill_tree.is_skill_unlocked("dash"):
