@@ -233,7 +233,7 @@ while running:
             y_axis = joystick.get_axis(1)
             
             # Add deadzone to prevent drift
-            deadzone = 0.2
+            deadzone = 0.5
             
             if abs(x_axis) > deadzone:
                 dx = x_axis * player.speed
