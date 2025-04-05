@@ -66,25 +66,6 @@ class Player:
         self.sprites, self.sword_sprite = self.sprite_sheet.load_character_sprites(
             character_name, self.width, self.height
         )
-    
-    def get_sprite(self, x, y, width, height):
-        """
-        Legacy method for backward compatibility.
-        Extract a sprite from the spritesheet.
-        """
-        return self.sprite_sheet.get_sprite(x, y, width, height, self.width, self.height)
-        
-    def get_sword_sprite(self, x, y, width, height):
-        """
-        Legacy method for backward compatibility.
-        Extract a sword sprite from the spritesheet with proper dimensions.
-        """
-        return self.sprite_sheet.get_sword_sprite(x, y, width, height)
-    
-    def load_specific_sprite(self, sprite_x, sprite_y):
-        """For debugging - load a specific sprite from coordinates"""
-        self.debug_sprite = self.sprite_sheet.get_sprite(sprite_x, sprite_y, 16, 24, self.width, self.height)
-        print(f"Loaded sprite at ({sprite_x}, {sprite_y})")
 
     def gain_xp(self, amount):
         """Add XP to the player and check for level up"""
