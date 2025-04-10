@@ -176,48 +176,49 @@ class DragonHeart(Item):
     
     def collect(self, player):
         """Collect the heart and immediately activate its effect"""
-        if not self.collected:
-            # Activate the heart effect when collected
-            if hasattr(player, 'attributes') and hasattr(player.attributes, 'find_dragon_heart'):
-                # Apply the heart effect
-                result = player.attributes.find_dragon_heart()
+        # If already collected, don't do anything
+        if self.collected:
+            return False
+        
+        # Try to activate the heart effect if player has attributes system
+        effect_applied = False
+        if hasattr(player, 'attributes') and hasattr(player.attributes, 'find_dragon_heart'):
+            # Apply the heart effect
+            effect_applied = player.attributes.find_dragon_heart()
+            
+            if effect_applied:
+                # Create visual effect (if player has a particle system)
+                if hasattr(player, 'particles') and hasattr(player.particles, 'create_fire_particles'):
+                    player.particles.create_fire_particles(60)
+                    
+                # Provide success message
+                print(f"Obtained the {self.name}! Its power flows through your veins.")
+                print("Your magical abilities are enhanced! (Max mana increased)")
                 
-                if result:
-                    # Create visual effect (if player has a particle system)
-                    if hasattr(player, 'particles') and hasattr(player.particles, 'create_fire_particles'):
-                        player.particles.create_fire_particles(60)
-                    
-                    # Add to inventory if there's space
-                    added_to_inventory = False
-                    if hasattr(player, 'inventory'):
-                        added_to_inventory = player.inventory.add_item(self)
-                    
-                    # Mark as collected regardless of inventory status
-                    self.collected = True
-                    
-                    # Provide feedback message
-                    if added_to_inventory:
-                        print(f"Obtained the {self.name}! Its power flows through your veins.")
-                        print("Your magical abilities are enhanced! (Max mana increased)")
-                    else:
-                        print(f"You absorbed the {self.name} but couldn't carry it.")
-                        print("Its power still flows through you, enhancing your magical abilities.")
-                        
-                    return True
-                else:
-                    print("You cannot absorb any more dragon hearts.")
-                    return False
-            else:
-                # Just mark as collected if the player doesn't have the attributes system
-                # Add to inventory if there's space
+                # Only add to inventory if effect was successfully applied
                 if hasattr(player, 'inventory'):
                     player.inventory.add_item(self)
-                
-                # Mark as collected regardless of inventory status
-                self.collected = True
-                print(f"Collected {self.name}, but nothing happened!")
-                return True
-        return False
+            else:
+                # Effect wasn't applied (already had it)
+                print("You cannot absorb any more dragon hearts.")
+        
+        # Always mark as collected regardless of effect or inventory
+        self.collected = True
+        
+        # Find the current block to remove this entity
+        if hasattr(player, 'current_block_x') and hasattr(player, 'current_block_y'):
+            # Access game_world via __main__ to avoid circular imports
+            import __main__
+            if hasattr(__main__, 'game_world'):
+                block_key = (player.current_block_x, player.current_block_y)
+                if block_key in __main__.game_world.blocks:
+                    current_block = __main__.game_world.blocks[block_key]
+                    if self in current_block.entities:
+                        current_block.remove_entity(self)
+                        print(f"Removed {self.name} from block")
+        
+        # Return True to indicate the item was collected
+        return True
         
     def use(self, player):
         """Using the heart from inventory does nothing as its effect is applied on pickup"""

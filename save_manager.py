@@ -168,13 +168,16 @@ class SaveManager:
                     entity_data["name"] = entity.name
                     if hasattr(entity, 'description'):
                         entity_data["description"] = entity.description
+                    # Save collected status for items
+                    if hasattr(entity, 'collected'):
+                        entity_data["collected"] = entity.collected
                 
                 block_data["entities"].append(entity_data)
             
             world_data["blocks"][f"{block_x},{block_y}"] = block_data
         
         return world_data
-    
+
     def load_player_data(self, player_data):
         """Load player data from a dictionary"""
         # Load position
@@ -261,7 +264,7 @@ class SaveManager:
                 # Adjust count for stackable items
                 if hasattr(item, 'stackable') and item.stackable and item_count > 1:
                     self.player.inventory.item_counts[item.name] = item_count
-    
+
     def load_world_data(self, world_data):
         """Load world data from a dictionary"""
         # Clear current world blocks
@@ -317,6 +320,12 @@ class SaveManager:
                     print(f"Unknown entity type: {entity_type}")
                     continue
                 
+                # Skip already collected items - don't even create them
+                if entity_type in ["HealthPotion", "AncientScroll", "DragonHeart"]:
+                    if entity_data.get("collected", False):
+                        print(f"Skipping collected {entity_type} at ({entity_x}, {entity_y})")
+                        continue
+                
                 # Create the entity
                 entity_class = entity_mapping[entity_type]
                 entity = entity_class(entity_x, entity_y)
@@ -337,6 +346,12 @@ class SaveManager:
                 if entity_type == "Bonfire":
                     # Set block coordinates so the bonfire knows where it is
                     entity.set_block_coordinates(x, y)
+                
+                # Set item-specific attributes
+                if entity_type in ["HealthPotion", "AncientScroll", "DragonHeart"]:
+                    # Set collected status if saved
+                    if "collected" in entity_data:
+                        entity.collected = entity_data.get("collected")
                 
                 # Add the entity to the block
                 new_block.add_entity(entity)

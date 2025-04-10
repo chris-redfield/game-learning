@@ -114,48 +114,49 @@ class AncientScroll(Item):
     
     def collect(self, player):
         """Collect the scroll and immediately activate its effect"""
-        if not self.collected:
-            # Activate the scroll effect when collected
-            if hasattr(player, 'attributes') and hasattr(player.attributes, 'find_ancient_scroll'):
-                # Apply the XP table change
-                result = player.attributes.find_ancient_scroll()
+        # If already collected, don't do anything
+        if self.collected:
+            return False
+            
+        # Try to activate the scroll effect if player has attributes system
+        effect_applied = False
+        if hasattr(player, 'attributes') and hasattr(player.attributes, 'find_ancient_scroll'):
+            # Apply the XP table change
+            effect_applied = player.attributes.find_ancient_scroll()
+            
+            if effect_applied:
+                # Create visual effect (if player has a particle system)
+                if hasattr(player, 'particles') and hasattr(player.particles, 'create_xp_particles'):
+                    player.particles.create_xp_particles(50)
                 
-                if result:
-                    # Create visual effect (if player has a particle system)
-                    if hasattr(player, 'particles') and hasattr(player.particles, 'create_xp_particles'):
-                        player.particles.create_xp_particles(50)
-                    
-                    # Add to inventory if there's space
-                    added_to_inventory = False
-                    if hasattr(player, 'inventory'):
-                        added_to_inventory = player.inventory.add_item(self)
-                    
-                    # Mark as collected regardless of inventory status
-                    self.collected = True
-                    
-                    # Provide feedback message
-                    if added_to_inventory:
-                        print(f"Obtained the {self.name}! Your mind expands with ancient knowledge.")
-                        print("XP requirements are now reduced! (Using 1.3x progression)")
-                    else:
-                        print(f"You discovered the {self.name} but couldn't carry it.")
-                        print("The knowledge still flows into your mind, reducing XP requirements.")
-                        
-                    return True
-                else:
-                    print("You already possess this knowledge.")
-                    return False
-            else:
-                # Just mark as collected if the player doesn't have the attributes system
-                # Add to inventory if there's space
+                # Only add to inventory if effect was successfully applied
                 if hasattr(player, 'inventory'):
                     player.inventory.add_item(self)
-                
-                # Mark as collected regardless of inventory status
-                self.collected = True
-                print(f"Collected {self.name}, but nothing happened!")
-                return True
-        return False
+                    
+                # Provide success message
+                print(f"Obtained the {self.name}! Your mind expands with ancient knowledge.")
+                print("XP requirements are now reduced! (Using 1.3x progression)")
+            else:
+                # Effect wasn't applied (already had it)
+                print("You already possess this knowledge.")
+        
+        # Always mark as collected regardless of effect or inventory
+        self.collected = True
+        
+        # Find the current block to remove this entity
+        if hasattr(player, 'current_block_x') and hasattr(player, 'current_block_y'):
+            # Access game_world via __main__ to avoid circular imports
+            import __main__
+            if hasattr(__main__, 'game_world'):
+                block_key = (player.current_block_x, player.current_block_y)
+                if block_key in __main__.game_world.blocks:
+                    current_block = __main__.game_world.blocks[block_key]
+                    if self in current_block.entities:
+                        current_block.remove_entity(self)
+                        print(f"Removed {self.name} from block")
+        
+        # Return True to indicate the item was collected
+        return True
         
     def use(self, player):
         """Using the scroll from inventory does nothing as its effect is applied on pickup"""
