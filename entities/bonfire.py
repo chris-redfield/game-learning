@@ -20,6 +20,11 @@ class Bonfire:
         self.heal_particles_active = False
         self.heal_particles_timer = 0
         
+        # Save/load functionality
+        self.block_x = 0  # Will be set when placed in a block
+        self.block_y = 0  # Will be set when placed in a block
+        self.save_load_callback = None  # Will be set by main.py
+        
         # Print debug info
         print(f"DEBUG: Bonfire created at ({x}, {y}) with rect {self.rect}")
         
@@ -67,6 +72,15 @@ class Bonfire:
         """Return the collision rectangle"""
         return self.rect
     
+    def set_block_coordinates(self, x, y):
+        """Set the block coordinates where this bonfire is located"""
+        self.block_x = x
+        self.block_y = y
+    
+    def is_origin_bonfire(self):
+        """Check if this bonfire is at the origin (0,0) block"""
+        return self.block_x == 0 and self.block_y == 0
+    
     def update(self, dt=None, current_time=None):
         """Update the bonfire animation"""
         # Track animation time
@@ -107,6 +121,8 @@ class Bonfire:
         print(f"DEBUG: Player health before: {player.attributes.current_health}/{player.attributes.max_health}")
         print(f"DEBUG: Will try to heal for {heal_amount} HP")
         
+        # Heal the player if needed
+        healed = False
         if heal_amount > 0:
             # Heal the player to full health
             player.heal(heal_amount)
@@ -117,10 +133,16 @@ class Bonfire:
             
             print(f"Bonfire healed player for {heal_amount} HP")
             print(f"DEBUG: Player health after: {player.attributes.current_health}/{player.attributes.max_health}")
-            return True
+            healed = True
         else:
             print("Player already at full health")
-            return False
+        
+        # If this is the origin bonfire, also show save/load dialog
+        if self.is_origin_bonfire() and self.save_load_callback is not None:
+            print("DEBUG: Origin bonfire - showing save/load dialog")
+            self.save_load_callback()
+        
+        return healed or self.is_origin_bonfire()
     
     def draw(self, surface):
         """Draw the bonfire with current animation frame"""

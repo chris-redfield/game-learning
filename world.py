@@ -136,6 +136,8 @@ class World:
             
             # Create and add the bonfire
             bonfire = Bonfire(bonfire_x, bonfire_y)
+            # Set block coordinates so the bonfire knows it's at the origin
+            bonfire.set_block_coordinates(x_coord, y_coord)
             block.add_entity(bonfire)
             print(f"DEBUG: Added bonfire to origin block at ({bonfire_x}, {bonfire_y})")
             

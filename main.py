@@ -2,6 +2,7 @@ import pygame
 import sys
 import math
 import os
+import datetime
 
 from entities.player.player import Player
 from world import World
@@ -10,10 +11,10 @@ from entities.enemy.enemy import Enemy
 from character_screen import CharacterScreen
 from death_screen import DeathScreen
 from hud import HUD
+from dialog import Dialog, FileDialog
+from save_manager import SaveManager
 
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GREEN, DESERT
-
-
 
 # Set working directory to script location
 abspath = os.path.abspath(__file__)
@@ -32,6 +33,7 @@ clock = pygame.time.Clock()
 # Initialize joysticks
 pygame.joystick.init()
 joysticks = []
+
 
 def initialize_controllers():
     """Detect and initialize connected controllers"""
@@ -88,6 +90,12 @@ show_enemy_debug = False
 # Create death screen (only created once)
 death_screen = DeathScreen()
 
+# Save/Load system variables
+save_manager = None
+save_load_dialog = None
+file_dialog = None
+message_dialog = None
+
 # Transition effects
 fade_alpha = 0
 fading_in = False
@@ -105,6 +113,7 @@ transition_in_progress = False
 def initialize_game():
     """Initialize or reinitialize all game objects"""
     global player, game_world, initial_block, game_map, character_screen, game_hud
+    global save_manager, save_load_dialog, file_dialog, message_dialog
     
     # Create player at the center of the screen
     player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
@@ -112,18 +121,29 @@ def initialize_game():
     # Create world and first block
     game_world = World()
     initial_block = game_world.generate_block(0, 0)
+    set_bonfire_callback()
 
     # Placement of the special_items
     game_world.place_special_items("ancient_scroll", [-4, 3])
     game_world.place_special_items("dragon_heart", [8,-9])
 
-    # game_world.place_special_items("ancient_scroll", [1, 0])
-    # game_world.place_special_items("dragon_heart", [0,1])
-
     # Create UI components
     game_map = Map(game_world)
     character_screen = CharacterScreen(player)
     game_hud = HUD(player)
+    
+    # Initialize dialog UI components for save/load system
+    save_load_dialog = Dialog("Bonfire", ["Save Game", "Load Game", "Cancel"], on_save_load_option)
+    file_dialog = FileDialog("Load Game", "Select a save file to load:")
+    message_dialog = Dialog("Message", ["OK"], lambda _: message_dialog.hide())
+    
+    # Set fonts for dialogs
+    save_load_dialog.set_fonts()
+    file_dialog.set_fonts()
+    message_dialog.set_fonts()
+    
+    # Initialize save manager
+    save_manager = SaveManager(game_world, player)
     
     # Initialize controllers
     initialize_controllers()
@@ -142,6 +162,97 @@ def start_transition(direction):
     fade_start_time = pygame.time.get_ticks()
     transition_in_progress = True
 
+# Save/Load system functions
+def show_save_load_dialog():
+    """Display the save/load dialog"""
+    global save_load_dialog
+    save_load_dialog.show()
+
+def on_save_load_option(option_index):
+    """Handle save/load dialog option selection"""
+    global save_load_dialog, save_manager
+    
+    if option_index == 0:  # Save Game
+        # Save the current game
+        save_file = save_manager.save_game()
+        # Show confirmation
+        show_message(f"Game saved to {os.path.basename(save_file)}")
+    
+    elif option_index == 1:  # Load Game
+        # Show file selection dialog
+        show_load_dialog()
+    
+    # Option 2 is cancel - just hide the dialog
+    save_load_dialog.hide()
+
+def show_load_dialog():
+    """Show the file selection dialog"""
+    global file_dialog, save_manager
+    
+    # Get the save files
+    save_dir = save_manager.save_directory
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    
+    save_files = [f for f in os.listdir(save_dir) if f.endswith('.sav')]
+    
+    if not save_files:
+        show_message("No save files found")
+        return
+    
+    # Configure and show the dialog
+    file_dialog.options = save_files
+    file_dialog.file_callback = on_file_selected
+    file_dialog.show()
+
+def on_file_selected(file_index, files):
+    """Handle save file selection"""
+    global file_dialog, save_manager
+    
+    file_dialog.hide()
+    
+    if file_index < 0 or file_index >= len(files):
+        return
+    
+    # Load the selected file
+    file_path = os.path.join(save_manager.save_directory, files[file_index])
+    success = save_manager.load_game(file_path)
+    
+    if success:
+        # Re-set the bonfire callback after loading the game
+        set_bonfire_callback()
+        show_message(f"Game loaded from {files[file_index]}")
+    else:
+        show_message("Failed to load game")
+
+def show_message(message):
+    """Show a message dialog"""
+    global message_dialog
+    
+    message_dialog.title = "Message"
+    message_dialog.options = [message, "OK"]
+    message_dialog.show()
+
+def set_bonfire_callback():
+    """Set the save/load callback for the origin bonfire"""
+    global game_world
+    
+    # Make sure we have the origin block (regardless of current player position)
+    origin_block = game_world.get_or_generate_block(0, 0)
+    
+    # Find the bonfire entity
+    bonfire_found = False
+    for entity in origin_block.entities:
+        if hasattr(entity, 'is_origin_bonfire') and entity.is_origin_bonfire():
+            # Set the callback
+            entity.save_load_callback = show_save_load_dialog
+            print("DEBUG: Set save/load callback for origin bonfire")
+            bonfire_found = True
+            break
+    
+    if not bonfire_found:
+        print("WARNING: Could not find origin bonfire to set callback")
+
 # Initial game setup
 initialize_game()
 
@@ -153,6 +264,19 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        
+        # Check dialogs first (they have priority)
+        if save_load_dialog and save_load_dialog.is_visible():
+            if save_load_dialog.handle_event(event):
+                continue
+        
+        if file_dialog and file_dialog.is_visible():
+            if file_dialog.handle_event(event):
+                continue
+        
+        if message_dialog and message_dialog.is_visible():
+            if message_dialog.handle_event(event):
+                continue
         
         # Handle death screen events
         if death_screen.is_active():
@@ -220,7 +344,7 @@ while running:
                 transition_in_progress = False
 
     # Skip gameplay updates if UI elements are active
-    if (not transition_in_progress or not fading_in) and not game_map.is_visible() and not character_screen.is_visible() and not death_screen.is_active():
+    if (not transition_in_progress or not fading_in) and not game_map.is_visible() and not character_screen.is_visible() and not death_screen.is_active() and not save_load_dialog.is_visible() and not file_dialog.is_visible() and not message_dialog.is_visible():
         # Initialize movement variables
         dx, dy = 0, 0
         
@@ -453,6 +577,16 @@ while running:
         # Draw death screen if active
         if death_screen.is_active():
             death_screen.draw(screen, player)
+    
+    # Draw dialogs on top if visible
+    if save_load_dialog and save_load_dialog.is_visible():
+        save_load_dialog.draw(screen)
+
+    if file_dialog and file_dialog.is_visible():
+        file_dialog.draw(screen)
+
+    if message_dialog and message_dialog.is_visible():
+        message_dialog.draw(screen)
     
     # Update display
     pygame.display.flip()
