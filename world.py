@@ -576,7 +576,6 @@ class World:
             if not collision:
                 new_item = item_type(x, y)
                 block.add_entity(new_item)
-                existing_entities.append(new_item)
                 items_added += 1
                 print(f"DEBUG: Added {new_item.name} to block at random position ({x}, {y})")
             
