@@ -1,5 +1,6 @@
 import pygame
 import os
+import datetime
 
 class Dialog:
     def __init__(self, title, options=None, callback=None):
@@ -228,3 +229,84 @@ class FileDialog(Dialog):
                 surface.blit(cursor_text, (option_x - 20, option_y))
             
             surface.blit(option_text, (option_x, option_y))
+
+class SaveOverwriteDialog(FileDialog):
+    def __init__(self, save_manager, callback=None):
+        self.save_manager = save_manager
+        self.callback = callback
+
+        self.creating_new = False
+        self.editing_name = False
+        self.entered_name = ""
+        self.default_name = self.generate_default_name()
+
+        self.message = "Choose a save file to overwrite, or create a new one:"
+        self.files = self.get_save_files() + ["<Create New Save>"]
+
+        super().__init__("Save Game", self.message, self.files, self.on_select)
+
+    def generate_default_name(self):
+        now = datetime.datetime.now()
+        return now.strftime("%Y%m%d_%H%M%S") + ".sav"
+
+    def get_save_files(self):
+        save_dir = self.save_manager.save_directory
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        return [f for f in os.listdir(save_dir) if f.endswith('.sav')]
+
+    def on_select(self, index, options):
+        selected = options[index]
+
+        if selected == "<Create New Save>":
+            self.creating_new = True
+            self.editing_name = True
+            self.entered_name = ""
+        else:
+            self.save_to_file(selected)
+
+    def handle_event(self, event):
+        if self.editing_name:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    final_name = self.entered_name or self.default_name
+                    if not final_name.endswith(".sav"):
+                        final_name += ".sav"
+                    self.save_to_file(final_name)
+                elif event.key == pygame.K_BACKSPACE:
+                    self.entered_name = self.entered_name[:-1]
+                elif event.key == pygame.K_ESCAPE:
+                    self.hide()
+                else:
+                    self.entered_name += event.unicode
+            return True
+        return super().handle_event(event)
+
+    def save_to_file(self, filename):
+        filepath = os.path.join(self.save_manager.save_directory, filename)
+        self.save_manager.save_game_to(filepath)
+        self.hide()
+        if self.callback:
+            self.callback(filepath)
+
+    def draw(self, surface):
+        super().draw(surface)
+
+        if self.editing_name and self.visible:
+            padding = 20
+            screen_width, screen_height = surface.get_size()
+            text = f"Enter filename: {self.entered_name or self.default_name}"
+            font = self.option_font
+            text_surf = font.render(text, True, (255, 255, 255))
+            x = (screen_width - text_surf.get_width()) // 2
+            y = screen_height // 2 + 150
+            surface.blit(text_surf, (x, y))
+
+    def reset(self):
+        self.creating_new = False
+        self.editing_name = False
+        self.entered_name = ""
+        self.default_name = self.generate_default_name()
+        self.files = self.get_save_files() + ["<Create New Save>"]
+        self.options = self.files
+        self.selected_option = 0

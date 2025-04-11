@@ -12,6 +12,7 @@ from character_screen import CharacterScreen
 from death_screen import DeathScreen
 from hud import HUD
 from dialog import Dialog, FileDialog
+from dialog import SaveOverwriteDialog
 from save_manager import SaveManager
 
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GREEN, DESERT
@@ -95,6 +96,7 @@ save_manager = None
 save_load_dialog = None
 file_dialog = None
 message_dialog = None
+save_overwrite_dialog = None
 
 # Transition effects
 fade_alpha = 0
@@ -111,42 +113,40 @@ show_collision_boxes = False
 transition_in_progress = False
 
 def initialize_game():
-    """Initialize or reinitialize all game objects"""
     global player, game_world, initial_block, game_map, character_screen, game_hud
-    global save_manager, save_load_dialog, file_dialog, message_dialog
-    
-    # Create player at the center of the screen
+    global save_manager, save_load_dialog, file_dialog, message_dialog, save_overwrite_dialog
+
     player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
-    
-    # Create world and first block
     game_world = World()
     initial_block = game_world.generate_block(0, 0)
     set_bonfire_callback()
-
-    # Placement of the special_items
     game_world.place_special_items("ancient_scroll", [-4, 3])
     game_world.place_special_items("dragon_heart", [8,-9])
 
-    # Create UI components
     game_map = Map(game_world)
     character_screen = CharacterScreen(player)
     game_hud = HUD(player)
-    
-    # Initialize dialog UI components for save/load system
+
     save_load_dialog = Dialog("Bonfire", ["Save Game", "Load Game", "Cancel"], on_save_load_option)
     file_dialog = FileDialog("Load Game", "Select a save file to load:")
     message_dialog = Dialog("Message", ["OK"], lambda _: message_dialog.hide())
     
-    # Set fonts for dialogs
+
     save_load_dialog.set_fonts()
     file_dialog.set_fonts()
     message_dialog.set_fonts()
     
-    # Initialize save manager
     save_manager = SaveManager(game_world, player)
-    
-    # Initialize controllers
+    save_overwrite_dialog = SaveOverwriteDialog(save_manager, on_save_overwrite)
+    save_overwrite_dialog.set_fonts()
+
     initialize_controllers()
+
+def on_save_overwrite(saved_path):
+    show_message(f"Game saved to {os.path.basename(saved_path)}")
+
+    if save_overwrite_dialog and save_overwrite_dialog.is_visible():
+        save_overwrite_dialog.draw(screen)
 
 def restart_game():
     """Restart the game by reinitializing everything"""
@@ -169,20 +169,17 @@ def show_save_load_dialog():
     save_load_dialog.show()
 
 def on_save_load_option(option_index):
-    """Handle save/load dialog option selection"""
-    global save_load_dialog, save_manager
-    
+    global save_load_dialog, save_manager, save_overwrite_dialog
+
     if option_index == 0:  # Save Game
-        # Save the current game
-        save_file = save_manager.save_game()
-        # Show confirmation
-        show_message(f"Game saved to {os.path.basename(save_file)}")
+        save_overwrite_dialog.files = save_overwrite_dialog.get_save_files() + ["<Create New Save>"]
+        save_overwrite_dialog.options = save_overwrite_dialog.files
+        save_overwrite_dialog.reset()
+        save_overwrite_dialog.show()
     
     elif option_index == 1:  # Load Game
-        # Show file selection dialog
         show_load_dialog()
-    
-    # Option 2 is cancel - just hide the dialog
+
     save_load_dialog.hide()
 
 def show_load_dialog():
@@ -277,7 +274,11 @@ while running:
         if message_dialog and message_dialog.is_visible():
             if message_dialog.handle_event(event):
                 continue
-        
+
+        if save_overwrite_dialog and save_overwrite_dialog.is_visible():
+            if save_overwrite_dialog.handle_event(event):
+                continue
+
         # Handle death screen events
         if death_screen.is_active():
             result = death_screen.handle_event(event)
@@ -344,7 +345,8 @@ while running:
                 transition_in_progress = False
 
     # Skip gameplay updates if UI elements are active
-    if (not transition_in_progress or not fading_in) and not game_map.is_visible() and not character_screen.is_visible() and not death_screen.is_active() and not save_load_dialog.is_visible() and not file_dialog.is_visible() and not message_dialog.is_visible():
+    if (
+        not transition_in_progress or not fading_in) and not game_map.is_visible() and not character_screen.is_visible() and not death_screen.is_active() and not save_load_dialog.is_visible() and not file_dialog.is_visible() and not message_dialog.is_visible() and not save_overwrite_dialog.is_visible():
         # Initialize movement variables
         dx, dy = 0, 0
         
@@ -587,6 +589,9 @@ while running:
 
     if message_dialog and message_dialog.is_visible():
         message_dialog.draw(screen)
+
+    if save_overwrite_dialog and save_overwrite_dialog.is_visible():
+        save_overwrite_dialog.draw(screen)
     
     # Update display
     pygame.display.flip()
