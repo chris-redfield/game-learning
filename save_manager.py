@@ -1,7 +1,8 @@
 import json
 import os
 import datetime
-from collections import defaultdict
+
+import pygame
 
 class SaveManager:
     def __init__(self, game_world, player):
@@ -155,9 +156,9 @@ class SaveManager:
                 }
                 
                 # Add enemy-specific data
-                if hasattr(entity, 'enemy_type') and hasattr(entity, 'level'):
+                if hasattr(entity, 'enemy_type'):
                     entity_data["enemy_type"] = entity.enemy_type
-                    entity_data["level"] = entity.level
+                    entity_data["level"] = entity.attributes.level
                     if hasattr(entity, 'health'):
                         entity_data["health"] = entity.health
                     if hasattr(entity, 'max_health'):
@@ -311,7 +312,29 @@ class SaveManager:
                 "DragonHeart": DragonHeart
             }
             
-            for entity_data in block_data.get("entities", []):
+            # Sort entities by type to ensure consistent loading order (non-solid items first, then obstacles)
+            # This will load grass first, then rocks, ensuring proper collision detection
+            entity_order = {
+                "Bonfire": 1,
+                "HealthPotion": 2, 
+                "AncientScroll": 3,
+                "DragonHeart": 4,
+                "Grass": 5,
+                "Rock": 6,  # Load rocks last to check collisions with everything else
+                "Skeleton": 7,
+                "Slime": 8
+            }
+            
+            # Sort entity data based on the defined order
+            sorted_entities = sorted(
+                block_data.get("entities", []),
+                key=lambda e: entity_order.get(e.get("type", ""), 999)
+            )
+            
+            # Keep track of all loaded entity rects for collision detection
+            loaded_entity_rects = []
+            
+            for entity_data in sorted_entities:
                 entity_type = entity_data.get("type")
                 entity_x = entity_data.get("x")
                 entity_y = entity_data.get("y")
@@ -326,21 +349,51 @@ class SaveManager:
                         print(f"Skipping collected {entity_type} at ({entity_x}, {entity_y})")
                         continue
                 
+                # Create a test rect to check for collision with existing entities
+                entity_width = 32  # Default size
+                entity_height = 32
+                
+                # Special size handling for different entity types
+                if entity_type == "Skeleton":
+                    entity_width, entity_height = 48, 52
+                elif entity_type == "Slime":
+                    entity_width, entity_height = 32, 24
+                
+                # Create test rect for collision detection
+                test_rect = pygame.Rect(entity_x, entity_y, entity_width, entity_height)
+                
+                # For rocks specifically, check for collision with other loaded entities
+                if entity_type == "Rock":
+                    collision = False
+                    for existing_rect in loaded_entity_rects:
+                        # For rocks, use a stricter collision check
+                        if test_rect.colliderect(existing_rect):
+                            collision = True
+                            print(f"Skipping rock at ({entity_x}, {entity_y}) due to collision")
+                            break
+                    
+                    if collision:
+                        continue  # Skip this rock due to collision
+                
                 # Create the entity
                 entity_class = entity_mapping[entity_type]
                 entity = entity_class(entity_x, entity_y)
+                
+                # Add this entity's rect to loaded entities
+                loaded_entity_rects.append(test_rect)
                 
                 # Set entity-specific attributes
                 if entity_type in ["Skeleton", "Slime"]:
                     if "enemy_type" in entity_data:
                         entity.enemy_type = entity_data.get("enemy_type")
                     if "level" in entity_data:
-                        # Need to re-calculate difficulty factor
-                        difficulty_factor = self.game_world._get_difficulty_factor(x, y)
-                        entity.set_level(entity_data.get("level"), difficulty_factor)
-                    if "health" in entity_data and "max_health" in entity_data:
+                        ## Don't use difficulty_factor when loading, as that was already applied
+                        ## If we use it here, everytime a game is saved and loaded, the enemies will be stronger
+                        entity.set_level(entity_data.get("level"), 0)
                         entity.health = entity_data.get("health")
+                        entity.attributes.max_health = entity_data.get("max_health")
                         entity.max_health = entity_data.get("max_health")
+                        entity.attributes.current_health = entity_data.get("health")
                 
                 # Set bonfire-specific attributes
                 if entity_type == "Bonfire":
