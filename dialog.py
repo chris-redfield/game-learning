@@ -113,7 +113,7 @@ class Dialog:
         padding = 20
         option_height = 30
         
-        dialog_width = 300
+        dialog_width = 500
         dialog_height = 100 + len(self.options) * option_height
         
         # Center dialog on screen
