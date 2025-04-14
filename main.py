@@ -182,6 +182,7 @@ def on_save_load_option(option_index):
 
     save_load_dialog.hide()
 
+
 def show_load_dialog():
     """Show the file selection dialog"""
     global file_dialog, save_manager
@@ -204,7 +205,7 @@ def show_load_dialog():
 
 def on_file_selected(file_index, files):
     """Handle save file selection"""
-    global file_dialog, save_manager
+    global file_dialog, save_manager, death_screen
     
     file_dialog.hide()
     
@@ -218,6 +219,9 @@ def on_file_selected(file_index, files):
     if success:
         # Re-set the bonfire callback after loading the game
         set_bonfire_callback()
+        # Deactivate the death screen if it's active
+        if death_screen.is_active():
+            death_screen.active = False
         show_message(f"Game loaded from {files[file_index]}")
     else:
         show_message("Failed to load game")
@@ -284,6 +288,11 @@ while running:
             result = death_screen.handle_event(event)
             if result == "restart":
                 restart_game()
+                continue
+            elif result == "load":
+                # Show the load game dialog when "Load Save" is selected
+                show_load_dialog()
+                # Keep the death screen active until a game is successfully loaded
                 continue
                 
         # Handle keyboard inputs
