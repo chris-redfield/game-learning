@@ -181,8 +181,12 @@ class SaveManager:
         self.player.attributes.found_ancient_scroll = attributes.get("found_ancient_scroll", self.player.attributes.found_ancient_scroll)
         self.player.attributes.found_dragon_heart = attributes.get("found_dragon_heart", self.player.attributes.found_dragon_heart)
 
+        # Update base speed based on loaded dexterity
         self.player.base_speed = 3 + (self.player.attributes.dex * 0.08)
         self.player.speed = self.player.base_speed
+
+        # Recalculate XP needed for next level based on loaded level and found items
+        self.player.attributes.xp_needed = self.player.attributes.get_xp_needed()
 
         self.load_skill_tree_data(player_data.get("skill_tree", {}))
         self.load_inventory_data(player_data.get("inventory", {}))
