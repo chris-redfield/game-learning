@@ -214,3 +214,36 @@ class ParticleSystem:
         # Initialize empty list for this block if it doesn't exist
         if self.current_block not in self.stuck_particles:
             self.stuck_particles[self.current_block] = []
+
+    def create_fire_trail(self, x, y):
+        # Small orange-red particles behind the projectile
+        for _ in range(2):
+            self.xp_particles.append({
+                'x': x,
+                'y': y,
+                'size': random.randint(2, 4),
+                'color': (255, random.randint(50, 150), 0),
+                'life': random.randint(5, 15)
+            })
+
+    def create_fire_explosion(self, x, y):
+        # Brief burst of bright orange particles upon impact
+        for _ in range(10):
+            self.xp_particles.append({
+                'x': x,
+                'y': y,
+                'size': random.randint(4, 6),
+                'color': (255, random.randint(50, 100), 0),
+                'life': random.randint(10, 20)
+            })
+
+    def create_smoke_cloud(self, x, y):
+        # Small black cloud after firebolt hits
+        for _ in range(5):
+            self.xp_particles.append({
+                'x': x,
+                'y': y,
+                'size': random.randint(4, 8),
+                'color': (30, 30, 30),
+                'life': random.randint(20, 30)
+            })

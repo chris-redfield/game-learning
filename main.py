@@ -8,6 +8,7 @@ from entities.player.player import Player
 from world import World
 from map import Map
 from entities.enemy.enemy import Enemy
+from entities.projectile.firebolt import Firebolt
 from character_screen import CharacterScreen
 from death_screen import DeathScreen
 from hud import HUD
@@ -87,6 +88,7 @@ game_map = None
 character_screen = None
 game_hud = None
 show_enemy_debug = False
+projectiles = []
 
 # Create death screen (only created once)
 death_screen = DeathScreen()
@@ -312,6 +314,13 @@ while running:
             elif event.key == pygame.K_F3:
                 show_enemy_debug = not show_enemy_debug
                 print(f"Enemy debug info: {'ON' if show_enemy_debug else 'OFF'}")
+            elif event.key == pygame.K_f:
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+                firebolt = Firebolt(
+                    player,
+                    player.particles
+                )
+                projectiles.append(firebolt)
         
         # Handle controller inputs
         elif event.type == pygame.JOYBUTTONDOWN:
@@ -519,6 +528,11 @@ while running:
         # Update player
         player.update(current_time, current_entities)
         
+        for projectile in projectiles[:]:
+            projectile.update(current_time, current_entities)
+            if not projectile.alive:
+                projectiles.remove(projectile)
+
         # Check sword collisions
         if player.swinging:
             player.check_sword_collisions(current_entities)
@@ -547,6 +561,9 @@ while running:
             entity.draw(screen)
         player.draw(screen)
         
+        for projectile in projectiles:
+            projectile.draw(screen)
+
         # Draw character screen overlay
         character_screen.draw(screen)
     else:
