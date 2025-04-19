@@ -132,6 +132,18 @@ class ParticleSystem:
         """Update all particles"""
         # Update XP particles
         for particle in self.xp_particles[:]:
+            # Move particle if it has velocity
+            if 'vel_x' in particle and 'vel_y' in particle:
+                particle['x'] += particle['vel_x']
+                particle['y'] += particle['vel_y']
+                
+                # Optional: Add gravity effect for some particles
+                # particle['vel_y'] += 0.05  # Uncomment for gravity
+                
+                # Optional: Slow down particles over time
+                particle['vel_x'] *= 0.95  # Add air resistance
+                particle['vel_y'] *= 0.95
+            
             # Decrease life
             particle['life'] -= 1
             
@@ -197,15 +209,28 @@ class ParticleSystem:
                 surface.blit(particle_surface, (x - size//2, y - size//2))
     
     def draw_xp_particles(self, surface):
-        """Draw XP particles"""
+        """Draw XP particles with fading effect"""
         if not self.xp_particles:
             return
             
         for particle in self.xp_particles:
-            # Draw gold particle
-            pygame.draw.circle(surface, particle['color'], 
-                          (int(particle['x']), int(particle['y'])), 
+            # Calculate opacity based on remaining life percentage
+            if 'max_life' in particle:
+                opacity = int(255 * (particle['life'] / particle['max_life']))
+            else:
+                opacity = 255  # Full opacity for particles without max_life
+            
+            # Create a surface with alpha for the particle
+            particle_surface = pygame.Surface((particle['size']*2, particle['size']*2), pygame.SRCALPHA)
+            
+            # Set the color with opacity
+            color_with_alpha = (*particle['color'], opacity)
+            pygame.draw.circle(particle_surface, color_with_alpha, 
+                          (particle['size'], particle['size']), 
                           particle['size'])
+            
+            # Draw the particle
+            surface.blit(particle_surface, (int(particle['x'] - particle['size']), int(particle['y'] - particle['size'])))
     
     def set_current_block(self, block_x, block_y):
         """Update the player's current block coordinates"""
@@ -227,23 +252,111 @@ class ParticleSystem:
             })
 
     def create_fire_explosion(self, x, y):
-        # Brief burst of bright orange particles upon impact
-        for _ in range(10):
+        """Create a dynamic fire explosion with particles that spread outward"""
+        # Create more particles for a bigger explosion
+        particle_count = random.randint(15, 25)
+        
+        # Calculate explosion center
+        center_x = x
+        center_y = y
+        
+        # Create various fiery particles
+        for _ in range(particle_count):
+            # Random angle for 360-degree spread
+            angle = random.uniform(0, 2 * math.pi)
+            
+            # Direction vector from angle
+            dir_x = math.cos(angle)
+            dir_y = math.sin(angle)
+            
+            # Random distance from center for starting position
+            distance = random.uniform(0, 8)
+            
+            # Starting position with some randomness
+            start_x = center_x + dir_x * distance
+            start_y = center_y + dir_y * distance
+            
+            # Random size for fire particles
+            size = random.randint(3, 8)
+            
+            # Fire colors: from bright yellow to deep orange/red
+            r = 255
+            g = random.randint(50, 200)  # More variation in green
+            b = random.randint(0, 50)    # Small amount of blue for some particles
+            
+            # Velocity based on direction with some randomization
+            velocity_mult = random.uniform(0.8, 2.5)
+            
+            # Create fire particle with velocity and fading
             self.xp_particles.append({
-                'x': x,
-                'y': y,
-                'size': random.randint(4, 6),
-                'color': (255, random.randint(50, 100), 0),
-                'life': random.randint(10, 20)
+                'x': start_x,
+                'y': start_y,
+                'vel_x': dir_x * velocity_mult,  # Add velocity for movement
+                'vel_y': dir_y * velocity_mult,
+                'size': size,
+                'color': (r, g, b),
+                'life': random.randint(10, 25),
+                'max_life': 25  # Track max life for fading
             })
+        
+        # Add a few embers/sparks (small, bright particles)
+        for _ in range(5):
+            angle = random.uniform(0, 2 * math.pi)
+            dir_x = math.cos(angle)
+            dir_y = math.sin(angle)
+            
+            # Embers move faster and further
+            velocity_mult = random.uniform(2.0, 3.5)
+            
+            self.xp_particles.append({
+                'x': center_x,
+                'y': center_y,
+                'vel_x': dir_x * velocity_mult,
+                'vel_y': dir_y * velocity_mult,
+                'size': random.randint(1, 3),  # Smaller particles
+                'color': (255, 255, random.randint(100, 200)),  # Brighter, yellowish
+                'life': random.randint(5, 15),
+                'max_life': 15
+            })
+        
+        # Add central flash effect
+        self.xp_particles.append({
+            'x': center_x,
+            'y': center_y,
+            'size': random.randint(10, 15),
+            'color': (255, 255, 200),  # Bright white-yellow
+            'life': random.randint(3, 8),
+            'max_life': 8,
+            'vel_x': 0,
+            'vel_y': 0
+        })
 
     def create_smoke_cloud(self, x, y):
-        # Small black cloud after firebolt hits
-        for _ in range(5):
+        """Create a smoke cloud that rises and dissipates"""
+        # Small rising black/gray cloud after firebolt hits
+        for _ in range(8):
+            # Random angle but biased upward
+            angle = random.uniform(-2.5, 0.5)  # Mostly upward (-π to π/6)
+            
+            # Direction vector from angle
+            dir_x = math.cos(angle) * 0.3  # Slower horizontal movement
+            dir_y = math.sin(angle) * 0.5  # Faster vertical movement
+            
+            # Random starting position
+            offset_x = random.uniform(-10, 10)
+            offset_y = random.uniform(-5, 5)
+            
+            # Random gray color
+            gray = random.randint(30, 80)
+            
+            # Create smoke particle
             self.xp_particles.append({
-                'x': x,
-                'y': y,
+                'x': x + offset_x,
+                'y': y + offset_y,
+                'vel_x': dir_x,
+                'vel_y': dir_y,
                 'size': random.randint(4, 8),
-                'color': (30, 30, 30),
-                'life': random.randint(20, 30)
+                'color': (gray, gray, gray),
+                'life': random.randint(20, 35),
+                'max_life': 35
             })
