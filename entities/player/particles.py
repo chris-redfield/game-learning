@@ -240,15 +240,20 @@ class ParticleSystem:
         if self.current_block not in self.stuck_particles:
             self.stuck_particles[self.current_block] = []
 
-    def create_fire_trail(self, x, y):
+    def create_fire_trail(self, x, y, size=None, life=None):
         # Small orange-red particles behind the projectile
+        if size == None:
+            size = random.randint(2, 4)
+        if life == None:
+            life = random.randint(4, 7)
         for _ in range(2):
             self.xp_particles.append({
                 'x': x,
                 'y': y,
-                'size': random.randint(2, 4),
+                'size': size,
+                #'size': random.randint(1, 3),
                 'color': (255, random.randint(50, 150), 0),
-                'life': random.randint(5, 15)
+                'life': life
             })
 
     def create_fire_explosion(self, x, y):
