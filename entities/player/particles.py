@@ -245,7 +245,7 @@ class ParticleSystem:
         if size == None:
             size = random.randint(2, 4)
         if life == None:
-            life = random.randint(4, 7)
+            life = random.randint(3, 6)
         for _ in range(2):
             self.xp_particles.append({
                 'x': x,

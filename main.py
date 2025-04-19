@@ -543,7 +543,7 @@ while running:
             if block_changed:
                 transition_direction = direction
                 start_transition(direction)
-    
+
     # Check for player death
     if player.attributes.current_health <= 0 and not death_screen.is_active():
         death_screen.activate()
@@ -579,7 +579,10 @@ while running:
 
         # Draw player
         player.draw(screen)
-        
+
+        for projectile in projectiles:
+            projectile.draw(screen)
+
         # Draw collision boxes for debugging
         if show_collision_boxes:
             for entity in game_world.get_current_entities():
@@ -589,6 +592,10 @@ while running:
             player_rect = player.get_rect()
             pygame.draw.rect(screen, (0, 0, 255), player_rect, 1)
         
+            for projectile in projectiles:
+                projectile_rect = projectile.rect
+                pygame.draw.rect(screen, (255, 165, 0), projectile_rect, 1)  # Orange color for projectiles
+
         # Draw HUD if not in death screen
         if not death_screen.is_active():
             game_hud.draw(
