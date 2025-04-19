@@ -80,6 +80,32 @@ def check_entity_interaction(player):
     
     return False
 
+def cast_firebolt(current_time):
+    """Cast a firebolt spell if the player has unlocked the skill and cooldown has expired."""
+    global player, projectiles
+    # Only cast if the player has unlocked the firebolt skill
+    if True: # player.skill_tree.is_skill_unlocked("firebolt"):
+        # Check if enough time has passed since last firebolt (to prevent spam)
+        if not hasattr(player, 'last_firebolt_time') or current_time - player.last_firebolt_time > 250:
+            firebolt = Firebolt(player, player.particles)
+            projectiles.append(firebolt)
+            player.last_firebolt_time = current_time
+            return True
+    return False
+
+def should_update_gameplay():
+    """Determine if gameplay should be updated based on UI state."""
+    return (
+        not (transition_in_progress and fading_in) and
+        not game_map.is_visible() and 
+        not character_screen.is_visible() and 
+        not death_screen.is_active() and 
+        not save_load_dialog.is_visible() and 
+        not file_dialog.is_visible() and 
+        not message_dialog.is_visible() and 
+        not save_overwrite_dialog.is_visible()
+    )
+
 # Game state variables
 player = None
 game_world = None
@@ -123,7 +149,7 @@ def initialize_game():
     initial_block = game_world.generate_block(0, 0)
     set_bonfire_callback()
     game_world.place_special_items("ancient_scroll", [-4, 3])
-    game_world.place_special_items("dragon_heart", [8,-9])
+    game_world.place_special_items("dragon_heart", [8, -9])
 
     game_map = Map(game_world)
     character_screen = CharacterScreen(player)
@@ -330,6 +356,8 @@ while running:
             elif event.button == 1 and player.skill_tree.is_skill_unlocked("blink"):  # Blink
                 obstacles = game_world.get_current_entities()
                 player.blink(obstacles, current_time)
+            elif event.button == 3:  # Firebolt - Added this button for casting firebolt
+                cast_firebolt(current_time)
         
         # Handle character screen events
         if character_screen.is_visible():
@@ -356,8 +384,7 @@ while running:
                 transition_in_progress = False
 
     # Skip gameplay updates if UI elements are active
-    if (
-        not transition_in_progress or not fading_in) and not game_map.is_visible() and not character_screen.is_visible() and not death_screen.is_active() and not save_load_dialog.is_visible() and not file_dialog.is_visible() and not message_dialog.is_visible() and not save_overwrite_dialog.is_visible():
+    if should_update_gameplay():
         # Initialize movement variables
         dx, dy = 0, 0
         
@@ -419,13 +446,9 @@ while running:
             obstacles = game_world.get_current_entities()
             player.blink(obstacles, current_time)
 
-        if keys[pygame.K_f]: # and player.skill_tree.is_skill_unlocked("firebolt")
-            # Check if enough time has passed since last firebolt (to prevent spam)
-            current_time = pygame.time.get_ticks()
-            if not hasattr(player, 'last_firebolt_time') or current_time - player.last_firebolt_time > 250:
-                firebolt = Firebolt(player, player.particles)
-                projectiles.append(firebolt)
-                player.last_firebolt_time = current_time
+        # Firebolt ability (keyboard) - Now uses the shared cast_firebolt function
+        if keys[pygame.K_f]:
+            cast_firebolt(current_time)
         
         # Debug visuals
         if keys[pygame.K_c]:
@@ -529,6 +552,7 @@ while running:
         # Update player
         player.update(current_time, current_entities)
         
+        # Update projectiles
         for projectile in projectiles[:]:
             projectile.update(current_time, current_entities)
             if not projectile.alive:
@@ -581,6 +605,7 @@ while running:
         # Draw player
         player.draw(screen)
 
+        # Draw projectiles
         for projectile in projectiles:
             projectile.draw(screen)
 
