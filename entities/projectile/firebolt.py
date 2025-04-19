@@ -2,20 +2,33 @@ import pygame
 from entities.projectile.projectile import Projectile
 from entities.player.particles import ParticleSystem
 import random
+import math
 
 class Firebolt(Projectile):
-    def __init__(self, player, particle_system, speed=6, damage=3, lifespan=400, magic_level=1):
+    def __init__(self, player, particle_system):
+        # Scale all parameters based on player's intelligence attribute
+        int_attr = player.attributes.int
+        
+        # Calculate speed: base 6, scales to 12 at int 15
+        speed = 6 + (int_attr - 1) * (6 / 14)  # Linear scaling from 6 to 12
+        
+        # Calculate damage: base 3, scales to 15 at int 15
+        damage = 3 + (int_attr - 1) * (12 / 14)  # Linear scaling from 3 to 15
+        
+        # Calculate lifespan: base 400, scales to 2000 at int 15
+        lifespan = 400 + (int_attr - 1) * (1600 / 14)  # Linear scaling from 400 to 2000
+        
+        # Magic level is directly tied to intelligence
+        magic_level = int_attr
+        
         # Store magic level for size and effect scaling
         self.magic_level = magic_level
         
         # Calculate size based on magic level (base size + level bonus)
-        self.bolt_size = 4 + min(8, magic_level)  # Caps at size 12 at level 8
+        self.bolt_size = 4 + min(11, magic_level)  # Caps at size 15
         
-        # Scale damage with magic level
-        scaled_damage = damage + (magic_level - 1)  # +1 damage per level
-        
-        # Call parent constructor with scaled damage
-        super().__init__(player, particle_system, speed, scaled_damage, lifespan)
+        # Call parent constructor with scaled parameters
+        super().__init__(player, particle_system, speed, damage, lifespan)
         
         # Set flag to use custom rect positioning
         self.has_custom_rect = True
@@ -83,8 +96,8 @@ class Firebolt(Projectile):
         self.create_scaled_explosion()
         
         # Add smoke effect for higher level bolts
-        #if self.magic_level >= 3:
-        #    self.particle_system.create_smoke_cloud(self.x, self.y)
+        # if self.magic_level >= 3:
+        #     self.particle_system.create_smoke_cloud(self.x, self.y)
     
     def create_scaled_explosion(self):
         """Create explosion with size and intensity scaled by magic level"""
@@ -101,9 +114,6 @@ class Firebolt(Projectile):
             
             # Number of secondary explosions based on level
             num_explosions = min(8, self.magic_level * 2)
-            
-            import random
-            import math
             
             # Create secondary explosions in a circle around impact
             for i in range(num_explosions):
