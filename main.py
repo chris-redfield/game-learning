@@ -84,7 +84,7 @@ def cast_firebolt(current_time):
     """Cast a firebolt spell if the player has unlocked the skill and cooldown has expired."""
     global player, projectiles
     # Only cast if the player has unlocked the firebolt skill
-    if True: # player.skill_tree.is_skill_unlocked("firebolt"):
+    if player.skill_tree.is_skill_unlocked("firebolt"):
         # Check if enough time has passed since last firebolt (to prevent spam)
         if not hasattr(player, 'last_firebolt_time') or current_time - player.last_firebolt_time > 250:
             firebolt = Firebolt(player, player.particles)

@@ -39,6 +39,9 @@ class Skill:
             player.attributes.sword_length = int(player.attributes.base_sword_length * 1.5)
         elif self.id == "blink":
             player.attributes.can_blink = True
+        elif self.id == "firebolt":
+            # No additional attributes needed as we check for this skill directly
+            pass
             
         return True
 
@@ -53,9 +56,9 @@ class SkillTree:
         """Initialize the skill tree with all available skills"""
         # Mind branch
         self.skills["heal"] = Skill("heal", "Heal", "Restore health", level_required=4, implemented=False)
-        self.skills["fireball"] = Skill("fireball", "Fireball", "Cast a fireball", level_required=4, implemented=False)
+        self.skills["firebolt"] = Skill("firebolt", "Firebolt", "Cast a firebolt", level_required=4, implemented=True)
         self.skills["bless"] = Skill("bless", "Bless", "Temporary stat boost", level_required=7, parent="heal", implemented=False)
-        self.skills["fireball_enhanced"] = Skill("fireball_enhanced", "Enhanced Fireball", "More powerful fireball", level_required=7, parent="fireball", implemented=False)
+        self.skills["fireball"] = Skill("fireball", "Fireball", "More powerful fireball", level_required=7, parent="firebolt", implemented=False)
         
         # Body branch
         self.skills["dash"] = Skill("dash", "Dash", "Temporary speed boost (SHIFT/Button 4)", level_required=2, implemented=True)
@@ -128,7 +131,7 @@ class SkillTree:
         
         # Categorize skills
         for skill_id, skill in self.skills.items():
-            if skill_id in ["heal", "fireball", "bless", "fireball_enhanced"]:
+            if skill_id in ["heal", "firebolt", "bless", "fireball"]:
                 branches["mind"].append(skill)
             elif skill_id in ["dash", "blink", "dash_speed", "dash_cooldown", "blink_extend1", "blink_extend2", "ghost_blink"]:
                 branches["body"].append(skill)
