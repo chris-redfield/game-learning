@@ -302,6 +302,10 @@ class Player:
             collided_with_enemy = False
             
             for obstacle in obstacles:
+                # Skip collectible entities (souls, etc)
+                if hasattr(obstacle, 'is_collectible') and obstacle.is_collectible():
+                    continue
+                    
                 obstacle_rect = obstacle.get_rect()
                 if test_rect.colliderect(obstacle_rect):
                     collision = True
@@ -316,14 +320,13 @@ class Player:
                     break
             
             # Only move if there's no collision or if collided with an enemy
-            # (we still want to move if hitting an enemy, just take damage)
             if not collision or collided_with_enemy:
                 # Update position
                 self.x += dx
                 self.y += dy
         else:
             self.moving = False
-    
+
     def dash(self, current_time):
         """Activate a temporary speed boost"""
         # Check if dash is unlocked in skill tree

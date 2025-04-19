@@ -189,6 +189,10 @@ class Soul:
         """Return a small rectangle for debugging"""
         return pygame.Rect(self.x, self.y, self.width, self.height)
     
+    def is_collectible(self):
+        """Identify this entity as a non-blocking collectible"""
+        return True
+
     def draw(self, surface):
         """Draw the soul with effects"""
         # Draw glow
