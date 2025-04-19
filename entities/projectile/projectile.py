@@ -32,6 +32,9 @@ class Projectile:
         self.width = 8
         self.height = 8
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        
+        # Add flag to determine if the rect needs custom positioning
+        self.has_custom_rect = False
 
     def update(self, current_time, entities):
         if current_time - self.creation_time > self.lifespan:
@@ -40,8 +43,15 @@ class Projectile:
 
         self.x += self.vx
         self.y += self.vy
-        self.rect.topleft = (self.x, self.y)
+        
+        # Only update rect position directly if not using custom rect
+        if not self.has_custom_rect:
+            self.rect.topleft = (self.x, self.y)
+            
+        # Give subclasses a chance to update custom rect position
+        self.update_rect_position()
 
+        # Collision detection
         for entity in entities:
             if isinstance(entity, Enemy):
                 enemy = entity
@@ -58,7 +68,10 @@ class Projectile:
             elif self.rect.colliderect(entity.get_rect()):
                 self.on_hit(entity)
                 break
-                    
+    
+    def update_rect_position(self):
+        """Hook for subclasses to update custom rectangle positions"""
+        pass
 
     def draw(self, surface):
         pygame.draw.rect(surface, (255, 255, 0), self.rect)

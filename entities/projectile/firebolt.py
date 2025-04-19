@@ -17,6 +17,9 @@ class Firebolt(Projectile):
         # Call parent constructor with scaled damage
         super().__init__(player, particle_system, speed, scaled_damage, lifespan)
         
+        # Set flag to use custom rect positioning
+        self.has_custom_rect = True
+        
         # Update the collision rectangle to match new size
         self.width = self.bolt_size * 2
         self.height = self.bolt_size * 2
@@ -35,11 +38,14 @@ class Firebolt(Projectile):
         self.trail_particles = 1 + magic_level // 2  # More trail particles at higher levels
         self.explosion_scale = 1.0 + (magic_level * 0.2)  # Explosion size scales with level
 
-    def update(self, current_time, enemies):
-        super().update(current_time, enemies)
+    def update_rect_position(self):
+        """Update the firebolt's rectangle position to stay centered"""
         self.rect.x = self.x - self.bolt_size
         self.rect.y = self.y - self.bolt_size
 
+    def update(self, current_time, enemies):
+        super().update(current_time, enemies)
+        
         # Create fire trail with intensity based on magic level
         for _ in range(self.trail_particles):
             # Add slight offset for wider trails at higher levels
