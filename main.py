@@ -314,13 +314,6 @@ while running:
             elif event.key == pygame.K_F3:
                 show_enemy_debug = not show_enemy_debug
                 print(f"Enemy debug info: {'ON' if show_enemy_debug else 'OFF'}")
-            elif event.key == pygame.K_f:
-                mouse_x, mouse_y = pygame.mouse.get_pos()
-                firebolt = Firebolt(
-                    player,
-                    player.particles
-                )
-                projectiles.append(firebolt)
         
         # Handle controller inputs
         elif event.type == pygame.JOYBUTTONDOWN:
@@ -425,6 +418,14 @@ while running:
         if keys[pygame.K_b] and player.skill_tree.is_skill_unlocked("blink"):
             obstacles = game_world.get_current_entities()
             player.blink(obstacles, current_time)
+
+        if keys[pygame.K_f]: # and player.skill_tree.is_skill_unlocked("firebolt")
+            # Check if enough time has passed since last firebolt (to prevent spam)
+            current_time = pygame.time.get_ticks()
+            if not hasattr(player, 'last_firebolt_time') or current_time - player.last_firebolt_time > 250:
+                firebolt = Firebolt(player, player.particles)
+                projectiles.append(firebolt)
+                player.last_firebolt_time = current_time
         
         # Debug visuals
         if keys[pygame.K_c]:
