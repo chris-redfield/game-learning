@@ -6,6 +6,7 @@ from .particles import ParticleSystem
 from .sprite_sheet import SpriteSheet
 
 class Player:
+    # change to link if needed
     def __init__(self, x, y, character_name="ark"):
         self.x = x
         self.y = y
