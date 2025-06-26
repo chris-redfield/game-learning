@@ -144,8 +144,8 @@ class DialogueLLM:
                 if dialogue.startswith('"') and dialogue.endswith('"'):
                     dialogue = dialogue[1:-1]
                 # Ensure it's not too long
-                if len(dialogue) > 100:
-                    dialogue = dialogue[:97] + "..."
+                if len(dialogue) > 500:
+                    dialogue = dialogue[:500] + "..."
                 return dialogue
             return None
         except Exception as e:
