@@ -407,6 +407,10 @@ class NPC:
     def interact_with_player(self, player):
         """Handle interaction with player - override in subclasses"""
         print(f"Player interacts with {self.character_name}")
+
+    def interact(self, player):
+        """Wrapper method for compatibility with existing interaction system"""
+        self.interact_with_player(player)
         
     def get_rect(self):
         """Return NPC collision rectangle"""
