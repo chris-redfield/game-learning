@@ -5,6 +5,7 @@ from inventory import Inventory
 from entities.player.attributes import PlayerAttributes
 from entities.player.particles import ParticleSystem
 from entities.player.sprite_sheet import SpriteSheet
+from entities.npc.dialog_balloon import dialog_balloon_system
 
 class NPC:
     def __init__(self, x, y, character_name="default_npc"):
@@ -406,7 +407,10 @@ class NPC:
     
     def interact_with_player(self, player):
         """Handle interaction with player - override in subclasses"""
-        print(f"Player interacts with {self.character_name}")
+        dialog_balloon_system.add_dialog(
+            f"Hello, I'm {self.character_name}!",
+            self.x, self.y, self.width, self.height
+        )
 
     def interact(self, player):
         """Wrapper method for compatibility with existing interaction system"""

@@ -2,6 +2,7 @@ import pygame
 import random
 import math
 from entities.npc.npc import NPC
+from entities.npc.dialog_balloon import dialog_balloon_system
 
 class Link(NPC):
     def __init__(self, x, y):
@@ -32,24 +33,171 @@ class Link(NPC):
             "This reminds me of Hyrule."
         ]
         self.current_dialogue = None
-        self.dialogue_cooldown = 0
-        self.dialogue_cooldown_duration = 3000  # 3 seconds between dialogues
-        
+        self.dialog_cooldown = 0
+        self.dialog_cooldown_duration = 3000  # 3 seconds between dialogues
+
         # Combat preferences - Link is more aggressive
         self.combat_ready = True
         self.attack_nearby_enemies = True
         self.enemy_detection_range = 120
-        
+
         # Link-specific animation speed (slightly more energetic)
         self.animation_speed = 0.18
-        
+
         print(f"Link NPC created at ({x}, {y})")
-    
+
+    def say_random_dialogue(self):
+        """Make Link say something using dialogue balloon"""
+        if self.dialog_cooldown == 0:
+            self.current_dialogue = random.choice(self.dialogue_options)
+            dialog_balloon_system.add_dialog(
+                self.current_dialogue,
+                self.x, self.y, self.width, self.height
+            )
+
+            # Set cooldown
+            current_time = pygame.time.get_ticks()
+            self.dialog_cooldown = current_time + self.dialog_cooldown_duration
+
+    def on_player_nearby(self, player):
+        """Called when player is in interaction range"""
+        # Link might say something when player is nearby
+        if self.dialog_cooldown == 0 and random.random() < 0.02:  # 2% chance per frame
+            self.say_random_dialogue()
+
+    def interact_with_player(self, player):
+        """Handle interaction with player"""
+        if self.dialog_cooldown == 0:
+            self.say_random_dialogue()
+
+            # Link might give the player something or offer help
+            if random.random() < 0.3:  # 30% chance
+                self.offer_help(player)
+        else:
+            dialog_balloon_system.add_dialog(
+                "...",
+                self.x, self.y, self.width, self.height
+            )
+
+    def offer_help(self, player):
+        """Link offers help to the player"""
+        help_options = [
+            "take_some_rupees",
+            "share_wisdom",
+            "heal_player",
+            "give_item"
+        ]
+
+        help_type = random.choice(help_options)
+
+        if help_type == "take_some_rupees":
+            # Give player some XP (representing rupees)
+            xp_amount = random.randint(5, 15)
+            player.gain_xp(xp_amount)
+            dialog_balloon_system.add_dialog(
+                f"Here, take these {xp_amount} rupees!",
+                self.x, self.y, self.width, self.height
+            )
+
+        elif help_type == "share_wisdom":
+            wisdom_quotes = [
+                "The Master Sword sleeps in the forest...",
+                "Courage need not be remembered, for it is never forgotten!",
+                "Sometimes you need to take a step back to move forward."
+            ]
+            dialog_balloon_system.add_dialog(
+                random.choice(wisdom_quotes),
+                self.x, self.y, self.width, self.height
+            )
+
+        elif help_type == "heal_player":
+            if player.attributes.current_health < player.attributes.max_health:
+                heal_amount = random.randint(10, 25)
+                player.heal(heal_amount)
+                dialog_balloon_system.add_dialog(
+                    f"My fairy healed you for {heal_amount} HP!",
+                    self.x, self.y, self.width, self.height
+                )
+            else:
+                dialog_balloon_system.add_dialog(
+                    "You're already at full health!",
+                    self.x, self.y, self.width, self.height
+                )
+
+        elif help_type == "give_item":
+            dialog_balloon_system.add_dialog(
+                "I'd give you something, but my pockets are empty!",
+                self.x, self.y, self.width, self.height
+            )
+
+    def take_damage(self, amount, attacker_x=None, attacker_y=None):
+        """Link-specific damage handling"""
+        # Call parent damage handling
+        result = super().take_damage(amount, attacker_x, attacker_y)
+
+        # Link becomes more aggressive when hurt
+        if result:
+            self.combat_ready = True
+            self.attack_nearby_enemies = True
+            # Temporarily increase detection range when hurt
+            self.enemy_detection_range = min(200, self.enemy_detection_range * 1.5)
+
+            # Link says something when hurt
+            pain_quotes = ["Ow!", "That hurt!", "You'll pay for that!", "I won't give up!"]
+            dialog_balloon_system.add_dialog(
+                random.choice(pain_quotes),
+                self.x, self.y, self.width, self.height
+            )
+
+        return result
+
+    def engage_enemy(self, enemy, current_time):
+        """Move towards and attack an enemy"""
+        link_center = (self.x + self.width/2, self.y + self.height/2)
+        enemy_center = (enemy.x + enemy.width/2, enemy.y + enemy.height/2)
+
+        dx = enemy_center[0] - link_center[0]
+        dy = enemy_center[1] - link_center[1]
+        distance = math.sqrt(dx**2 + dy**2)
+
+        # If close enough to attack
+        if distance <= 40 and not self.swinging:
+            # Face the enemy
+            if abs(dx) > abs(dy):
+                self.facing = 'right' if dx > 0 else 'left'
+            else:
+                self.facing = 'down' if dy > 0 else 'up'
+
+            # Attack!
+            self.start_swing()
+            self.state = "attacking"
+
+            # Battle cry!
+            battle_cries = ["Hyah!", "Take this!", "For Hyrule!"]
+            if random.random() < 0.3:  # 30% chance to shout
+                dialog_balloon_system.add_dialog(
+                    random.choice(battle_cries),
+                    self.x, self.y, self.width, self.height
+                )
+
+        elif distance > 40:
+            # Move towards the enemy at normal speed
+            if distance > 0:
+                self.dx = (dx / distance) * self.speed
+                self.dy = (dy / distance) * self.speed
+
+                # Update facing direction
+                if abs(dx) > abs(dy):
+                    self.facing = 'right' if dx > 0 else 'left'
+                else:
+                    self.facing = 'down' if dy > 0 else 'up'
+
+                self.state = "moving"
+                self.moving = True
+
     def update(self, current_time=None, obstacles=None, player=None):
         """Link-specific update with enhanced AI behavior - Fixed to avoid double movement"""
-        
-        # === MANUAL IMPLEMENTATION OF PARENT UPDATE (without the AI movement part) ===
-        
+
         # Handle movement animation (from parent)
         if self.moving:
             self.animation_counter += self.animation_speed
@@ -65,11 +213,11 @@ class Link(NPC):
             self.frame = int(self.animation_counter)
         else:
             self.frame = 0
-            
+
         # Handle sword swing animation (from parent)
         if self.swinging:
             self.swing_animation_counter += self.swing_animation_speed
-            
+
             if self.swing_animation_counter >= self.swing_frames_total:
                 self.swinging = False
                 self.swing_animation_counter = 0
@@ -79,29 +227,29 @@ class Link(NPC):
                     self.moving = False
                 if hasattr(self, 'hit_enemies'):
                     self.hit_enemies.clear()
-            
+
             self.swing_frame = int(self.swing_animation_counter)
 
         if current_time:
             # Track time delta for animations (from parent)
             time_delta = current_time - (getattr(self, 'last_update_time', current_time))
-            
+
             # Handle damage animation and knockback (from parent)
             if self.is_taking_damage and obstacles is not None:
                 self.damage_animation_timer += time_delta
-                
+
                 if self.damage_animation_timer < self.damage_animation_duration:
                     progress = self.damage_animation_timer / self.damage_animation_duration
                     knockback_factor = 1 - progress
-                    
+
                     dir_x, dir_y = self.knockback_direction
                     move_x = dir_x * self.current_knockback * knockback_factor * 0.5
                     move_y = dir_y * self.current_knockback * knockback_factor * 0.5
-                    
+
                     # Move with collision detection
                     test_rect_x = pygame.Rect(self.x + move_x, self.y, self.width, self.height)
                     test_rect_y = pygame.Rect(self.x, self.y + move_y, self.width, self.height)
-                    
+
                     x_collision = False
                     for obstacle in obstacles:
                         if obstacle is self:
@@ -109,10 +257,10 @@ class Link(NPC):
                         if test_rect_x.colliderect(obstacle.get_rect()):
                             x_collision = True
                             break
-                    
+
                     if not x_collision:
                         self.x += move_x
-                    
+
                     y_collision = False
                     for obstacle in obstacles:
                         if obstacle is self:
@@ -120,51 +268,49 @@ class Link(NPC):
                         if test_rect_y.colliderect(obstacle.get_rect()):
                             y_collision = True
                             break
-                    
+
                     if not y_collision:
                         self.y += move_y
-                    
+
                     if x_collision and y_collision:
                         self.is_taking_damage = False
                 else:
                     self.is_taking_damage = False
-                    
+
             # Handle invulnerability and flashing effect (from parent)
             if self.invulnerable:
                 self.invulnerability_timer += time_delta
-                
+
                 if (self.invulnerability_timer // self.flash_interval) % 2 == 0:
                     self.visible = True
                 else:
                     self.visible = False
-                    
+
                 if self.invulnerability_timer >= self.invulnerability_duration:
                     self.invulnerable = False
                     self.visible = True
-            
+
             # Update particles (from parent)
             self.particles.update(current_time, obstacles)
-            
+
             # Store current time for next update (from parent)
             self.last_update_time = current_time
 
         # Check for player interaction (from parent)
         if player and self.is_interactable:
             self.check_player_interaction(player)
-        
-        # === END OF PARENT UPDATE IMPLEMENTATION ===
-        
+       
         # Update dialogue cooldown
-        if current_time and self.dialogue_cooldown > 0:
-            if current_time > self.dialogue_cooldown:
-                self.dialogue_cooldown = 0
-        
+        if current_time and self.dialog_cooldown > 0:
+            if current_time > self.dialog_cooldown:
+                self.dialog_cooldown = 0
+
         # Link-specific AI behaviors (ONLY THESE, no parent AI)
         if not self.is_taking_damage and obstacles is not None:
             # Check for nearby enemies to fight
             if self.combat_ready and self.attack_nearby_enemies:
                 self.check_for_enemies(obstacles, current_time)
-            
+
             # Enhanced movement AI - Link's own AI system (replaces parent AI)
             self.update_link_ai(obstacles)
 
@@ -173,78 +319,41 @@ class Link(NPC):
             hit_something = self.check_sword_collisions(obstacles)
             if hit_something:
                 print(f"Link's sword hit an enemy!")
-    
+
     def check_for_enemies(self, obstacles, current_time):
         """Check for nearby enemies and engage in combat"""
         if self.swinging or self.state == "attacking":
             return
-            
+
         from entities.enemy.enemy import Enemy
-        
+
         link_center = (self.x + self.width/2, self.y + self.height/2)
-        
+
         closest_enemy = None
         closest_distance = float('inf')
-        
+
         # Find the closest enemy within detection range
         for obstacle in obstacles:
             if isinstance(obstacle, Enemy) and obstacle.state != "dying":
                 enemy_center = (obstacle.x + obstacle.width/2, obstacle.y + obstacle.height/2)
-                
+
                 dx = enemy_center[0] - link_center[0]
                 dy = enemy_center[1] - link_center[1]
                 distance = math.sqrt(dx**2 + dy**2)
-                
+
                 if distance <= self.enemy_detection_range and distance < closest_distance:
                     closest_enemy = obstacle
                     closest_distance = distance
-        
+
         # If enemy found, move towards it and attack
         if closest_enemy:
             self.engage_enemy(closest_enemy, current_time)
-    
-    def engage_enemy(self, enemy, current_time):
-        """Move towards and attack an enemy"""
-        link_center = (self.x + self.width/2, self.y + self.height/2)
-        enemy_center = (enemy.x + enemy.width/2, enemy.y + enemy.height/2)
-        
-        dx = enemy_center[0] - link_center[0]
-        dy = enemy_center[1] - link_center[1]
-        distance = math.sqrt(dx**2 + dy**2)
-        
-        # If close enough to attack
-        if distance <= 40 and not self.swinging:
-            # Face the enemy
-            if abs(dx) > abs(dy):
-                self.facing = 'right' if dx > 0 else 'left'
-            else:
-                self.facing = 'down' if dy > 0 else 'up'
-            
-            # Attack!
-            self.start_swing()
-            self.state = "attacking"
-            print(f"Link attacks {enemy.__class__.__name__}!")
-            
-        elif distance > 40:
-            # Move towards the enemy at normal speed
-            if distance > 0:
-                self.dx = (dx / distance) * self.speed  # Use normal speed, not faster
-                self.dy = (dy / distance) * self.speed
-                
-                # Update facing direction
-                if abs(dx) > abs(dy):
-                    self.facing = 'right' if dx > 0 else 'left'
-                else:
-                    self.facing = 'down' if dy > 0 else 'up'
-                
-                self.state = "moving"
-                self.moving = True
-    
+
     def update_link_ai(self, obstacles):
         """Enhanced AI movement for Link - more exploratory behavior"""
         if self.state == "attacking":
             return
-            
+
         # If not currently pursuing an enemy, use enhanced movement AI
         if self.state == "idle":
             self.movement_timer += 1
@@ -255,7 +364,7 @@ class Link(NPC):
                     self.start_enhanced_movement()
                 else:
                     self.movement_pause = random.randint(90, 240)
-        
+
         elif self.state == "moving":
             self.movement_timer += 1
             if self.movement_timer >= self.movement_duration:
@@ -265,127 +374,50 @@ class Link(NPC):
             else:
                 # Apply AI movement
                 self.ai_move(self.dx, self.dy, obstacles)
-    
+
     def start_enhanced_movement(self):
         """Enhanced movement patterns for Link"""
         self.state = "moving"
         self.moving = True
-        
+
         # Link has more varied movement patterns
         movement_type = random.choice(['random', 'directional', 'circular'])
-        
+
         if movement_type == 'random':
             # Standard random movement
             angle = random.uniform(0, 2 * math.pi)
             self.dx = math.cos(angle) * self.speed
             self.dy = math.sin(angle) * self.speed
-            
+
         elif movement_type == 'directional':
             # Move in cardinal directions (more purposeful)
             directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
             dir_x, dir_y = random.choice(directions)
             self.dx = dir_x * self.speed
             self.dy = dir_y * self.speed
-            
+
         elif movement_type == 'circular':
             # Slightly curved movement
             base_angle = random.uniform(0, 2 * math.pi)
             curve_factor = random.uniform(-0.3, 0.3)
             self.dx = math.cos(base_angle + curve_factor) * self.speed
             self.dy = math.sin(base_angle + curve_factor) * self.speed
-        
+
         # Set facing direction based on movement
         if abs(self.dx) > abs(self.dy):
             self.facing = 'right' if self.dx > 0 else 'left'
         else:
             self.facing = 'down' if self.dy > 0 else 'up'
-    
-    def on_player_nearby(self, player):
-        """Called when player is in interaction range"""
-        # Link might say something when player is nearby
-        if self.dialogue_cooldown == 0 and random.random() < 0.02:  # 2% chance per frame
-            self.say_random_dialogue()
-    
-    def interact_with_player(self, player):
-        """Handle interaction with player"""
-        if self.dialogue_cooldown == 0:
-            self.say_random_dialogue()
-            
-            # Link might give the player something or offer help
-            if random.random() < 0.3:  # 30% chance
-                self.offer_help(player)
-        else:
-            print(f"Link is thinking of what to say...")
-    
-    def say_random_dialogue(self):
-        """Make Link say something"""
-        if self.dialogue_cooldown == 0:
-            self.current_dialogue = random.choice(self.dialogue_options)
-            print(f"Link: \"{self.current_dialogue}\"")
-            
-            # Set cooldown
-            current_time = pygame.time.get_ticks()
-            self.dialogue_cooldown = current_time + self.dialogue_cooldown_duration
-    
-    def offer_help(self, player):
-        """Link offers help to the player"""
-        help_options = [
-            "take_some_rupees",
-            "share_wisdom",
-            "heal_player",
-            "give_item"
-        ]
-        
-        help_type = random.choice(help_options)
-        
-        if help_type == "take_some_rupees":
-            # Give player some XP (representing rupees)
-            xp_amount = random.randint(5, 15)
-            player.gain_xp(xp_amount)
-            print(f"Link gives you {xp_amount} rupees worth of experience!")
-            
-        elif help_type == "share_wisdom":
-            print("Link shares ancient wisdom with you!")
-            # Could boost player stats temporarily
-            
-        elif help_type == "heal_player":
-            if player.attributes.current_health < player.attributes.max_health:
-                heal_amount = random.randint(10, 25)
-                player.heal(heal_amount)
-                print(f"Link's fairy heals you for {heal_amount} health!")
-            
-        elif help_type == "give_item":
-            print("Link would give you an item, but his pockets are empty!")
-    
-    def take_damage(self, amount, attacker_x=None, attacker_y=None):
-        """Link-specific damage handling"""
-        print(f"Link takes damage! \"Argh!\"")
-        
-        # Call parent damage handling
-        result = super().take_damage(amount, attacker_x, attacker_y)
-        
-        # Link becomes more aggressive when hurt
-        if result:
-            self.combat_ready = True
-            self.attack_nearby_enemies = True
-            # Temporarily increase detection range when hurt
-            self.enemy_detection_range = min(200, self.enemy_detection_range * 1.5)
-            
-            # Link might say something when hurt
-            pain_quotes = ["Ow!", "That hurt!", "You'll pay for that!", "I won't give up!"]
-            print(f"Link: \"{random.choice(pain_quotes)}\"")
-        
-        return result
-    
+
     def draw(self, surface):
         """Draw Link with any special effects"""
         # Call parent draw method
         super().draw(surface)
-        
+
         # Could add special visual effects for Link here
         # For example, a small triforce symbol above his head when player is nearby
         pass
-    
+
     def render_debug_info(self, surface, font, x, y):
         """Display Link's debug information"""
         if hasattr(self, 'attributes'):
@@ -393,9 +425,9 @@ class Link(NPC):
             state_text = f"State: {self.state}"
             if self.combat_ready:
                 state_text += " (combat ready)"
-            if self.dialogue_cooldown > 0:
+            if self.dialog_cooldown > 0:
                 state_text += " (thinking)"
-                
+
             info_text = (f"Link: {self.attributes.get_info_text()} | {state_text} | "
                         f"Range: {self.enemy_detection_range}")
             debug_text = font.render(info_text, True, (0, 255, 0))  # Green for Link

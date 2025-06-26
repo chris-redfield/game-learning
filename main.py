@@ -2,10 +2,10 @@ import pygame
 import sys
 import math
 import os
-import datetime
 
 from entities.player.player import Player
 from entities.npc.npc import NPC
+from entities.npc.dialog_balloon import dialog_balloon_system
 from world import World
 from map import Map
 from entities.enemy.enemy import Enemy
@@ -16,6 +16,7 @@ from hud import HUD
 from dialog import Dialog, FileDialog
 from dialog import SaveOverwriteDialog
 from save_manager import SaveManager
+
 
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GREEN, DESERT
 
@@ -185,6 +186,7 @@ def initialize_game():
     save_manager = SaveManager(game_world, player)
     save_overwrite_dialog = SaveOverwriteDialog(save_manager, on_save_overwrite)
     save_overwrite_dialog.set_fonts()
+    dialog_balloon_system.set_font(16)
 
     initialize_controllers()
 
@@ -538,6 +540,8 @@ while running:
             if isinstance(entity, NPC):
                 entity.update(current_time, current_entities, player)
 
+        dialog_balloon_system.update(current_time)
+
         # Process enemy deaths and soul drops
         entities_to_remove = []
         souls_to_add = []
@@ -643,6 +647,8 @@ while running:
         # Draw projectiles
         for projectile in projectiles:
             projectile.draw(screen)
+
+        dialog_balloon_system.draw(screen)
 
         # Draw collision boxes for debugging
         if show_collision_boxes:
