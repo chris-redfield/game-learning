@@ -5,6 +5,7 @@ import os
 import datetime
 
 from entities.player.player import Player
+from entities.npc.npc import NPC
 from world import World
 from map import Map
 from entities.enemy.enemy import Enemy
@@ -60,7 +61,12 @@ def check_entity_interaction(player):
             if player_rect.colliderect(entity.get_rect()):
                 entity.interact(player)
                 return True
-    
+        # Also check for NPCs with interact_with_player method
+        elif isinstance(entity, NPC):
+            if player_rect.colliderect(entity.get_rect()):
+                entity.interact_with_player(player)
+                return True
+
     # Second pass: check for nearby interactive entities
     for entity in entities:
         if hasattr(entity, 'interact'):
@@ -70,12 +76,24 @@ def check_entity_interaction(player):
             entity_center = entity_rect.center
             
             # Calculate distance between centers
-            distance = math.sqrt((player_center[0] - entity_center[0])**2 + 
+            distance = math.sqrt((player_center[0] - entity_center[0])**2 +
                                 (player_center[1] - entity_center[1])**2)
-            
+
             # If within 50 pixels, consider it close enough to interact
             if distance < 50:
                 entity.interact(player)
+                return True
+        # Also check for nearby NPCs
+        elif isinstance(entity, NPC):
+            player_center = player_rect.center
+            entity_rect = entity.get_rect()
+            entity_center = entity_rect.center
+
+            distance = math.sqrt((player_center[0] - entity_center[0])**2 +
+                                (player_center[1] - entity_center[1])**2)
+
+            if distance < 50:
+                entity.interact_with_player(player)
                 return True
     
     return False
@@ -504,6 +522,11 @@ while running:
             if isinstance(entity, Enemy):
                 entity.update(player, current_entities)
 
+        # Update NPCs
+        for entity in current_entities:
+            if isinstance(entity, NPC):
+                entity.update(current_time, current_entities, player)
+
         # Process enemy deaths and soul drops
         entities_to_remove = []
         souls_to_add = []
@@ -546,6 +569,7 @@ while running:
         for entity in current_entities:
             if (hasattr(entity, 'update') and 
                 not isinstance(entity, Enemy) and 
+                not isinstance(entity, NPC) and
                 not hasattr(entity, 'collect')):
                 entity.update()
 

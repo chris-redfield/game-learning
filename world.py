@@ -6,6 +6,7 @@ from entities.rock import Rock
 from entities.enemy.skeleton import Skeleton
 from entities.enemy.slime import Slime
 from entities.bonfire import Bonfire  # Import the new Bonfire class
+from entities.npc.link import Link  # Import Link NPC
 from items.health_potion import HealthPotion  # Import the HealthPotion class
 from items.ancient_scroll import AncientScroll  # Import the Ancient Scroll class
 from items.dragon_heart import DragonHeart  # Import the Dragon Heart class
@@ -140,7 +141,15 @@ class World:
             bonfire.set_block_coordinates(x_coord, y_coord)
             block.add_entity(bonfire)
             print(f"DEBUG: Added bonfire to origin block at ({bonfire_x}, {bonfire_y})")
-            
+
+            # Add Link NPC (northwest of player spawn)
+            link_x = player_center_x - 120  # 120 pixels to the left
+            link_y = player_center_y - 80   # 80 pixels up
+
+            link = Link(link_x, link_y)
+            block.add_entity(link)
+            print(f"DEBUG: Added Link NPC to origin block at ({link_x}, {link_y})")
+
             # Add a health potion near player using the _add_items method
             potion_x = player_center_x - 80  # 80 pixels to the left
             potion_y = player_center_y + 50   # 50 pixels down
@@ -153,22 +162,22 @@ class World:
                 positions=[(potion_x, potion_y)]
             )
             
-            # Extend safe area to include bonfire and potion
+            # Extend safe area to include bonfire, Link, and potion
             if safe_area:
-                # Create a new larger safe area that includes player, bonfire, and potion
+                # Create a new larger safe area that includes player, bonfire, Link, and potion
                 safe_area = pygame.Rect(
-                    min(player_center_x - 100, bonfire_x - 50, potion_x - 50),
-                    min(player_center_y - 100, bonfire_y - 50, potion_y - 50),
-                    max(200, abs(bonfire_x - player_center_x) + 150, abs(potion_x - player_center_x) + 150),
-                    max(200, abs(bonfire_y - player_center_y) + 150, abs(potion_y - player_center_y) + 150)
+                    min(player_center_x - 100, bonfire_x - 50, link_x - 50, potion_x - 50),
+                    min(player_center_y - 100, bonfire_y - 50, link_y - 50, potion_y - 50),
+                    max(200, abs(bonfire_x - player_center_x) + 150, abs(link_x - player_center_x) + 150, abs(potion_x - player_center_x) + 150),
+                    max(200, abs(bonfire_y - player_center_y) + 150, abs(link_y - player_center_y) + 150, abs(potion_y - player_center_y) + 150)
                 )
             else:
-                # Create a safe area around bonfire and potion if there wasn't one already
+                # Create a safe area around bonfire, Link, and potion if there wasn't one already
                 safe_area = pygame.Rect(
-                    min(bonfire_x - 50, potion_x - 50),
-                    min(bonfire_y - 50, potion_y - 50),
-                    max(150, abs(bonfire_x - potion_x) + 100),
-                    max(150, abs(bonfire_y - potion_y) + 100)
+                    min(bonfire_x - 50, link_x - 50, potion_x - 50),
+                    min(bonfire_y - 50, link_y - 50, potion_y - 50),
+                    max(150, abs(bonfire_x - link_x) + 100, abs(bonfire_x - potion_x) + 100),
+                    max(150, abs(bonfire_y - link_y) + 100, abs(bonfire_y - potion_y) + 100)
                 )
         
         # Add world entities patches
