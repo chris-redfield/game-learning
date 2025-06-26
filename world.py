@@ -146,7 +146,7 @@ class World:
             link_x = player_center_x - 120  # 120 pixels to the left
             link_y = player_center_y - 80   # 80 pixels up
 
-            link = Link(link_x, link_y)
+            link = Link(link_x, link_y, use_llm=True)
             block.add_entity(link)
             print(f"DEBUG: Added Link NPC to origin block at ({link_x}, {link_y})")
 
