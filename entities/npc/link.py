@@ -8,22 +8,22 @@ class Link(NPC):
     def __init__(self, x, y):
         # Hardcode the character name as "link"
         self.character_name = "link"
-        
+
         # Call parent constructor with hardcoded character name
         super().__init__(x, y, character_name=self.character_name)
-        
+
         # Link-specific properties
         self.speed = 3  # Same as player's starting speed
         self.base_speed = 3
-        
+
         # Link-specific AI behavior settings
         self.movement_pause = random.randint(90, 240)  # Pause duration between movements
         self.movement_duration = random.randint(80, 200)
-        
+
         # Link is more interactive
         self.interaction_range = 100  # Larger interaction range
         self.is_friendly = True
-        
+
         # Link-specific dialogue states
         self.dialogue_options = [
             "Hey! Listen!",
@@ -32,6 +32,7 @@ class Link(NPC):
             "Have you seen any rupees around?",
             "This reminds me of Hyrule."
         ]
+
         self.current_dialogue = None
         self.dialog_cooldown = 0
         self.dialog_cooldown_duration = 3000  # 3 seconds between dialogues
@@ -63,21 +64,17 @@ class Link(NPC):
         """Called when player is in interaction range"""
         # Link might say something when player is nearby
         if self.dialog_cooldown == 0 and random.random() < 0.02:  # 2% chance per frame
-            self.say_random_dialogue()
+            self.interact_with_player(player)
 
     def interact_with_player(self, player):
         """Handle interaction with player"""
         if self.dialog_cooldown == 0:
-            self.say_random_dialogue()
-
-            # Link might give the player something or offer help
-            if random.random() < 0.3:  # 30% chance
+            # 80% chance to say something
+            if random.random() < 0.8:
+                self.say_random_dialogue()
+            # 20% chance to offer help
+            else:
                 self.offer_help(player)
-        else:
-            dialog_balloon_system.add_dialog(
-                "...",
-                self.x, self.y, self.width, self.height
-            )
 
     def offer_help(self, player):
         """Link offers help to the player"""
