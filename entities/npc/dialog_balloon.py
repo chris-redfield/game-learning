@@ -7,12 +7,12 @@ class DialogBalloon:
         self.active_balloons = []
         
         # Styling
-        self.padding = 10
+        self.padding = 12
         self.margin = 5
-        self.max_width = 250  # Maximum width before text wraps
-        self.line_height = 20
-        self.display_duration = 2000  # 3 seconds
-        self.fade_duration = 200  # 0.5 seconds fade out
+        self.max_width = 600  # Much larger width to accommodate longer text
+        self.line_height = 22
+        self.display_duration = 4000  # Longer duration for longer text
+        self.fade_duration = 300
         
         # Colors
         self.bg_color = (30, 33, 41, 230)  # Dark blue-gray, semi-transparent
@@ -23,35 +23,65 @@ class DialogBalloon:
         self.font = None
         
         # Tail properties for speech bubble
-        self.tail_height = 10
-        self.tail_width = 15
+        self.tail_height = 12
+        self.tail_width = 18
     
-    def set_font(self, font_size=14):
+    def set_font(self, font_size=15):
         """Set the font for dialog balloons"""
         self.font = pygame.font.SysFont('Arial', font_size)
+    
+    def get_dynamic_max_width(self, text):
+        """Calculate appropriate width based on text length and screen size"""
+        if not pygame.display.get_surface():
+            return self.max_width
+        
+        screen_width = pygame.display.get_surface().get_width()
+        text_length = len(text)
+        
+        # Base width on text length - longer text gets wider balloons
+        if text_length > 100:
+            desired_width = min(800, int(screen_width * 0.8))
+        elif text_length > 60:
+            desired_width = min(600, int(screen_width * 0.7))
+        elif text_length > 30:
+            desired_width = min(450, int(screen_width * 0.6))
+        else:
+            desired_width = min(350, int(screen_width * 0.5))
+        
+        return max(300, desired_width)  # Minimum 300px width
     
     def add_dialog(self, text, x, y, entity_width=35, entity_height=41):
         """Add a new dialog balloon"""
         if not self.font:
             self.set_font()
         
-        # Wrap text if needed
-        wrapped_lines = self._wrap_text(text)
+        # Get dynamic width for this specific text
+        dynamic_width = self.get_dynamic_max_width(text)
+        
+        # Wrap text with the dynamic width
+        wrapped_lines = self._wrap_text(text, dynamic_width)
         
         # Calculate balloon dimensions
-        text_width = max(self.font.size(line)[0] for line in wrapped_lines)
-        text_height = len(wrapped_lines) * self.line_height
+        if wrapped_lines:
+            text_width = max(self.font.size(line)[0] for line in wrapped_lines)
+            text_height = len(wrapped_lines) * self.line_height
+        else:
+            text_width = self.font.size(text)[0]
+            text_height = self.line_height
         
-        balloon_width = text_width + (self.padding * 3)
-        balloon_height = text_height + (self.padding * 3)
+        balloon_width = text_width + (self.padding * 2)
+        balloon_height = text_height + (self.padding * 2)
         
         # Position balloon above entity's head
         balloon_x = x + (entity_width // 2) - (balloon_width // 2)
         balloon_y = y - balloon_height - self.tail_height - 10  # 10px above head
         
         # Keep balloon on screen
-        balloon_x = max(5, min(balloon_x, pygame.display.get_surface().get_width() - balloon_width - 5))
-        balloon_y = max(5, balloon_y)
+        screen_width = pygame.display.get_surface().get_width()
+        screen_height = pygame.display.get_surface().get_height()
+        
+        balloon_x = max(10, min(balloon_x, screen_width - balloon_width - 10))
+        balloon_y = max(10, min(balloon_y, screen_height - balloon_height - 10))
         
         balloon = {
             'text': text,
@@ -68,9 +98,13 @@ class DialogBalloon:
         
         self.active_balloons.append(balloon)
     
-    def _wrap_text(self, text):
-        """Wrap text to fit within max width"""
+    def _wrap_text(self, text, max_width):
+        """Wrap text to fit within max width - NO TRUNCATION"""
         if not self.font:
+            return [text]
+        
+        # First check if the entire text fits on one line
+        if self.font.size(text)[0] <= max_width:
             return [text]
         
         words = text.split(' ')
@@ -81,14 +115,14 @@ class DialogBalloon:
             test_line = ' '.join(current_line + [word])
             width = self.font.size(test_line)[0]
             
-            if width <= self.max_width:
+            if width <= max_width:
                 current_line.append(word)
             else:
                 if current_line:
                     lines.append(' '.join(current_line))
                     current_line = [word]
                 else:
-                    # Word is too long, force break
+                    # Word is too long, but still add it (don't truncate)
                     lines.append(word)
         
         if current_line:
@@ -122,7 +156,7 @@ class DialogBalloon:
         for balloon in self.active_balloons:
             # Create a surface for the balloon with alpha
             balloon_surface = pygame.Surface(
-                (balloon['width'] + 4, balloon['height'] + self.tail_height + 4),
+                (balloon['width'] + 6, balloon['height'] + self.tail_height + 6),
                 pygame.SRCALPHA
             )
             
@@ -131,8 +165,8 @@ class DialogBalloon:
             pygame.draw.rect(
                 balloon_surface,
                 bg_color,
-                (2, 2, balloon['width'], balloon['height']),
-                border_radius=8
+                (3, 3, balloon['width'], balloon['height']),
+                border_radius=10
             )
             
             # Draw balloon border
@@ -140,9 +174,9 @@ class DialogBalloon:
             pygame.draw.rect(
                 balloon_surface,
                 border_color,
-                (2, 2, balloon['width'], balloon['height']),
+                (3, 3, balloon['width'], balloon['height']),
                 width=2,
-                border_radius=8
+                border_radius=10
             )
             
             # Draw tail (speech bubble pointer)
@@ -153,23 +187,23 @@ class DialogBalloon:
             ]
             
             # Adjust tail position relative to balloon surface
-            tail_points = [(p[0] + 2, p[1] + 2) for p in tail_points]
+            tail_points = [(p[0] + 3, p[1] + 3) for p in tail_points]
             
             pygame.draw.polygon(balloon_surface, bg_color, tail_points)
             pygame.draw.lines(balloon_surface, border_color, False, 
                             [tail_points[0], tail_points[2], tail_points[1]], 2)
             
-            # Draw text
-            y_offset = self.padding + 2
+            # Draw text - ALL LINES, NO TRUNCATION
+            y_offset = self.padding + 3
             for line in balloon['lines']:
                 text_color = (*self.text_color, balloon['alpha'])
                 text_surface = self.font.render(line, True, text_color)
-                text_x = (balloon['width'] - text_surface.get_width()) // 2 + 2
+                text_x = (balloon['width'] - text_surface.get_width()) // 2 + 3
                 balloon_surface.blit(text_surface, (text_x, y_offset))
                 y_offset += self.line_height
             
             # Blit balloon to main surface
-            surface.blit(balloon_surface, (balloon['x'] - 2, balloon['y'] - 2))
+            surface.blit(balloon_surface, (balloon['x'] - 3, balloon['y'] - 3))
     
     def clear(self):
         """Clear all active dialog balloons"""
