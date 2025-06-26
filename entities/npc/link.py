@@ -12,11 +12,11 @@ class Link(NPC):
         super().__init__(x, y, character_name=self.character_name)
         
         # Link-specific properties
-        self.speed = 2.5  # Slightly faster than generic NPCs
-        self.base_speed = 2.5
+        self.speed = 3  # Same as player's starting speed
+        self.base_speed = 3
         
         # Link-specific AI behavior settings
-        self.movement_pause = random.randint(90, 240)  # More active than generic NPCs
+        self.movement_pause = random.randint(90, 240)  # Pause duration between movements
         self.movement_duration = random.randint(80, 200)
         
         # Link is more interactive
@@ -46,22 +46,126 @@ class Link(NPC):
         print(f"Link NPC created at ({x}, {y})")
     
     def update(self, current_time=None, obstacles=None, player=None):
-        """Link-specific update with enhanced AI behavior"""
-        # Call parent update first
-        super().update(current_time, obstacles, player)
+        """Link-specific update with enhanced AI behavior - Fixed to avoid double movement"""
+        
+        # === MANUAL IMPLEMENTATION OF PARENT UPDATE (without the AI movement part) ===
+        
+        # Handle movement animation (from parent)
+        if self.moving:
+            self.animation_counter += self.animation_speed
+            
+            # For left direction, use right animation frame count
+            if self.facing == 'left':
+                if self.animation_counter >= len(self.sprites['right_walk']):
+                    self.animation_counter = 0
+            else:
+                if self.animation_counter >= len(self.sprites[f'{self.facing}_walk']):
+                    self.animation_counter = 0
+                    
+            self.frame = int(self.animation_counter)
+        else:
+            self.frame = 0
+            
+        # Handle sword swing animation (from parent)
+        if self.swinging:
+            self.swing_animation_counter += self.swing_animation_speed
+            
+            if self.swing_animation_counter >= self.swing_frames_total:
+                self.swinging = False
+                self.swing_animation_counter = 0
+                # Reset state after swing completes
+                if self.state == "attacking":
+                    self.state = "idle"
+                    self.moving = False
+                if hasattr(self, 'hit_enemies'):
+                    self.hit_enemies.clear()
+            
+            self.swing_frame = int(self.swing_animation_counter)
+
+        if current_time:
+            # Track time delta for animations (from parent)
+            time_delta = current_time - (getattr(self, 'last_update_time', current_time))
+            
+            # Handle damage animation and knockback (from parent)
+            if self.is_taking_damage and obstacles is not None:
+                self.damage_animation_timer += time_delta
+                
+                if self.damage_animation_timer < self.damage_animation_duration:
+                    progress = self.damage_animation_timer / self.damage_animation_duration
+                    knockback_factor = 1 - progress
+                    
+                    dir_x, dir_y = self.knockback_direction
+                    move_x = dir_x * self.current_knockback * knockback_factor * 0.5
+                    move_y = dir_y * self.current_knockback * knockback_factor * 0.5
+                    
+                    # Move with collision detection
+                    test_rect_x = pygame.Rect(self.x + move_x, self.y, self.width, self.height)
+                    test_rect_y = pygame.Rect(self.x, self.y + move_y, self.width, self.height)
+                    
+                    x_collision = False
+                    for obstacle in obstacles:
+                        if obstacle is self:
+                            continue
+                        if test_rect_x.colliderect(obstacle.get_rect()):
+                            x_collision = True
+                            break
+                    
+                    if not x_collision:
+                        self.x += move_x
+                    
+                    y_collision = False
+                    for obstacle in obstacles:
+                        if obstacle is self:
+                            continue
+                        if test_rect_y.colliderect(obstacle.get_rect()):
+                            y_collision = True
+                            break
+                    
+                    if not y_collision:
+                        self.y += move_y
+                    
+                    if x_collision and y_collision:
+                        self.is_taking_damage = False
+                else:
+                    self.is_taking_damage = False
+                    
+            # Handle invulnerability and flashing effect (from parent)
+            if self.invulnerable:
+                self.invulnerability_timer += time_delta
+                
+                if (self.invulnerability_timer // self.flash_interval) % 2 == 0:
+                    self.visible = True
+                else:
+                    self.visible = False
+                    
+                if self.invulnerability_timer >= self.invulnerability_duration:
+                    self.invulnerable = False
+                    self.visible = True
+            
+            # Update particles (from parent)
+            self.particles.update(current_time, obstacles)
+            
+            # Store current time for next update (from parent)
+            self.last_update_time = current_time
+
+        # Check for player interaction (from parent)
+        if player and self.is_interactable:
+            self.check_player_interaction(player)
+        
+        # === END OF PARENT UPDATE IMPLEMENTATION ===
         
         # Update dialogue cooldown
         if current_time and self.dialogue_cooldown > 0:
             if current_time > self.dialogue_cooldown:
                 self.dialogue_cooldown = 0
         
-        # Link-specific AI behaviors
+        # Link-specific AI behaviors (ONLY THESE, no parent AI)
         if not self.is_taking_damage and obstacles is not None:
             # Check for nearby enemies to fight
             if self.combat_ready and self.attack_nearby_enemies:
                 self.check_for_enemies(obstacles, current_time)
             
-            # Enhanced movement AI - Link explores more actively
+            # Enhanced movement AI - Link's own AI system (replaces parent AI)
             self.update_link_ai(obstacles)
     
     def check_for_enemies(self, obstacles, current_time):
@@ -116,11 +220,10 @@ class Link(NPC):
             print(f"Link attacks {enemy.__class__.__name__}!")
             
         elif distance > 40:
-            # Move towards the enemy
+            # Move towards the enemy at normal speed
             if distance > 0:
-                move_speed = self.speed * 1.5  # Move faster when pursuing enemies
-                self.dx = (dx / distance) * move_speed
-                self.dy = (dy / distance) * move_speed
+                self.dx = (dx / distance) * self.speed  # Use normal speed, not faster
+                self.dy = (dy / distance) * self.speed
                 
                 # Update facing direction
                 if abs(dx) > abs(dy):
@@ -141,8 +244,8 @@ class Link(NPC):
             self.movement_timer += 1
             if self.movement_timer >= self.movement_pause:
                 self.movement_timer = 0
-                # Link has a higher chance to move (85% vs 70% for generic NPCs)
-                if random.random() < 0.85:
+                # Link has a 30% chance to move (70% idling)
+                if random.random() < 0.30:
                     self.start_enhanced_movement()
                 else:
                     self.movement_pause = random.randint(90, 240)

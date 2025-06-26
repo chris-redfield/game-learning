@@ -2,9 +2,9 @@ import pygame
 import math
 import random
 from inventory import Inventory
-from .attributes import PlayerAttributes
-from .particles import ParticleSystem
-from .sprite_sheet import SpriteSheet
+from entities.player.attributes import PlayerAttributes
+from entities.player.particles import ParticleSystem
+from entities.player.sprite_sheet import SpriteSheet
 
 class NPC:
     def __init__(self, x, y, character_name="default_npc"):
