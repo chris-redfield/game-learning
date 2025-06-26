@@ -167,6 +167,12 @@ class Link(NPC):
             
             # Enhanced movement AI - Link's own AI system (replaces parent AI)
             self.update_link_ai(obstacles)
+
+        # Check sword collisions when Link is swinging
+        if self.swinging and obstacles is not None:
+            hit_something = self.check_sword_collisions(obstacles)
+            if hit_something:
+                print(f"Link's sword hit an enemy!")
     
     def check_for_enemies(self, obstacles, current_time):
         """Check for nearby enemies and engage in combat"""
