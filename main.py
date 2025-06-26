@@ -471,12 +471,17 @@ while running:
         # Debug visuals
         if keys[pygame.K_c]:
             show_collision_boxes = True
-            # Enable sword hitbox visualization
+            # Enable sword hitbox visualization for player
             if hasattr(player, 'debug_sword_rect'):
                 player.debug_sword_rect = True
             else:
                 player.debug_sword_rect = True
-            
+
+            # Enable sword hitbox visualization for NPCs
+            for entity in game_world.get_current_entities():
+                if isinstance(entity, NPC) and hasattr(entity, 'debug_sword_rect'):
+                    entity.debug_sword_rect = True
+
             # Enable soul attraction radius visualization
             for entity in game_world.get_current_entities():
                 if hasattr(entity, 'collect'):
@@ -492,9 +497,15 @@ while running:
 
         else:
             show_collision_boxes = False
+            # Disable sword hitbox visualization for player
             if hasattr(player, 'debug_sword_rect'):
                 player.debug_sword_rect = False
-                
+
+            # Disable sword hitbox visualization for NPCs
+            for entity in game_world.get_current_entities():
+                if isinstance(entity, NPC) and hasattr(entity, 'debug_sword_rect'):
+                    entity.debug_sword_rect = False
+
             for entity in game_world.get_current_entities():
                 if hasattr(entity, 'collect') and hasattr(entity, 'debug_show_radius'):
                     entity.debug_show_radius = False
