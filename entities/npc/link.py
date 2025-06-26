@@ -1,13 +1,24 @@
 import pygame
 import random
 import math
+import threading
 from entities.npc.npc import NPC
 from entities.npc.dialog_balloon import dialog_balloon_system
 
+try:
+    from entities.npc.llm import get_dialogue_for_npc
+    LLM_AVAILABLE = True
+except ImportError:
+    LLM_AVAILABLE = False
+    print("LLM module not found - Link will use pre-defined dialogues")
+
 class Link(NPC):
-    def __init__(self, x, y):
+    def __init__(self, x, y, use_llm=False):
         # Hardcode the character name as "link"
         self.character_name = "link"
+        
+        # LLM integration
+        self.use_llm = use_llm and LLM_AVAILABLE
 
         # Call parent constructor with hardcoded character name
         super().__init__(x, y, character_name=self.character_name)
@@ -33,7 +44,6 @@ class Link(NPC):
             "This reminds me of Hyrule."
         ]
 
-        self.current_dialogue = None
         self.dialog_cooldown = 0
         self.dialog_cooldown_duration = 3000  # 3 seconds between dialogues
 
@@ -44,21 +54,115 @@ class Link(NPC):
 
         # Link-specific animation speed (slightly more energetic)
         self.animation_speed = 0.18
+        
+        # Store player reference for LLM usage
+        self._last_known_player = None
+        
+        # Async LLM handling
+        self.llm_thinking = False  # Flag to prevent multiple concurrent LLM requests
 
-        print(f"Link NPC created at ({x}, {y})")
+        print(f"Link NPC created at ({x}, {y}) - LLM mode: {'enabled' if self.use_llm else 'disabled'}")
+
+    def get_player_data(self, player):
+        """Extract player data for LLM context"""
+        if not player:
+            return {}
+        
+        player_data = {
+            'level': player.attributes.level if hasattr(player, 'attributes') else 1,
+            'health': player.attributes.current_health if hasattr(player, 'attributes') else 100,
+            'max_health': player.attributes.max_health if hasattr(player, 'attributes') else 100,
+            'stats': {
+                'str': player.attributes.str if hasattr(player, 'attributes') else 1,
+                'con': player.attributes.con if hasattr(player, 'attributes') else 1,
+                'dex': player.attributes.dex if hasattr(player, 'attributes') else 1,
+                'int': player.attributes.int if hasattr(player, 'attributes') else 1,
+            },
+            'skills': [],
+            'location': "the game world"  # Could be enhanced with actual location data
+        }
+        
+        # Extract unlocked skills
+        if hasattr(player, 'skill_tree'):
+            for skill_id, skill in player.skill_tree.skills.items():
+                if skill.unlocked:
+                    player_data['skills'].append(skill.name)
+        
+        return player_data
+
+    def _llm_dialogue_thread(self, player_data, context):
+        """Thread function to generate LLM dialogue without blocking"""
+        try:
+            llm_dialogue = get_dialogue_for_npc("Link", player_data, context)
+            if llm_dialogue:
+                # Update the dialogue balloon from the thread
+                dialog_balloon_system.add_dialog(
+                    llm_dialogue,
+                    self.x, self.y, self.width, self.height
+                )
+            else:
+                # Fallback if LLM returns nothing
+                self._show_fallback_dialogue()
+        except Exception as e:
+            print(f"LLM dialogue generation failed: {e}")
+            # Fallback on error
+            self._show_fallback_dialogue()
+        finally:
+            self.llm_thinking = False
+    
+    def _show_fallback_dialogue(self):
+        """Show a random pre-defined dialogue as fallback"""
+        dialogue = random.choice(self.dialogue_options)
+        dialog_balloon_system.add_dialog(
+            dialogue,
+            self.x, self.y, self.width, self.height
+        )
 
     def say_random_dialogue(self):
         """Make Link say something using dialogue balloon"""
         if self.dialog_cooldown == 0:
-            self.current_dialogue = random.choice(self.dialogue_options)
-            dialog_balloon_system.add_dialog(
-                self.current_dialogue,
-                self.x, self.y, self.width, self.height
-            )
-
-            # Set cooldown
+            # Set cooldown immediately to prevent multiple calls
             current_time = pygame.time.get_ticks()
             self.dialog_cooldown = current_time + self.dialog_cooldown_duration
+            
+            # Try to use LLM if enabled and we have a player reference
+            if self.use_llm and self._last_known_player and not self.llm_thinking:
+                # Show thinking indicator immediately
+                dialog_balloon_system.add_dialog(
+                    "...",
+                    self.x, self.y, self.width, self.height
+                )
+                
+                # Mark as thinking
+                self.llm_thinking = True
+                
+                try:
+                    player_data = self.get_player_data(self._last_known_player)
+                    context = "The player is standing near you."
+                    
+                    # Add context based on player state
+                    if player_data['health'] < player_data['max_health'] * 0.3:
+                        context = "The player is badly injured and needs help!"
+                    elif player_data['level'] < 3:
+                        context = "The player is still a beginner adventurer."
+                    elif player_data['level'] > 10:
+                        context = "The player is an experienced adventurer."
+                    
+                    # Start LLM thread
+                    llm_thread = threading.Thread(
+                        target=self._llm_dialogue_thread,
+                        args=(player_data, context),
+                        daemon=True  # Daemon thread will close with the main program
+                    )
+                    llm_thread.start()
+                    
+                except Exception as e:
+                    print(f"Failed to start LLM thread: {e}")
+                    self.llm_thinking = False
+                    self._show_fallback_dialogue()
+            else:
+                # Use pre-made dialogue if LLM is disabled, unavailable, or already thinking
+                self._show_fallback_dialogue()
 
     def on_player_nearby(self, player):
         """Called when player is in interaction range"""
@@ -194,6 +298,10 @@ class Link(NPC):
 
     def update(self, current_time=None, obstacles=None, player=None):
         """Link-specific update with enhanced AI behavior - Fixed to avoid double movement"""
+        
+        # Store player reference for LLM usage
+        if player:
+            self._last_known_player = player
 
         # Handle movement animation (from parent)
         if self.moving:
@@ -424,6 +532,8 @@ class Link(NPC):
                 state_text += " (combat ready)"
             if self.dialog_cooldown > 0:
                 state_text += " (thinking)"
+            if self.llm_thinking:
+                state_text += " (🤔 LLM)"
 
             info_text = (f"Link: {self.attributes.get_info_text()} | {state_text} | "
                         f"Range: {self.enemy_detection_range}")

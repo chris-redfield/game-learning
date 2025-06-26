@@ -26,7 +26,7 @@ class DialogBalloon:
         self.tail_height = 10
         self.tail_width = 15
     
-    def set_font(self, font_size=16):
+    def set_font(self, font_size=14):
         """Set the font for dialog balloons"""
         self.font = pygame.font.SysFont('Arial', font_size)
     
@@ -42,8 +42,8 @@ class DialogBalloon:
         text_width = max(self.font.size(line)[0] for line in wrapped_lines)
         text_height = len(wrapped_lines) * self.line_height
         
-        balloon_width = text_width + (self.padding * 2)
-        balloon_height = text_height + (self.padding * 2)
+        balloon_width = text_width + (self.padding * 3)
+        balloon_height = text_height + (self.padding * 3)
         
         # Position balloon above entity's head
         balloon_x = x + (entity_width // 2) - (balloon_width // 2)

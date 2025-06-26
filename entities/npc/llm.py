@@ -15,7 +15,7 @@ class LLMConfig:
     """Configuration settings for the LLM"""
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "gemma3"  # default model = gemma 3
-    max_tokens: int = 30  # Keep responses short for game dialogue
+    max_tokens: int = 50  # Keep responses short for game dialogue
     temperature: float = 0.5  # Add some creativity to dialogue
     timeout: int = 30  # Timeout for API calls
     log_level: str = "INFO"
@@ -136,6 +136,7 @@ class DialogueLLM:
         # Call the AI model
         try:
             response = self._call_ollama(prompt)
+            print("model response:", response)
             if response:
                 # Clean up the response
                 dialogue = response.strip()
@@ -186,7 +187,7 @@ Generate a single, short, in-character dialogue line (max {self.config.max_token
 4. player level: {level}, If the player level is 10 or more, say a tip in your own words with the following information: "The Dragon heart is at (8, -9)"
 
 Respond with ONLY the dialogue line, no quotes, no attribution, no extra text."""
-        print(prompt)
+
         return prompt
     
     def _call_ollama(self, prompt: str) -> Optional[str]:
@@ -202,7 +203,7 @@ Respond with ONLY the dialogue line, no quotes, no attribution, no extra text.""
                 "temperature": self.config.temperature
             }
         }
-        
+
         try:
             response = requests.post(url, json=payload, timeout=self.config.timeout)
             response.raise_for_status()
