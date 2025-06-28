@@ -6,7 +6,7 @@ from entities.npc.npc import NPC
 from entities.npc.dialog_balloon import dialog_balloon_system
 
 try:
-    from entities.npc.llm import get_dialogue_for_npc
+    from entities.npc.llm import get_dialogue_for_npc, add_player_dialogue
     LLM_AVAILABLE = True
 except ImportError:
     LLM_AVAILABLE = False
@@ -15,7 +15,8 @@ except ImportError:
 class Link(NPC):
     def __init__(self, x, y, use_llm=False):
         # Hardcode the character name as "link"
-        self.character_name = "link"
+        self.character_name = "Link"
+        self.character_type = "warrior"
         
         # LLM integration
         self.use_llm = use_llm and LLM_AVAILABLE
@@ -93,7 +94,12 @@ class Link(NPC):
     def _llm_dialogue_thread(self, player_data, context):
         """Thread function to generate LLM dialogue without blocking"""
         try:
-            llm_dialogue = get_dialogue_for_npc("Link", player_data, context)
+            llm_dialogue = get_dialogue_for_npc(
+                npc_name=self.character_name, 
+                player_data=player_data, 
+                context=context,
+                character_type=self.character_type
+            )
             if llm_dialogue:
                 # Update the dialogue balloon from the thread
                 dialog_balloon_system.add_dialog(
@@ -542,3 +548,12 @@ class Link(NPC):
         else:
             debug_text = font.render(f"Link: No attributes", True, (0, 255, 0))
             surface.blit(debug_text, (x, y))
+
+    def respond_to_player_message(self, player, player_message):
+        """Handle when the player says something to Link"""
+        if self.use_llm and LLM_AVAILABLE:
+            add_player_dialogue("Link", player_message)
+            self._last_known_player = player
+            self.say_random_dialogue()
+        else:
+            self.interact_with_player(player)
