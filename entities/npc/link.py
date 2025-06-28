@@ -14,10 +14,10 @@ except ImportError:
 
 class Link(NPC):
     def __init__(self, x, y, use_llm=False):
-        # Hardcode the character name as "link"
         self.character_name = "Link"
+        # self.character_type = "link"
         self.character_type = "warrior"
-        
+
         # LLM integration
         self.use_llm = use_llm and LLM_AVAILABLE
 
