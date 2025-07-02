@@ -38,9 +38,9 @@ class Link(NPC):
 
         # Link-specific dialogue states
         self.dialogue_options = [
-            "Hey! Listen!",
-            "It's dangerous to go alone!",
-            "I'm looking for Princess Zelda.",
+            "Hello, friend !",
+            "It's kinda dangerous to go alone!",
+            "I'm looking for Zelda...",
             "Have you seen any rupees around?",
             "This reminds me of Hyrule."
         ]
