@@ -134,9 +134,15 @@ class CharacterScreen {
     handleInput(input) {
         if (!this.visible) return false;
 
-        // Tab switching
-        if (input.isKeyJustPressed('tab') || input.isKeyJustPressed('skillTab')) {
-            this.switchTab();
+        // Tab switching with 1/2 keys (matching Python)
+        if (input.isKeyJustPressed('tabAttributes')) {
+            this.currentTab = 'attributes';
+            this.skillSelected = null;
+            return true;
+        }
+        if (input.isKeyJustPressed('tabSkills')) {
+            this.currentTab = 'skills';
+            this.skillSelected = null;
             return true;
         }
 
@@ -270,7 +276,7 @@ class CharacterScreen {
         ctx.font = '14px Arial';
         ctx.fillStyle = 'rgb(150, 150, 150)';
         ctx.textAlign = 'center';
-        ctx.fillText('Press TAB to switch', this.screenWidth / 2, tabY + tabHeight + 20);
+        ctx.fillText('Press 1/2 to switch tabs', this.screenWidth / 2, tabY + tabHeight + 20);
         ctx.textAlign = 'left';
     }
 

@@ -152,6 +152,14 @@ class Soul {
         // Add XP to player
         player.gainXp(this.value);
 
+        // Create golden XP particles at player position
+        if (window.particleSystem) {
+            const playerRect = player.getRect();
+            const playerCenterX = playerRect.x + playerRect.width / 2;
+            const playerCenterY = playerRect.y + playerRect.height / 2;
+            window.particleSystem.createXpParticles(playerCenterX, playerCenterY, this.value);
+        }
+
         // Clear all particles
         this.particles = [];
 
