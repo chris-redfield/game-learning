@@ -7,6 +7,31 @@ class ParticleSystem {
         this.particles = [];
         this.bloodParticles = [];
         this.maxParticles = 500;
+
+        // Stuck particles stored per block (persist across transitions)
+        // Format: { "x,y": [{ x, y, size, color, life }, ...] }
+        this.stuckParticles = {};
+        this.currentBlock = { x: 0, y: 0 };
+    }
+
+    /**
+     * Set current block coordinates
+     */
+    setCurrentBlock(blockX, blockY) {
+        this.currentBlock = { x: blockX, y: blockY };
+
+        // Initialize array for this block if needed
+        const key = `${blockX},${blockY}`;
+        if (!this.stuckParticles[key]) {
+            this.stuckParticles[key] = [];
+        }
+    }
+
+    /**
+     * Get block key string
+     */
+    getBlockKey() {
+        return `${this.currentBlock.x},${this.currentBlock.y}`;
     }
 
     /**
@@ -198,10 +223,18 @@ class ParticleSystem {
         });
 
         // Update blood particles
+        const blockKey = this.getBlockKey();
         this.bloodParticles = this.bloodParticles.filter(p => {
             if (p.stuck) {
-                p.life--;
-                return p.life > 0;
+                // Already stuck - move to permanent storage
+                this.stuckParticles[blockKey].push({
+                    x: p.x,
+                    y: p.y,
+                    size: p.size,
+                    color: p.color,
+                    life: p.life
+                });
+                return false; // Remove from active list
             }
 
             // Apply gravity
@@ -211,27 +244,49 @@ class ParticleSystem {
             p.vx *= p.friction;
             p.vy *= p.friction;
 
-            // Move
-            p.x += p.vx;
-            p.y += p.vy;
+            // Calculate new position
+            const newX = p.x + p.vx;
+            const newY = p.y + p.vy;
 
             // Check collision with obstacles
             for (const obs of obstacles) {
                 if (obs.getRect) {
                     const rect = obs.getRect();
-                    if (p.x >= rect.x && p.x <= rect.x + rect.width &&
-                        p.y >= rect.y && p.y <= rect.y + rect.height) {
+                    if (newX >= rect.x && newX <= rect.x + rect.width &&
+                        newY >= rect.y && newY <= rect.y + rect.height) {
+                        // Particle hit obstacle - stick it
                         p.stuck = true;
-                        break;
+                        p.life = 200; // Long life for stuck particles
+                        return true;
                     }
                 }
             }
+
+            // Check if particle hit ground (bottom of screen area)
+            // Particles slow down enough, consider them stuck
+            if (Math.abs(p.vx) < 0.1 && Math.abs(p.vy) < 0.3 && p.vy > 0) {
+                p.stuck = true;
+                p.life = 200; // Long life for stuck particles
+                return true;
+            }
+
+            // Update position
+            p.x = newX;
+            p.y = newY;
 
             p.life--;
             return p.life > 0;
         });
 
-        // Cap particles
+        // Update stuck particles (slowly fade them)
+        for (const key in this.stuckParticles) {
+            this.stuckParticles[key] = this.stuckParticles[key].filter(p => {
+                p.life -= 0.1; // Very slow fade
+                return p.life > 0;
+            });
+        }
+
+        // Cap active particles
         if (this.particles.length > this.maxParticles) {
             this.particles = this.particles.slice(-this.maxParticles);
         }
@@ -244,6 +299,19 @@ class ParticleSystem {
      * Render all particles
      */
     render(ctx) {
+        // Draw stuck blood particles for current block (render first, behind active particles)
+        const blockKey = this.getBlockKey();
+        if (this.stuckParticles[blockKey]) {
+            for (const p of this.stuckParticles[blockKey]) {
+                const alpha = Math.min(1, p.life / 50);
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = `rgb(${p.color.r}, ${p.color.g}, ${p.color.b})`;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
         // Draw fire/effect particles
         for (const p of this.particles) {
             const alpha = Math.min(1, p.life / p.maxLife);
@@ -254,7 +322,7 @@ class ParticleSystem {
             ctx.fill();
         }
 
-        // Draw blood particles
+        // Draw active blood particles
         for (const p of this.bloodParticles) {
             const fadeStart = p.maxLife / 2;
             let alpha = 1;
@@ -272,11 +340,13 @@ class ParticleSystem {
     }
 
     /**
-     * Clear all particles (e.g., on block transition)
+     * Clear active particles only (on block transition)
+     * Stuck particles persist!
      */
     clear() {
         this.particles = [];
         this.bloodParticles = [];
+        // Note: stuckParticles is NOT cleared - they persist per block
     }
 }
 

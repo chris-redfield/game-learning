@@ -35,6 +35,11 @@ async function init() {
     // Generate the starting block (origin)
     const startBlock = gameState.world.generateBlock(0, 0, { x: game.width / 2, y: game.height / 2 });
 
+    // Initialize particle system with starting block
+    if (window.particleSystem) {
+        window.particleSystem.setCurrentBlock(0, 0);
+    }
+
     // Create player at center of screen
     const centerX = game.width / 2 - 17;
     const centerY = game.height / 2 - 20;
@@ -157,9 +162,9 @@ function updateGame(dt) {
         }
     }
 
-    // Update projectiles
+    // Update projectiles (check collision with enemies AND obstacles)
     for (const projectile of gameState.projectiles) {
-        projectile.update(currentTime, enemies);
+        projectile.update(currentTime, enemies, obstacles);
     }
 
     // Clean up dead projectiles
@@ -201,11 +206,14 @@ function updateGame(dt) {
             player.x = transition.newPlayerPos.x;
             player.y = transition.newPlayerPos.y;
 
-            // Clear souls, projectiles, and particles when changing blocks
+            // Clear souls, projectiles, and active particles when changing blocks
             gameState.souls = [];
             gameState.projectiles = [];
             if (window.particleSystem) {
                 window.particleSystem.clear();
+                // Update current block for stuck particle tracking
+                const newBlock = world.currentBlockCoords;
+                window.particleSystem.setCurrentBlock(newBlock.x, newBlock.y);
             }
 
             // Start fade in

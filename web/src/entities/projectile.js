@@ -39,7 +39,7 @@ class Projectile {
         this.height = 8;
     }
 
-    update(currentTime, enemies) {
+    update(currentTime, enemies, obstacles = []) {
         // Don't update if dead
         if (!this.alive) return;
 
@@ -63,6 +63,17 @@ class Projectile {
                 enemy.takeDamage(this.damage, this.x, this.y);
                 this.onHit(enemy);
                 return; // Stop after first hit
+            }
+        }
+
+        // Collision detection with obstacles (bushes, rocks, etc.)
+        for (const obstacle of obstacles) {
+            if (!obstacle.getRect) continue;
+
+            const obsRect = obstacle.getRect();
+            if (this.rectsOverlap(rect, obsRect)) {
+                this.onHit(obstacle);
+                return; // Stop after hitting obstacle
             }
         }
     }
@@ -151,12 +162,12 @@ class Firebolt extends Projectile {
         };
     }
 
-    update(currentTime, enemies) {
+    update(currentTime, enemies, obstacles = []) {
         // Don't update if dead
         if (!this.alive) return;
 
         // Call parent update (handles lifespan and collision)
-        super.update(currentTime, enemies);
+        super.update(currentTime, enemies, obstacles);
 
         // If still alive, create fire trail using global particle system
         if (this.alive && window.particleSystem) {
