@@ -1,6 +1,6 @@
 /**
  * GIF Frame Loader - Extracts frames from animated GIFs for canvas rendering
- * Uses the gifuct-js approach to parse GIF files
+ * Mimics Python PIL's ImageSequence.Iterator behavior
  */
 
 class GifLoader {
@@ -10,8 +10,7 @@ class GifLoader {
 
     /**
      * Load a GIF and extract all frames as canvas-ready images
-     * @param {string} url - URL to the GIF file
-     * @returns {Promise<{frames: ImageData[], delays: number[]}>}
+     * Uses a robust parsing approach similar to PIL
      */
     async loadGif(url) {
         // Check cache first
@@ -20,24 +19,63 @@ class GifLoader {
         }
 
         try {
-            // Fetch the GIF as binary data
-            console.log(`Fetching GIF from: ${url}`);
+            console.log(`Loading GIF from: ${url}`);
             const response = await fetch(url);
-            console.log(`Response status: ${response.status}, content-type: ${response.headers.get('content-type')}`);
             const arrayBuffer = await response.arrayBuffer();
             const data = new Uint8Array(arrayBuffer);
-            console.log(`Received ${data.length} bytes`);
 
-            // Parse the GIF
-            const gif = this.parseGif(data);
+            // Check file signature
+            const signature = String.fromCharCode(...data.slice(0, 4));
+            console.log(`File signature: ${signature}, size: ${data.length} bytes`);
 
-            // Cache and return
-            this.cache.set(url, gif);
-            return gif;
+            let result;
+
+            if (signature === 'GIF8') {
+                // It's a GIF file
+                result = this.parseGif(data);
+            } else if (data[0] === 0x89 && signature.substring(1) === 'PNG') {
+                // It's a PNG file - treat as single frame
+                console.log('File is PNG format, loading as single frame');
+                result = await this.loadAsSingleFrame(url);
+            } else {
+                // Try to load as image anyway
+                console.log('Unknown format, attempting to load as image');
+                result = await this.loadAsSingleFrame(url);
+            }
+
+            this.cache.set(url, result);
+            return result;
         } catch (error) {
             console.error(`Error loading GIF ${url}:`, error);
             return { frames: [], delays: [], width: 32, height: 24 };
         }
+    }
+
+    /**
+     * Load an image file as a single frame (for PNG or failed GIF parsing)
+     */
+    async loadAsSingleFrame(url) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+
+                resolve({
+                    frames: [canvas],
+                    delays: [100],
+                    width: img.width,
+                    height: img.height
+                });
+            };
+            img.onerror = () => {
+                resolve({ frames: [], delays: [], width: 0, height: 0 });
+            };
+            img.src = url;
+        });
     }
 
     /**
@@ -49,7 +87,6 @@ class GifLoader {
 
         // GIF header check
         const header = String.fromCharCode(...data.slice(0, 6));
-        console.log(`GIF header received: "${header}" (bytes: ${data.slice(0, 10).join(', ')})`);
         if (header !== 'GIF87a' && header !== 'GIF89a') {
             console.error('Invalid GIF header:', header);
             return { frames: [], delays: [], width: 0, height: 0 };
@@ -200,6 +237,7 @@ class GifLoader {
             }
         }
 
+        console.log(`Parsed GIF: ${frames.length} frames, ${width}x${height}`);
         return { frames, delays, width, height };
     }
 
