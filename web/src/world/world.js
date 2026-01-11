@@ -466,10 +466,11 @@ class World {
             height: player.height
         };
 
-        // Check if initial position is safe
+        // Check if initial position is safe (check both Grass and Rock)
         let collision = false;
         for (const entity of entities) {
-            if (entity instanceof Grass && this._rectsOverlap(playerRect, entity.getRect())) {
+            if ((entity instanceof Grass || entity instanceof Rock) &&
+                this._rectsOverlap(playerRect, entity.getRect())) {
                 collision = true;
                 break;
             }
@@ -510,19 +511,21 @@ class World {
 
                 let testCollision = false;
                 for (const entity of entities) {
-                    if (entity instanceof Grass && this._rectsOverlap(testRect, entity.getRect())) {
+                    if ((entity instanceof Grass || entity instanceof Rock) &&
+                        this._rectsOverlap(testRect, entity.getRect())) {
                         testCollision = true;
                         break;
                     }
                 }
 
                 if (!testCollision) {
+                    console.log(`Found safe spawn position at (${testPos.x}, ${testPos.y})`);
                     return testPos;
                 }
             }
         }
 
-        // If no safe position found, remove grass at spawn point
+        // If no safe position found and it's grass, remove it at spawn point
         for (const entity of entities) {
             if (entity instanceof Grass && this._rectsOverlap(playerRect, entity.getRect())) {
                 block.removeEntity(entity);

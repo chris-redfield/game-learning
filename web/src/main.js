@@ -317,70 +317,147 @@ function renderGame(ctx) {
     }
 }
 
-// Map overlay
+// Map overlay - Matches Python map.py
 function drawMapOverlay(ctx, world) {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    // Colors matching Python
+    const colors = {
+        background: 'rgb(20, 20, 40)',
+        grid: 'rgb(60, 60, 80)',
+        current: 'rgb(65, 185, 105)',      // Green
+        visited: 'rgb(100, 140, 160)',      // Blue-gray
+        unexplored: 'rgb(40, 40, 60)',      // Dark
+        player: 'rgb(230, 230, 50)',        // Yellow
+        text: 'rgb(220, 220, 220)'
+    };
+
+    const cellSize = 28;
+    const gridCount = 20;  // 20x20 grid
+
+    // Fill background
+    ctx.fillStyle = colors.background;
     ctx.fillRect(0, 0, game.width, game.height);
 
-    ctx.fillStyle = 'white';
-    ctx.font = '32px Arial';
+    // Draw title
+    ctx.fillStyle = colors.text;
+    ctx.font = '24px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('WORLD MAP', game.width / 2, 60);
+    ctx.fillText('WORLD MAP', game.width / 2, 30);
 
-    // Draw block grid
-    const gridSize = 50;
-    const gridRange = 5; // Show 5x5 grid around current position
-    const offsetX = game.width / 2 - gridSize * gridRange / 2;
-    const offsetY = game.height / 2 - gridSize * gridRange / 2;
-
+    // Draw current coordinates info
     const currentX = world.currentBlockCoords.x;
     const currentY = world.currentBlockCoords.y;
+    ctx.font = '14px Arial';
+    ctx.fillText(`Current Position: (${currentX}, ${currentY})`, game.width / 2, 55);
 
-    for (let dy = -Math.floor(gridRange / 2); dy <= Math.floor(gridRange / 2); dy++) {
-        for (let dx = -Math.floor(gridRange / 2); dx <= Math.floor(gridRange / 2); dx++) {
-            const blockX = currentX + dx;
-            const blockY = currentY + dy;
-            const blockKey = `${blockX},${blockY}`;
+    // Calculate map center position
+    const centerX = game.width / 2;
+    const centerY = game.height / 2;
 
-            const px = offsetX + (dx + Math.floor(gridRange / 2)) * gridSize;
-            const py = offsetY + (dy + Math.floor(gridRange / 2)) * gridSize;
+    // Calculate offset for centered grid
+    const offsetX = centerX - (gridCount / 2) * cellSize;
+    const offsetY = centerY - (gridCount / 2) * cellSize;
 
-            // Check if block has been visited
-            const visited = world.blocks[blockKey]?.isVisited();
+    // Draw the grid and blocks
+    for (let y = 0; y < gridCount; y++) {
+        for (let x = 0; x < gridCount; x++) {
+            // Calculate world coordinates for this cell
+            const worldX = currentX - Math.floor(gridCount / 2) + x;
+            const worldY = currentY - Math.floor(gridCount / 2) + y;
 
-            if (dx === 0 && dy === 0) {
+            // Calculate screen position for this cell
+            const screenX = offsetX + x * cellSize;
+            const screenY = offsetY + y * cellSize;
+
+            // Check if block exists at these coordinates
+            const blockKey = `${worldX},${worldY}`;
+            const blockExists = world.blocks[blockKey] !== undefined;
+
+            // Determine cell color
+            let color = null;
+            if (worldX === currentX && worldY === currentY) {
                 // Current block
-                ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
-                ctx.fillRect(px, py, gridSize - 2, gridSize - 2);
-            } else if (visited) {
-                // Visited blocks
-                ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
-                ctx.fillRect(px, py, gridSize - 2, gridSize - 2);
+                color = colors.current;
+            } else if (blockExists && world.blocks[blockKey].isVisited()) {
+                // Visited block
+                color = colors.visited;
+            } else if (blockExists) {
+                // Known but unexplored block
+                color = colors.unexplored;
             }
 
-            // Draw border
-            ctx.strokeStyle = visited || (dx === 0 && dy === 0) ? '#666' : '#333';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(px, py, gridSize - 2, gridSize - 2);
+            if (color) {
+                // Draw filled cell
+                ctx.fillStyle = color;
+                ctx.fillRect(screenX, screenY, cellSize, cellSize);
+            }
 
-            // Draw coordinates for current block
-            if (dx === 0 && dy === 0) {
-                ctx.fillStyle = 'white';
+            // Draw grid border
+            ctx.strokeStyle = colors.grid;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(screenX, screenY, cellSize, cellSize);
+
+            // Draw coordinates in cell if current block
+            if (worldX === currentX && worldY === currentY) {
+                const coordText = `${worldX},${worldY}`;
                 ctx.font = '10px Arial';
-                ctx.fillText(`${blockX},${blockY}`, px + gridSize / 2, py + gridSize / 2 + 3);
+                ctx.fillStyle = colors.text;
+                ctx.textAlign = 'center';
+                ctx.fillText(coordText, screenX + cellSize / 2, screenY + cellSize / 2 + 3);
             }
         }
     }
 
-    // Draw difficulty indicator
-    const difficulty = world.getDifficultyLevel(currentX, currentY);
-    ctx.fillStyle = '#ffaa00';
-    ctx.font = '18px Arial';
-    ctx.fillText(`Current Block: (${currentX}, ${currentY}) | Difficulty: ${difficulty}`, game.width / 2, game.height - 80);
+    // Draw player marker (yellow circle in center of current block)
+    const playerScreenX = offsetX + Math.floor(gridCount / 2) * cellSize + cellSize / 2;
+    const playerScreenY = offsetY + Math.floor(gridCount / 2) * cellSize + cellSize / 2;
+    const markerSize = Math.max(cellSize / 5, 5);
 
-    ctx.font = '16px Arial';
-    ctx.fillStyle = '#888';
-    ctx.fillText('Press M to close', game.width / 2, game.height - 40);
+    ctx.fillStyle = colors.player;
+    ctx.beginPath();
+    ctx.arc(playerScreenX, playerScreenY, markerSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw legend at bottom left
+    const legendX = 20;
+    let legendY = game.height - 120;
+
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = colors.text;
+    ctx.fillText('Legend:', legendX, legendY);
+
+    const legendItems = [
+        { text: 'Current Location', color: colors.current },
+        { text: 'Visited Areas', color: colors.visited },
+        { text: 'Unexplored', color: colors.unexplored },
+        { text: 'Player', color: colors.player }
+    ];
+
+    for (let i = 0; i < legendItems.length; i++) {
+        const yPos = legendY + 20 + i * 20;
+
+        // Draw color sample
+        ctx.fillStyle = legendItems[i].color;
+        ctx.fillRect(legendX, yPos, 15, 15);
+
+        // Draw text
+        ctx.fillStyle = colors.text;
+        ctx.fillText(legendItems[i].text, legendX + 22, yPos + 12);
+    }
+
+    // Draw instructions at bottom right
+    ctx.textAlign = 'right';
+    const instructions = [
+        "Press 'M' or LB to close map",
+        "Explore the world by crossing",
+        "the borders of each area"
+    ];
+
+    for (let i = 0; i < instructions.length; i++) {
+        const yPos = game.height - 70 + i * 18;
+        ctx.fillText(instructions[i], game.width - 20, yPos);
+    }
+
     ctx.textAlign = 'left';
 }
 
