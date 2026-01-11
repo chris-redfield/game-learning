@@ -10,6 +10,7 @@ let game;
 const gameState = {
     player: null,
     world: null,
+    souls: [], // XP orbs dropped by enemies
     transitioning: false,
     transitionCallback: null
 };
@@ -148,15 +149,25 @@ function updateGame(dt) {
         }
     }
 
-    // Clean up dead enemies and award XP
+    // Clean up dead enemies and spawn souls
     const deadEnemies = world.cleanupDeadEnemies();
     for (const dead of deadEnemies) {
         if (dead.willDropSoul) {
-            const xp = dead.getXpValue();
-            player.gainXp(xp);
-            console.log(`Gained ${xp} XP from ${dead.constructor.name}`);
+            // Spawn a soul at enemy's center position
+            const centerX = dead.x + dead.width / 2 - 3;
+            const centerY = dead.y + dead.height / 2 - 3;
+            const xpValue = dead.getXpValue();
+            const soul = new Soul(centerX, centerY, xpValue);
+            gameState.souls.push(soul);
+            console.log(`Soul spawned with ${xpValue} XP from ${dead.constructor.name}`);
         }
     }
+
+    // Update souls
+    gameState.souls = gameState.souls.filter(soul => {
+        const collected = soul.update(player);
+        return !soul.shouldRemove;
+    });
 
     // Check for block transition
     const transition = world.checkPlayerBlockTransition(player);
@@ -168,6 +179,9 @@ function updateGame(dt) {
             // Move player to new position
             player.x = transition.newPlayerPos.x;
             player.y = transition.newPlayerPos.y;
+
+            // Clear souls when changing blocks
+            gameState.souls = [];
 
             // Start fade in
             game.startTransition(true, () => {
@@ -185,8 +199,8 @@ function renderGame(ctx) {
     // Get all entities in current block
     const entities = world.getCurrentEntities();
 
-    // Combine entities with player for depth sorting
-    const allRenderables = [...entities];
+    // Combine entities with player and souls for depth sorting
+    const allRenderables = [...entities, ...gameState.souls];
     if (player) {
         allRenderables.push(player);
     }
@@ -202,6 +216,17 @@ function renderGame(ctx) {
     for (const entity of allRenderables) {
         if (entity.render) {
             entity.render(ctx, game);
+        }
+    }
+
+    // Draw enemy debug info when debug mode is on
+    if (game.showDebug) {
+        const enemies = world.getEnemies();
+        let debugY = 150;
+        for (const enemy of enemies) {
+            if (enemy.renderDebugInfo && enemy.state !== 'dying') {
+                enemy.renderDebugInfo(ctx, enemy.x, enemy.y - 15);
+            }
         }
     }
 

@@ -106,6 +106,20 @@ class EnemyAttributes {
         this.distributeAttributes();
         this.calculateStats();
     }
+
+    getInfoText() {
+        let info = `Lvl ${this.level} ${this.enemyType}: `;
+        info += `STR ${this.str}, CON ${this.con}, DEX ${this.dex}`;
+
+        if (this.int > 0) {
+            info += `, INT ${this.int}`;
+        }
+
+        info += ` | HP: ${this.currentHealth}/${this.maxHealth}`;
+        info += ` | ATK: ${this.attackPower}, DEF: ${this.defense.toFixed(1)}`;
+
+        return info;
+    }
 }
 
 /**
@@ -536,10 +550,28 @@ class Enemy {
         }
         ctx.globalAlpha = 1;
     }
+
+    renderDebugInfo(ctx, x, y) {
+        if (this.attributes) {
+            // Get state text
+            let stateText = `State: ${this.state}`;
+            if (this.isRecovering) {
+                stateText += ' (recovering)';
+            } else if (this.isBeingKnockedBack) {
+                stateText += ' (knockback)';
+            }
+
+            const infoText = this.attributes.getInfoText() + ' | ' + stateText;
+
+            ctx.font = '10px monospace';
+            ctx.fillStyle = this.enemyType === 'fast' ? '#00b400' : '#dcdcdc';
+            ctx.fillText(infoText, x, y);
+        }
+    }
 }
 
 /**
- * Slime - Fast, small enemy using GIF assets
+ * Slime - Fast, small enemy using GIF assets with frame-by-frame animation
  */
 class Slime extends Enemy {
     constructor(game, x, y) {
@@ -547,7 +579,56 @@ class Slime extends Enemy {
         this.enemyType = 'fast';
         this.attributes = new EnemyAttributes(this, 1, this.enemyType);
         this.health = this.attributes.maxHealth;
-        this.animationSpeed = 0.03;
+        this.animationSpeed = 0.15; // Animation speed for frame cycling
+
+        // GIF animation frames
+        this.idleFrames = [];
+        this.moveFrames = [];
+        this.framesLoaded = false;
+
+        // Frame timing
+        this.frameTimer = 0;
+        this.frameDelay = 100; // ms between frames (from GIF)
+
+        // Load GIF frames
+        this.loadGifFrames();
+    }
+
+    async loadGifFrames() {
+        if (window.gifLoader) {
+            try {
+                // Load idle animation
+                const idleGif = await window.gifLoader.loadGif('assets/slime_idle.gif');
+                this.idleFrames = idleGif.frames;
+                this.frameDelay = idleGif.delays[0] || 100;
+
+                // Load move animation
+                const moveGif = await window.gifLoader.loadGif('assets/slime_move.gif');
+                this.moveFrames = moveGif.frames;
+
+                this.framesLoaded = true;
+                console.log(`Slime GIF loaded: ${this.idleFrames.length} idle frames, ${this.moveFrames.length} move frames`);
+            } catch (error) {
+                console.error('Error loading slime GIF frames:', error);
+            }
+        }
+    }
+
+    update(dt, player, obstacles) {
+        // Update frame timer for animation
+        this.frameTimer += 16.67; // ~60 FPS
+
+        if (this.frameTimer >= this.frameDelay) {
+            this.frameTimer = 0;
+            // Advance frame
+            const frames = this.state === 'moving' ? this.moveFrames : this.idleFrames;
+            if (frames.length > 0) {
+                this.frame = (this.frame + 1) % frames.length;
+            }
+        }
+
+        // Call parent update
+        super.update(dt, player, obstacles);
     }
 
     handlePlayerCollision(player) {
@@ -589,17 +670,27 @@ class Slime extends Enemy {
         const visible = !this.hit || Math.floor(this.hitTimer / 40) % 2 === 0;
         if (!visible) return;
 
-        // Get the appropriate GIF image based on state
-        const spriteKey = this.state === 'moving' ? 'slime_move' : 'slime_idle';
-        const sprite = game.getImage(spriteKey);
+        // Get the appropriate frames based on state
+        const frames = this.state === 'moving' ? this.moveFrames : this.idleFrames;
 
-        if (sprite) {
-            // Draw the GIF image (browser handles animation automatically)
-            ctx.drawImage(sprite, this.x, this.y, this.width, this.height);
+        if (this.framesLoaded && frames.length > 0) {
+            // Use parsed GIF frames
+            const frameIndex = Math.min(this.frame, frames.length - 1);
+            const frameCanvas = frames[frameIndex];
+            if (frameCanvas) {
+                ctx.drawImage(frameCanvas, this.x, this.y, this.width, this.height);
+            }
         } else {
-            // Fallback: green rectangle if image not loaded
-            ctx.fillStyle = '#00cc00';
-            ctx.fillRect(this.x, this.y, this.width, this.height);
+            // Fallback: use static image or green rectangle
+            const spriteKey = this.state === 'moving' ? 'slime_move' : 'slime_idle';
+            const sprite = game.getImage(spriteKey);
+
+            if (sprite) {
+                ctx.drawImage(sprite, this.x, this.y, this.width, this.height);
+            } else {
+                ctx.fillStyle = '#00cc00';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
         }
     }
 }
@@ -613,12 +704,15 @@ class Skeleton extends Enemy {
         this.enemyType = 'normal';
         this.attributes = new EnemyAttributes(this, 1, this.enemyType);
         this.health = this.attributes.maxHealth;
-        this.animationSpeed = 0.08;
+        this.animationSpeed = 0.15; // Faster animation speed
 
-        // Sprite frame definitions
-        this.idleFrames = [0, 95, 191, 287, 383, 479, 575];
-        this.walkFrames = [0, 95, 191, 287, 383, 479, 575, 671, 767];
+        // Sprite frame definitions (x-positions in sprite sheet)
+        this.idleFramePositions = [0, 95, 191, 287, 383, 479, 575];
+        this.walkFramePositions = [0, 95, 191, 287, 383, 479, 575, 671, 767];
         this.frameWidth = 42;
+
+        // Current frame index (separate from animation counter)
+        this.currentFrameIndex = 0;
 
         // Attack properties
         this.attackTimer = 0;
@@ -626,6 +720,26 @@ class Skeleton extends Enemy {
         this.attackCooldown = 800;
         this.attackCooldownTimer = 0;
         this.canAttack = true;
+    }
+
+    // Override updateAnimation to properly cycle through frames
+    updateAnimation() {
+        this.animationCounter += this.animationSpeed;
+
+        // Get the appropriate frame array based on state
+        const framePositions = this.state === 'moving' ? this.walkFramePositions : this.idleFramePositions;
+        const numFrames = framePositions.length;
+
+        if (numFrames > 0) {
+            // Cycle animation counter
+            if (this.animationCounter >= numFrames) {
+                this.animationCounter = this.animationCounter % numFrames;
+            }
+
+            // Update current frame index
+            this.currentFrameIndex = Math.floor(this.animationCounter);
+            this.frame = this.currentFrameIndex;
+        }
     }
 
     update(dt, player, obstacles) {
@@ -821,15 +935,15 @@ class Skeleton extends Enemy {
         const visible = !this.hit || Math.floor(this.hitTimer / 40) % 2 === 0;
         if (!visible) return;
 
-        // Get appropriate sprite sheet
+        // Get appropriate sprite sheet and frame positions
         const isMoving = this.state === 'moving';
         const spriteKey = isMoving ? 'skeleton_walk' : 'skeleton_idle';
         const sprite = game.getImage(spriteKey);
-        const frames = isMoving ? this.walkFrames : this.idleFrames;
+        const framePositions = isMoving ? this.walkFramePositions : this.idleFramePositions;
 
-        if (sprite && frames.length > 0) {
-            const frameIndex = Math.min(this.frame, frames.length - 1);
-            const sx = frames[frameIndex];
+        if (sprite && framePositions.length > 0) {
+            const frameIndex = Math.min(this.currentFrameIndex, framePositions.length - 1);
+            const sx = framePositions[frameIndex];
             const frameHeight = sprite.height;
 
             ctx.save();
