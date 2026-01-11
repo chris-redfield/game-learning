@@ -32,7 +32,7 @@ class Projectile {
 
         this.damage = damage;
         this.lifespan = lifespan;
-        this.creationTime = Date.now();
+        this.creationTime = performance.now(); // Use same time source as update()
         this.alive = true;
 
         this.width = 8;
