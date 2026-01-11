@@ -188,11 +188,13 @@ function updateGame(dt) {
 
     // Handle death screen input when active (highest priority after transitions)
     if (gameState.deathScreen && gameState.deathScreen.isActive()) {
-        gameState.deathScreen.handleInput(game.input);
-        // Still allow load dialog to be used from death screen
+        // If load dialog is visible, ONLY handle load dialog input (not death screen)
         if (gameState.loadDialog && gameState.loadDialog.isVisible()) {
             gameState.loadDialog.handleInput(game.input);
+            return;
         }
+        // Otherwise handle death screen input
+        gameState.deathScreen.handleInput(game.input);
         return;
     }
 
