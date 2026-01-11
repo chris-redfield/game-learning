@@ -26,7 +26,7 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 | 12 | Bonfire & Rest Menu | COMPLETED |
 | 13 | Save/Load System | COMPLETED |
 | 14 | NPCs & Dialog | NOT STARTED |
-| 15 | Death Logic | NOT STARTED |
+| 15 | Death Logic | COMPLETED |
 
 ---
 
@@ -206,9 +206,27 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 **Key Files:**
 - `web/src/ui/bonfire-menu.js` - SaveLoadManager, dialogs
 
+### Phase 15: Death Logic - COMPLETED
+
+**Description:** Player death handling and respawn system - exactly like Python implementation.
+
+**Features Implemented:**
+- Death detection when player HP reaches 0
+- "YOU DIED" death screen overlay with semi-transparent background
+- Two options: Restart (reinitialize game) and Load Save
+- Keyboard and mouse navigation for death screen options
+- Restart functionality recreates world and player from scratch
+- Load Save shows file dialog to load a previous save
+- HUD hidden when death screen is active
+- Death screen integrates with save/load system
+
+**Key Files:**
+- `web/src/ui/death-screen.js` - DeathScreen class
+- `web/src/main.js` - Death detection, restartGame function
+
 ---
 
-## Remaining Phases (14-15)
+## Remaining Phase (14)
 
 ### Phase 14: NPCs & Dialog - NOT STARTED - exactly like it was implemented at the python code
 
@@ -233,35 +251,6 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 - E key to advance dialog
 - NPCs can give hints, quests, or items
 - DO NOT implement LLM-based dialog (keep it simple static text)
-
----
-
-### Phase 15: Death Logic - NOT STARTED - exactly like it was implemented at the python code
-
-**Description:** Add player death handling and respawn system.
-
-**Features:**
-- Player death when HP reaches 0
-- Death screen/overlay
-- Respawn at last bonfire or origin
-- XP/soul loss on death (if applicable)
-- Death animation/effect
-
-**Tasks:**
-1. Detect player death (HP <= 0)
-2. Create death overlay/screen
-3. Implement respawn logic
-4. Add death animation/visual feedback
-5. Handle game state reset on death
-6. Integrate with save system (load last save on respawn if applicable)
-
-**Python Reference Files:**
-- `main.py` - Death handling logic
-- `entities/player/player.py` - Player death state
-
-**Notes:**
-- Check how Python handles death in main game loop
-- May involve resetting world state or loading save
 
 ---
 
@@ -331,7 +320,8 @@ web/
     └── ui/
         ├── hud.js                # HUD display
         ├── character-screen.js   # Character/Skill screen
-        └── bonfire-menu.js       # Save/Load dialogs
+        ├── bonfire-menu.js       # Save/Load dialogs
+        └── death-screen.js       # Death overlay
 ```
 
 ---
@@ -339,7 +329,8 @@ web/
 ## Next Session Priorities
 
 1. **Phase 14: NPCs** - Add NPC system with test character - exactly like it was implemented at the python code
-2. **Phase 15: Death Logic** - Implement death handling and respawn - exactly like it was implemented at the python code
+
+**Note:** Phase 15 (Death Logic) has been completed. Only Phase 14 remains.
 
 ---
 

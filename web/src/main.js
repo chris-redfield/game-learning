@@ -17,6 +17,7 @@ const gameState = {
     loadDialog: null, // Load file dialog
     messageDialog: null, // Message dialog for confirmations
     saveLoadManager: null, // Save/Load manager
+    deathScreen: null, // Death screen overlay
     souls: [], // XP orbs dropped by enemies
     projectiles: [], // Active projectiles (firebolt, etc.)
     transitioning: false,
@@ -64,6 +65,14 @@ async function init() {
     // Create Message Dialog for confirmations
     gameState.messageDialog = new MessageDialog();
 
+    // Create Death Screen
+    gameState.deathScreen = new DeathScreen();
+    gameState.deathScreen.onRestart = restartGame;
+    gameState.deathScreen.onLoadSave = () => {
+        // Show load dialog when "Load Save" is selected from death screen
+        gameState.loadDialog.show();
+    };
+
     // Create Save and Load file dialogs
     gameState.saveDialog = new SaveOverwriteDialog(gameState.saveLoadManager, (filename) => {
         console.log(`Game saved to ${filename}`);
@@ -74,6 +83,12 @@ async function init() {
     gameState.loadDialog = new LoadFileDialog(gameState.saveLoadManager, (filename, success) => {
         if (success) {
             console.log(`Game loaded from ${filename}`);
+            // Deactivate death screen if active (like Python)
+            if (gameState.deathScreen && gameState.deathScreen.isActive()) {
+                gameState.deathScreen.deactivate();
+            }
+            // Re-set bonfire callback after loading
+            setBonfireCallback();
             gameState.messageDialog.setMessage('Load Game', `Game loaded successfully from ${filename}`);
             gameState.messageDialog.show();
         } else {
@@ -123,10 +138,61 @@ async function init() {
     console.log('Game started!');
 }
 
+/**
+ * Restart the game - reinitialize everything
+ * Exactly like Python restart_game() function
+ */
+function restartGame() {
+    console.log('Restarting game...');
+
+    // Clear current game state
+    gameState.souls = [];
+    gameState.projectiles = [];
+    if (window.particleSystem) {
+        window.particleSystem.clear();
+        window.particleSystem.setCurrentBlock(0, 0);
+    }
+
+    // Recreate world
+    gameState.world = new World(game);
+    gameState.world.generateBlock(0, 0, { x: game.width / 2, y: game.height / 2 });
+
+    // Recreate player at center
+    const centerX = game.width / 2 - 17;
+    const centerY = game.height / 2 - 20;
+    gameState.player = new Player(game, centerX, centerY, 'link');
+
+    // Update references
+    gameState.hud = new HUD(gameState.player, game.width, game.height);
+    gameState.characterScreen = new CharacterScreen(gameState.player, game.width, game.height);
+    gameState.saveLoadManager.setGameState(gameState.player, gameState.world);
+
+    // Set bonfire callback
+    setBonfireCallback();
+
+    // Close any open menus
+    if (gameState.characterScreen.isVisible()) {
+        gameState.characterScreen.toggle();
+    }
+    game.showMap = false;
+
+    console.log('Game restarted!');
+}
+
 // Game update logic
 function updateGame(dt) {
     // Don't update during transitions
     if (gameState.transitioning) {
+        return;
+    }
+
+    // Handle death screen input when active (highest priority after transitions)
+    if (gameState.deathScreen && gameState.deathScreen.isActive()) {
+        gameState.deathScreen.handleInput(game.input);
+        // Still allow load dialog to be used from death screen
+        if (gameState.loadDialog && gameState.loadDialog.isVisible()) {
+            gameState.loadDialog.handleInput(game.input);
+        }
         return;
     }
 
@@ -350,6 +416,12 @@ function updateGame(dt) {
             });
         });
     }
+
+    // Check for player death (exactly like Python)
+    if (player.attributes.currentHealth <= 0 && !gameState.deathScreen.isActive()) {
+        console.log('Player died!');
+        gameState.deathScreen.activate();
+    }
 }
 
 // Game render logic
@@ -413,12 +485,14 @@ function renderGame(ctx) {
         }
     }
 
-    // Draw HUD
-    const enemies = world.getEnemies();
-    gameState.hud.draw(ctx, world, {
-        entities: enemies,
-        showEnemyDebug: game.showDebug
-    });
+    // Draw HUD (not when death screen is active, like Python)
+    if (!gameState.deathScreen || !gameState.deathScreen.isActive()) {
+        const enemies = world.getEnemies();
+        gameState.hud.draw(ctx, world, {
+            entities: enemies,
+            showEnemyDebug: game.showDebug
+        });
+    }
 
     // Draw overlays
     if (game.showMap) {
@@ -447,6 +521,15 @@ function renderGame(ctx) {
     // Draw message dialog on top of everything (success/error messages)
     if (gameState.messageDialog && gameState.messageDialog.isVisible()) {
         gameState.messageDialog.render(ctx, game.width, game.height);
+    }
+
+    // Draw death screen on top of everything (when player dies)
+    if (gameState.deathScreen && gameState.deathScreen.isActive()) {
+        gameState.deathScreen.render(ctx, game.width, game.height, gameState.player);
+        // Draw load dialog on top of death screen if visible
+        if (gameState.loadDialog && gameState.loadDialog.isVisible()) {
+            gameState.loadDialog.render(ctx, game.width, game.height);
+        }
     }
 }
 
