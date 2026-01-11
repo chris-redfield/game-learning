@@ -11,8 +11,10 @@ const gameState = {
     player: null,
     world: null,
     souls: [], // XP orbs dropped by enemies
+    projectiles: [], // Active projectiles (firebolt, etc.)
     transitioning: false,
-    transitionCallback: null
+    transitionCallback: null,
+    lastFireboltTime: 0 // Cooldown tracking
 };
 
 // Initialize game
@@ -96,9 +98,9 @@ function updateGame(dt) {
         }
     }
 
-    // Handle firebolt (placeholder)
+    // Handle firebolt
     if (game.input.isKeyJustPressed('firebolt')) {
-        console.log('Firebolt! (Coming in Phase 6)');
+        castFirebolt(currentTime);
     }
 
     // Handle interact
@@ -149,6 +151,14 @@ function updateGame(dt) {
         }
     }
 
+    // Update projectiles
+    for (const projectile of gameState.projectiles) {
+        projectile.update(currentTime, enemies);
+    }
+
+    // Clean up dead projectiles
+    gameState.projectiles = gameState.projectiles.filter(p => p.alive || p.particles.length > 0);
+
     // Clean up dead enemies and spawn souls
     const deadEnemies = world.cleanupDeadEnemies();
     for (const dead of deadEnemies) {
@@ -180,8 +190,9 @@ function updateGame(dt) {
             player.x = transition.newPlayerPos.x;
             player.y = transition.newPlayerPos.y;
 
-            // Clear souls when changing blocks
+            // Clear souls and projectiles when changing blocks
             gameState.souls = [];
+            gameState.projectiles = [];
 
             // Start fade in
             game.startTransition(true, () => {
@@ -216,6 +227,15 @@ function renderGame(ctx) {
     for (const entity of allRenderables) {
         if (entity.render) {
             entity.render(ctx, game);
+        }
+    }
+
+    // Render projectiles (on top of everything)
+    for (const projectile of gameState.projectiles) {
+        projectile.render(ctx);
+        // Also render explosion particles if projectile is dead but has particles
+        if (!projectile.alive && projectile.renderExplosionParticles) {
+            projectile.renderExplosionParticles(ctx);
         }
     }
 
@@ -279,7 +299,7 @@ function drawTemporaryHUD(ctx, player, world) {
     // Controls hint
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     ctx.font = '12px monospace';
-    ctx.fillText('WASD: Move | SPACE: Attack | E: +5 XP | M: Map', 10, game.height - 10);
+    ctx.fillText('WASD: Move | SPACE: Attack | F: Firebolt | E: +5 XP | M: Map', 10, game.height - 10);
 }
 
 // Map overlay
@@ -439,16 +459,35 @@ function drawCharacterOverlay(ctx, player) {
     ctx.textAlign = 'left';
 }
 
+// Cast firebolt spell
+function castFirebolt(currentTime) {
+    const player = gameState.player;
+    if (!player) return false;
+
+    // Check cooldown (250ms between casts, matching Python)
+    if (currentTime - gameState.lastFireboltTime < 250) {
+        return false;
+    }
+
+    // Create firebolt projectile
+    const firebolt = new Firebolt(player);
+    gameState.projectiles.push(firebolt);
+    gameState.lastFireboltTime = currentTime;
+
+    console.log(`Firebolt cast! Damage: ${firebolt.damage.toFixed(1)}, Size: ${firebolt.boltSize}`);
+    return true;
+}
+
 // Show controls info
 function showControlsInfo() {
     console.log(`
 === The Dark Garden of Z - Controls ===
 WASD / Arrow Keys - Move
 Space - Attack (Sword Swing)
+F - Firebolt (magic projectile)
 E - Interact (+5 XP for testing)
 Shift - Dash (speed boost)
 B - Blink (teleport forward)
-F - Firebolt (Coming Phase 6)
 M - Map (shows visited blocks)
 Enter - Character Screen
 C - Debug Mode
