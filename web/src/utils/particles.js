@@ -278,13 +278,8 @@ class ParticleSystem {
             return p.life > 0;
         });
 
-        // Update stuck particles (slowly fade them)
-        for (const key in this.stuckParticles) {
-            this.stuckParticles[key] = this.stuckParticles[key].filter(p => {
-                p.life -= 0.1; // Very slow fade
-                return p.life > 0;
-            });
-        }
+        // Stuck particles are PERMANENT - don't fade or remove them
+        // They persist forever (until the game is reloaded)
 
         // Cap active particles
         if (this.particles.length > this.maxParticles) {
@@ -297,20 +292,19 @@ class ParticleSystem {
 
     /**
      * Render stuck blood particles (call BEFORE entities - appears under player)
+     * Stuck blood is PERMANENT - no fading
      */
     renderStuckBlood(ctx) {
         const blockKey = this.getBlockKey();
         if (this.stuckParticles[blockKey]) {
             for (const p of this.stuckParticles[blockKey]) {
-                const alpha = Math.min(1, p.life / 50);
-                ctx.globalAlpha = alpha;
+                // Full opacity - permanent blood stains
                 ctx.fillStyle = `rgb(${p.color.r}, ${p.color.g}, ${p.color.b})`;
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
-        ctx.globalAlpha = 1;
     }
 
     /**
