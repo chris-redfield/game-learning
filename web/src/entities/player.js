@@ -691,7 +691,58 @@ class PlayerAttributes {
 }
 
 /**
- * SkillTree - Manages skill unlocks and abilities
+ * Skill class - Represents a skill in the skill tree
+ * Mirrors Python entities/player/skill_tree.py
+ */
+class Skill {
+    constructor(id, name, description, levelRequired = 1, parent = null, implemented = true) {
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.levelRequired = levelRequired;
+        this.parent = parent;  // Parent skill ID if this is a dependent skill
+        this.unlocked = false;
+        this.implemented = implemented;  // Whether the skill is implemented in the game
+    }
+
+    canUnlock(player) {
+        // Must have required level
+        if (player.attributes.level < this.levelRequired) {
+            return false;
+        }
+        // If it has a parent, the parent must be unlocked first
+        if (this.parent && !player.skillTree.isSkillUnlocked(this.parent)) {
+            return false;
+        }
+        // Must be implemented
+        if (!this.implemented) {
+            return false;
+        }
+        return true;
+    }
+
+    unlock(player) {
+        if (!this.canUnlock(player)) {
+            return false;
+        }
+        this.unlocked = true;
+
+        // Apply skill effects
+        if (this.id === 'dash') {
+            player.attributes.canDash = true;
+        } else if (this.id === 'extended_sword') {
+            player.attributes.swordLength = Math.floor(player.attributes.baseSwordLength * 1.5);
+        } else if (this.id === 'blink') {
+            player.attributes.canBlink = true;
+        }
+        // firebolt has no additional attributes needed
+
+        return true;
+    }
+}
+
+/**
+ * SkillTree class - Manages the skill tree and skill point system
  * Mirrors Python entities/player/skill_tree.py
  */
 class SkillTree {
@@ -702,20 +753,42 @@ class SkillTree {
     }
 
     initializeSkills() {
-        // Basic sword is always unlocked
-        this.skills['basic_sword'] = { unlocked: true, levelRequired: 1 };
+        // Mind branch
+        this.skills['heal'] = new Skill('heal', 'Heal', 'Restore health', 4, null, false);
+        this.skills['firebolt'] = new Skill('firebolt', 'Firebolt', 'Cast a firebolt', 4, null, true);
+        this.skills['bless'] = new Skill('bless', 'Bless', 'Temporary stat boost', 7, 'heal', false);
+        this.skills['fireball'] = new Skill('fireball', 'Fireball', 'More powerful fireball', 7, 'firebolt', false);
 
-        // Dash ability (level 2)
-        this.skills['dash'] = { unlocked: true, levelRequired: 2 };
+        // Body branch
+        this.skills['dash'] = new Skill('dash', 'Dash', 'Temporary speed boost (SHIFT)', 2, null, true);
+        this.skills['blink'] = new Skill('blink', 'Blink', 'Short-range teleport (B)', 4, null, true);
+        this.skills['dash_speed'] = new Skill('dash_speed', 'Increased Dash Speed', 'Dash moves faster', 7, 'dash', false);
+        this.skills['dash_cooldown'] = new Skill('dash_cooldown', 'Reduced Dash Cooldown', 'Use dash more often', 10, 'dash_speed', false);
+        this.skills['blink_extend1'] = new Skill('blink_extend1', 'Extended Blink', 'Blink farther', 7, 'blink', false);
+        this.skills['blink_extend2'] = new Skill('blink_extend2', 'Extended Blink II', 'Blink even farther', 10, 'blink_extend1', false);
+        this.skills['ghost_blink'] = new Skill('ghost_blink', 'Ghost Blink', 'Blink through obstacles', 13, 'blink_extend2', false);
 
-        // Extended sword (level 3)
-        this.skills['extended_sword'] = { unlocked: false, levelRequired: 3 };
+        // Magic Sword branch
+        this.skills['basic_sword'] = new Skill('basic_sword', 'Basic Sword', 'Regular sword swing', 1, null, true);
+        this.skills['throw_sword'] = new Skill('throw_sword', 'Throw Sword', 'Throw your sword', 7, 'basic_sword', false);
+        this.skills['extended_sword'] = new Skill('extended_sword', 'Extended Sword', 'Increased sword reach', 3, 'basic_sword', true);
+        this.skills['extended_sword2'] = new Skill('extended_sword2', 'Extended Sword II', 'Further increased sword reach', 10, 'extended_sword', false);
+        this.skills['extended_sword3'] = new Skill('extended_sword3', 'Extended Sword III', 'Maximum sword reach', 13, 'extended_sword2', false);
+        this.skills['teleport_sword'] = new Skill('teleport_sword', 'Teleport Sword', 'Teleport to sword location', 16, 'throw_sword', false);
 
-        // Blink ability (level 4)
-        this.skills['blink'] = { unlocked: true, levelRequired: 4 };
+        // Unlocks that should be present at game start
+        this.skills['basic_sword'].unlocked = true;
 
-        // Firebolt (level 4)
-        this.skills['firebolt'] = { unlocked: true, levelRequired: 4 };
+        // Check if any skills should be unlocked based on current level/state
+        if (this.player.attributes.canDash) {
+            this.skills['dash'].unlocked = true;
+        }
+        if (this.player.attributes.swordLength > this.player.attributes.baseSwordLength) {
+            this.skills['extended_sword'].unlocked = true;
+        }
+        if (this.player.attributes.canBlink) {
+            this.skills['blink'].unlocked = true;
+        }
     }
 
     isSkillUnlocked(skillId) {
@@ -727,23 +800,49 @@ class SkillTree {
 
     unlockSkill(skillId) {
         if (!this.skills[skillId]) return false;
-        if (this.skills[skillId].unlocked) return false;
 
-        const levelRequired = this.skills[skillId].levelRequired;
-        if (this.player.attributes.level < levelRequired) return false;
+        const skill = this.skills[skillId];
 
-        if (this.player.attributes.skillPoints <= 0) return false;
-
-        this.skills[skillId].unlocked = true;
-        this.player.attributes.skillPoints--;
-
-        // Apply skill effects
-        if (skillId === 'extended_sword') {
-            this.player.attributes.swordLength = Math.floor(this.player.attributes.baseSwordLength * 1.5);
+        // Check if player has skill points and skill is not already unlocked
+        if (this.player.attributes.skillPoints <= 0 || skill.unlocked) {
+            return false;
         }
 
-        console.log(`Unlocked skill: ${skillId}`);
-        return true;
+        // Check if skill can be unlocked
+        if (!skill.canUnlock(this.player)) {
+            return false;
+        }
+
+        // Use a skill point and unlock the skill
+        this.player.attributes.skillPoints--;
+        const result = skill.unlock(this.player);
+
+        if (result) {
+            console.log(`Unlocked skill: ${skill.name}`);
+        }
+
+        return result;
+    }
+
+    getSkillsByBranch() {
+        const branches = {
+            mind: [],
+            body: [],
+            magic_sword: []
+        };
+
+        // Categorize skills
+        for (const [skillId, skill] of Object.entries(this.skills)) {
+            if (['heal', 'firebolt', 'bless', 'fireball'].includes(skillId)) {
+                branches.mind.push(skill);
+            } else if (['dash', 'blink', 'dash_speed', 'dash_cooldown', 'blink_extend1', 'blink_extend2', 'ghost_blink'].includes(skillId)) {
+                branches.body.push(skill);
+            } else {
+                branches.magic_sword.push(skill);
+            }
+        }
+
+        return branches;
     }
 }
 
@@ -751,3 +850,4 @@ class SkillTree {
 window.Player = Player;
 window.PlayerAttributes = PlayerAttributes;
 window.SkillTree = SkillTree;
+window.Skill = Skill;

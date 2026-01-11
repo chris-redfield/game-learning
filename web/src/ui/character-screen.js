@@ -47,6 +47,7 @@ class CharacterScreen {
         // Skill selection
         this.skillSelected = null;
         this.skillRects = {};
+        this.unlockButtonRect = null;
 
         // Mouse state
         this.mouseX = 0;
@@ -108,6 +109,12 @@ class CharacterScreen {
 
         // Check skill nodes (in skills tab)
         if (this.currentTab === 'skills') {
+            // Check unlock button first
+            if (this.unlockButtonRect && this.pointInRect(this.mouseX, this.mouseY, this.unlockButtonRect)) {
+                this.hoveredButton = 'unlock_button';
+                return;
+            }
+
             for (const [skillId, rect] of Object.entries(this.skillRects)) {
                 if (this.pointInRect(this.mouseX, this.mouseY, rect)) {
                     this.hoveredButton = `skill_${skillId}`;
@@ -141,6 +148,14 @@ class CharacterScreen {
                 }
             }
         } else if (this.currentTab === 'skills') {
+            // Check unlock button click first
+            if (this.unlockButtonRect && this.pointInRect(x, y, this.unlockButtonRect)) {
+                if (this.skillSelected) {
+                    this.player.skillTree.unlockSkill(this.skillSelected);
+                    return true;
+                }
+            }
+
             // Check skill node clicks
             for (const [skillId, rect] of Object.entries(this.skillRects)) {
                 if (this.pointInRect(x, y, rect)) {
@@ -261,6 +276,12 @@ class CharacterScreen {
 
     handleInput(input) {
         if (!this.visible) return false;
+
+        // ESC to close character screen
+        if (input.isKeyJustPressed('pause')) {
+            this.visible = false;
+            return true;
+        }
 
         // Tab switching with 1/2 keys (matching Python)
         if (input.isKeyJustPressed('tabAttributes')) {
@@ -658,136 +679,342 @@ class CharacterScreen {
         const player = this.player;
         const attrs = player.attributes;
 
-        // Skill points display
+        // Header and skill points display
         ctx.font = this.statFont;
         ctx.fillStyle = this.colors.title;
-        ctx.fillText(`Skill Points: ${attrs.skillPoints}`, margin + 50, margin + 100);
+        ctx.fillText(`Skill Points: ${attrs.skillPoints}`, margin + 50, margin + 90);
 
         // Instructions
         ctx.font = this.textFont;
         ctx.fillStyle = this.colors.text;
-        ctx.fillText('Use arrow keys to select, E to unlock, or click', margin + 50, margin + 130);
+        ctx.fillText('Click on a skill to view details and unlock it', margin + 50, margin + 120);
 
-        // Draw skill tree
-        const skills = this.player.skillTree.skills;
-        const skillIds = Object.keys(skills);
+        // Get skill data organized by branch
+        const branches = this.player.skillTree.getSkillsByBranch();
+        const branchNames = ['Mind', 'Body', 'Magic Sword'];
+        const branchIds = ['mind', 'body', 'magic_sword'];
 
-        const startX = margin + 100;
-        const startY = margin + 180;
-        const spacing = 120;
-        const nodeSize = 40;
+        const screenWidth = this.screenWidth - margin * 2 - 100;
+        const branchWidth = screenWidth / 3;
+        const startY = margin + 170;
+        const diamondSize = 20;
+        const levelSpacing = 110;
+        const skillSpacing = 140;
 
         this.skillRects = {};
+        const skillPositions = {};
 
-        let col = 0;
-        let row = 0;
-        const cols = 4;
+        // Draw branch headers (diamond shapes with names)
+        for (let i = 0; i < branchNames.length; i++) {
+            const branchX = margin + 50 + i * branchWidth + branchWidth / 2;
 
-        for (const skillId of skillIds) {
-            const skill = skills[skillId];
-            const x = startX + col * spacing;
-            const y = startY + row * 100;
-
-            // Determine color
-            let nodeColor;
-            if (skill.unlocked) {
-                nodeColor = this.colors.skillUnlocked;
-            } else if (attrs.level >= skill.levelRequired && attrs.skillPoints > 0) {
-                nodeColor = this.colors.skillAvailable;
-            } else {
-                nodeColor = this.colors.skillUnavailable;
-            }
-
-            // Check if hovered
-            const isHovered = this.hoveredButton === `skill_${skillId}`;
-            if (isHovered && !skill.unlocked) {
-                nodeColor = this.colors.buttonHover;
-            }
-
-            // Draw diamond shape
-            ctx.fillStyle = nodeColor;
+            // Draw diamond for branch header
+            ctx.fillStyle = 'rgb(100, 200, 100)';
             ctx.beginPath();
-            ctx.moveTo(x, y - nodeSize / 2);
-            ctx.lineTo(x + nodeSize / 2, y);
-            ctx.lineTo(x, y + nodeSize / 2);
-            ctx.lineTo(x - nodeSize / 2, y);
+            ctx.moveTo(branchX, startY);
+            ctx.lineTo(branchX + diamondSize, startY + diamondSize);
+            ctx.lineTo(branchX, startY + diamondSize * 2);
+            ctx.lineTo(branchX - diamondSize, startY + diamondSize);
             ctx.closePath();
             ctx.fill();
-
-            // Selection highlight
-            if (this.skillSelected === skillId) {
-                ctx.strokeStyle = this.colors.cursor;
-                ctx.lineWidth = 3;
-                ctx.stroke();
-            } else {
-                ctx.strokeStyle = this.colors.border;
-                ctx.lineWidth = 1;
-                ctx.stroke();
-            }
-
-            // Skill name
-            ctx.font = '14px Arial';
-            ctx.fillStyle = this.colors.text;
-            ctx.textAlign = 'center';
-            ctx.fillText(skill.unlocked ? skill.levelRequired : `Lvl ${skill.levelRequired}`, x, y + nodeSize / 2 + 20);
-            ctx.textAlign = 'left';
-
-            // Store rect for mouse interaction
-            this.skillRects[skillId] = {
-                x: x - nodeSize / 2,
-                y: y - nodeSize / 2,
-                width: nodeSize,
-                height: nodeSize
-            };
-
-            col++;
-            if (col >= cols) {
-                col = 0;
-                row++;
-            }
-        }
-
-        // Draw selected skill details
-        if (this.skillSelected && skills[this.skillSelected]) {
-            const skill = skills[this.skillSelected];
-            const detailY = this.screenHeight - margin - 180;
-
-            ctx.fillStyle = 'rgba(30, 33, 41, 0.95)';
-            ctx.fillRect(margin + 50, detailY, this.screenWidth - margin * 2 - 100, 100);
             ctx.strokeStyle = this.colors.border;
             ctx.lineWidth = 2;
-            ctx.strokeRect(margin + 50, detailY, this.screenWidth - margin * 2 - 100, 100);
+            ctx.stroke();
 
-            ctx.font = this.statFont;
-            ctx.fillStyle = this.colors.title;
-
-            // Capitalize skill name
-            const skillName = this.skillSelected.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-            ctx.fillText(skillName, margin + 70, detailY + 30);
-
+            // Draw branch name above diamond
             ctx.font = this.textFont;
             ctx.fillStyle = this.colors.text;
-            ctx.fillText(`Level Required: ${skill.levelRequired}`, margin + 70, detailY + 55);
+            ctx.textAlign = 'center';
+            ctx.fillText(branchNames[i], branchX, startY - 10);
+        }
 
-            // Status
-            let statusText, statusColor;
-            if (skill.unlocked) {
-                statusText = 'UNLOCKED';
-                statusColor = this.colors.skillUnlocked;
-            } else if (attrs.level >= skill.levelRequired && attrs.skillPoints > 0) {
-                statusText = 'Press E to Unlock or Click';
-                statusColor = this.colors.skillAvailable;
-            } else if (attrs.level < skill.levelRequired) {
-                statusText = `Requires Level ${skill.levelRequired}`;
-                statusColor = 'rgb(150, 0, 0)';
-            } else {
-                statusText = 'No skill points';
-                statusColor = 'rgb(150, 0, 0)';
+        // Draw skills for each branch
+        for (let branchIdx = 0; branchIdx < branchIds.length; branchIdx++) {
+            const branchId = branchIds[branchIdx];
+            const skills = branches[branchId];
+            const branchX = margin + 50 + branchIdx * branchWidth + branchWidth / 2;
+
+            // Get first level skills (no parent in this branch)
+            const firstLevelSkills = skills.filter(skill => !skill.parent);
+
+            // Draw first level skills
+            for (let i = 0; i < firstLevelSkills.length; i++) {
+                const skill = firstLevelSkills[i];
+                let skillX = branchX;
+                if (firstLevelSkills.length > 1) {
+                    const offset = (i - (firstLevelSkills.length - 1) / 2) * skillSpacing;
+                    skillX += offset;
+                }
+                const skillY = startY + 80;
+
+                // Draw connection from branch header to skill
+                ctx.strokeStyle = this.colors.border;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(branchX, startY + diamondSize * 2);
+                ctx.lineTo(skillX, skillY - 18);
+                ctx.stroke();
+
+                // Draw the skill node
+                this.drawSkillNode(ctx, skill, skillX, skillY);
+                skillPositions[skill.id] = { x: skillX, y: skillY };
             }
 
-            ctx.fillStyle = statusColor;
-            ctx.fillText(statusText, margin + 70, detailY + 80);
+            // Draw child skills (recursive levels)
+            let processedParents = new Set();
+            let currentLevelSkills = [...firstLevelSkills];
+
+            while (currentLevelSkills.length > 0) {
+                const nextLevelSkills = [];
+
+                for (const parentSkill of currentLevelSkills) {
+                    if (processedParents.has(parentSkill.id)) continue;
+                    processedParents.add(parentSkill.id);
+
+                    const parentPos = skillPositions[parentSkill.id];
+                    if (!parentPos) continue;
+
+                    // Find children of this parent
+                    const children = skills.filter(s => s.parent === parentSkill.id);
+
+                    for (let i = 0; i < children.length; i++) {
+                        const child = children[i];
+                        let childX = parentPos.x;
+                        if (children.length > 1) {
+                            const offset = (i - (children.length - 1) / 2) * skillSpacing;
+                            childX += offset;
+                        }
+                        const childY = parentPos.y + levelSpacing;
+
+                        // Draw connection from parent to child
+                        ctx.strokeStyle = this.colors.border;
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(parentPos.x, parentPos.y + 18);
+                        ctx.lineTo(childX, childY - 18);
+                        ctx.stroke();
+
+                        // Draw the skill node
+                        this.drawSkillNode(ctx, child, childX, childY);
+                        skillPositions[child.id] = { x: childX, y: childY };
+                        nextLevelSkills.push(child);
+                    }
+                }
+
+                currentLevelSkills = nextLevelSkills;
+            }
         }
+
+        ctx.textAlign = 'left';
+
+        // Draw selected skill details panel
+        if (this.skillSelected && this.player.skillTree.skills[this.skillSelected]) {
+            const skill = this.player.skillTree.skills[this.skillSelected];
+            const tabHeight = 30;
+            const tabMargin = 20;
+            const detailY = this.screenHeight - margin - 150 - tabHeight - tabMargin;
+            const detailWidth = this.screenWidth - margin * 2 - 100;
+            const detailHeight = 120;
+
+            ctx.fillStyle = 'rgba(30, 33, 41, 0.95)';
+            ctx.fillRect(margin + 50, detailY, detailWidth, detailHeight);
+            ctx.strokeStyle = this.colors.border;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(margin + 50, detailY, detailWidth, detailHeight);
+
+            // Skill name
+            ctx.font = this.statFont;
+            ctx.fillStyle = this.colors.title;
+            ctx.fillText(skill.name, margin + 70, detailY + 30);
+
+            // Skill description
+            ctx.font = this.textFont;
+            ctx.fillStyle = this.colors.text;
+            ctx.fillText(skill.description, margin + 70, detailY + 55);
+
+            // Draw unlock button or status
+            const canUnlock = !skill.unlocked && skill.canUnlock(this.player) && attrs.skillPoints > 0;
+
+            if (canUnlock) {
+                // Draw unlock button
+                const buttonX = margin + 50 + detailWidth - 120;
+                const buttonY = detailY + detailHeight - 45;
+                const buttonW = 100;
+                const buttonH = 30;
+
+                this.unlockButtonRect = { x: buttonX, y: buttonY, width: buttonW, height: buttonH };
+
+                const isHovered = this.hoveredButton === 'unlock_button';
+                ctx.fillStyle = isHovered ? this.colors.buttonHover : this.colors.button;
+                ctx.fillRect(buttonX, buttonY, buttonW, buttonH);
+                ctx.strokeStyle = this.colors.border;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(buttonX, buttonY, buttonW, buttonH);
+
+                ctx.font = this.buttonFont;
+                ctx.fillStyle = this.colors.text;
+                ctx.textAlign = 'center';
+                ctx.fillText('Unlock', buttonX + buttonW / 2, buttonY + buttonH / 2 + 5);
+                ctx.textAlign = 'left';
+            } else {
+                this.unlockButtonRect = null;
+
+                // Show status message
+                let statusText, statusColor;
+                if (skill.unlocked) {
+                    statusText = 'Skill Unlocked';
+                    statusColor = 'rgb(0, 150, 0)';
+                } else if (!skill.implemented) {
+                    statusText = 'Not Yet Implemented';
+                    statusColor = 'rgb(150, 0, 0)';
+                } else if (attrs.level < skill.levelRequired) {
+                    statusText = `Requires Level ${skill.levelRequired}`;
+                    statusColor = 'rgb(150, 0, 0)';
+                } else if (skill.parent && !this.player.skillTree.isSkillUnlocked(skill.parent)) {
+                    const parentSkill = this.player.skillTree.skills[skill.parent];
+                    statusText = `Requires ${parentSkill.name} Skill`;
+                    statusColor = 'rgb(150, 0, 0)';
+                } else if (attrs.skillPoints <= 0) {
+                    statusText = 'No Skill Points Available';
+                    statusColor = 'rgb(150, 0, 0)';
+                } else {
+                    statusText = 'Cannot Unlock Now';
+                    statusColor = 'rgb(150, 0, 0)';
+                }
+
+                ctx.font = this.textFont;
+                ctx.fillStyle = statusColor;
+                ctx.textAlign = 'right';
+                ctx.fillText(statusText, margin + 50 + detailWidth - 10, detailY + detailHeight - 20);
+                ctx.textAlign = 'left';
+            }
+        }
+    }
+
+    drawSkillNode(ctx, skill, x, y) {
+        const attrs = this.player.attributes;
+        const nodeSize = 18;
+
+        // Determine skill color based on state
+        let nodeColor;
+        if (skill.unlocked) {
+            nodeColor = this.colors.skillUnlocked;  // Green
+        } else if (skill.canUnlock(this.player) && attrs.skillPoints > 0) {
+            nodeColor = this.colors.skillAvailable;  // Yellow
+        } else {
+            nodeColor = this.colors.skillUnavailable;  // Gray
+        }
+
+        // Check if hovered
+        const isHovered = this.hoveredButton === `skill_${skill.id}`;
+        if (isHovered && !skill.unlocked) {
+            nodeColor = this.colors.buttonHover;
+        }
+
+        // Draw diamond shape
+        ctx.fillStyle = nodeColor;
+        ctx.beginPath();
+        ctx.moveTo(x, y - nodeSize);
+        ctx.lineTo(x + nodeSize, y);
+        ctx.lineTo(x, y + nodeSize);
+        ctx.lineTo(x - nodeSize, y);
+        ctx.closePath();
+        ctx.fill();
+
+        // Highlight selected skill
+        if (this.skillSelected === skill.id) {
+            ctx.strokeStyle = this.colors.cursor;
+            ctx.lineWidth = 3;
+        } else {
+            ctx.strokeStyle = this.colors.border;
+            ctx.lineWidth = 1;
+        }
+        ctx.stroke();
+
+        // Draw skill name above diamond
+        ctx.font = '14px Arial';
+        ctx.fillStyle = this.colors.text;
+        ctx.textAlign = 'center';
+        ctx.fillText(skill.name, x, y - nodeSize - 8);
+
+        // Draw level requirement below diamond
+        ctx.fillText(`Level ${skill.levelRequired}+`, x, y + nodeSize + 18);
+
+        // Store rect for mouse interaction (larger hitbox)
+        const hitboxSize = 50;
+        this.skillRects[skill.id] = {
+            x: x - hitboxSize / 2,
+            y: y - hitboxSize / 2,
+            width: hitboxSize,
+            height: hitboxSize
+        };
+    }
+
+    navigateSkills(direction) {
+        const branches = this.player.skillTree.getSkillsByBranch();
+        const branchIds = ['mind', 'body', 'magic_sword'];
+
+        // If no skill selected, select first available
+        if (!this.skillSelected) {
+            for (const branchId of branchIds) {
+                if (branches[branchId].length > 0) {
+                    this.skillSelected = branches[branchId][0].id;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Find current branch and index
+        let currentBranch = null;
+        let currentIndex = -1;
+
+        for (const branchId of branchIds) {
+            for (let i = 0; i < branches[branchId].length; i++) {
+                if (branches[branchId][i].id === this.skillSelected) {
+                    currentBranch = branchId;
+                    currentIndex = i;
+                    break;
+                }
+            }
+            if (currentBranch) break;
+        }
+
+        if (!currentBranch) return false;
+
+        const branchIndex = branchIds.indexOf(currentBranch);
+
+        if (direction === 'up') {
+            if (currentIndex > 0) {
+                this.skillSelected = branches[currentBranch][currentIndex - 1].id;
+                return true;
+            }
+        } else if (direction === 'down') {
+            if (currentIndex < branches[currentBranch].length - 1) {
+                this.skillSelected = branches[currentBranch][currentIndex + 1].id;
+                return true;
+            }
+        } else if (direction === 'left') {
+            if (branchIndex > 0) {
+                const newBranch = branchIds[branchIndex - 1];
+                if (branches[newBranch].length > 0) {
+                    const newIndex = Math.min(currentIndex, branches[newBranch].length - 1);
+                    this.skillSelected = branches[newBranch][newIndex].id;
+                    return true;
+                }
+            }
+        } else if (direction === 'right') {
+            if (branchIndex < branchIds.length - 1) {
+                const newBranch = branchIds[branchIndex + 1];
+                if (branches[newBranch].length > 0) {
+                    const newIndex = Math.min(currentIndex, branches[newBranch].length - 1);
+                    this.skillSelected = branches[newBranch][newIndex].id;
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
 
