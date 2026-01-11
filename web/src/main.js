@@ -418,6 +418,11 @@ function updateGame(dt) {
                 window.particleSystem.setCurrentBlock(newBlock.x, newBlock.y);
             }
 
+            // Clear dialog balloons when changing blocks
+            if (window.dialogBalloonSystem) {
+                window.dialogBalloonSystem.clear();
+            }
+
             // Start fade in
             game.startTransition(true, () => {
                 gameState.transitioning = false;
