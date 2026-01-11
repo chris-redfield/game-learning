@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Dark Garden of Z</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="assets/icon.png" type="image/png">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="fps-counter">FPS: 0</div>
+        <div id="debug-info"></div>
+    </div>
+
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+
+    <!-- Engine -->
+    <script src="src/engine/input.js"></script>
+    <script src="src/engine/game.js"></script>
+
+    <!-- Utilities -->
+    <script src="src/utils/gif-loader.js"></script>
+    <script src="src/utils/particles.js"></script>
+
+    <!-- Entities -->
+    <script src="src/entities/spritesheet.js"></script>
+    <script src="src/entities/inventory.js"></script>
+    <script src="src/entities/items.js"></script>
+    <script src="src/entities/player.js"></script>
+    <script src="src/entities/environment.js"></script>
+    <script src="src/entities/enemies.js"></script>
+    <script src="src/entities/soul.js"></script>
+    <script src="src/entities/projectile.js"></script>
+    <script src="src/entities/bonfire.js"></script>
+    <script src="src/entities/npc.js"></script>
+
+    <!-- World -->
+    <script src="src/world/world.js"></script>
+
+    <!-- UI -->
+    <script src="src/ui/hud.js"></script>
+    <script src="src/ui/character-screen.js"></script>
+    <script src="src/ui/bonfire-menu.js"></script>
+    <script src="src/ui/death-screen.js"></script>
+    <script src="src/ui/dialog-balloon.js"></script>
+
+    <!-- Main -->
+    <script src="src/main.js"></script>
+</body>
+</html>

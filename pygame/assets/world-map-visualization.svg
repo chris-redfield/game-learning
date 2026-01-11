@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Grid background -->
+  <defs>
+    <pattern id="smallGrid" width="50" height="50" patternUnits="userSpaceOnUse">
+      <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#ccc" stroke-width="0.5"/>
+    </pattern>
+    <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
+      <rect width="100" height="100" fill="url(#smallGrid)"/>
+      <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#aaa" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="500" height="500" fill="url(#grid)" />
+  
+  <!-- World blocks -->
+  <rect x="200" y="200" width="100" height="100" fill="#8FBC8F" stroke="#000" stroke-width="2" />
+  <text x="250" y="250" font-family="Arial" font-size="16" text-anchor="middle">(0,0)</text>
+  
+  <rect x="300" y="200" width="100" height="100" fill="#A0D6B4" stroke="#000" stroke-width="2" />
+  <text x="350" y="250" font-family="Arial" font-size="16" text-anchor="middle">(1,0)</text>
+  
+  <rect x="200" y="300" width="100" height="100" fill="#A0D6B4" stroke="#000" stroke-width="2" />
+  <text x="250" y="350" font-family="Arial" font-size="16" text-anchor="middle">(0,1)</text>
+  
+  <rect x="100" y="200" width="100" height="100" fill="#A0D6B4" stroke="#000" stroke-width="2" />
+  <text x="150" y="250" font-family="Arial" font-size="16" text-anchor="middle">(-1,0)</text>
+  
+  <rect x="200" y="100" width="100" height="100" fill="#A0D6B4" stroke="#000" stroke-width="2" />
+  <text x="250" y="150" font-family="Arial" font-size="16" text-anchor="middle">(0,-1)</text>
+  
+  <!-- Unexplored blocks (lighter) -->
+  <rect x="300" y="300" width="100" height="100" fill="#D0E7D2" stroke="#666" stroke-width="1" stroke-dasharray="5,5" />
+  <text x="350" y="350" font-family="Arial" font-size="16" text-anchor="middle" fill="#666">(1,1)</text>
+  
+  <rect x="100" y="300" width="100" height="100" fill="#D0E7D2" stroke="#666" stroke-width="1" stroke-dasharray="5,5" />
+  <text x="150" y="350" font-family="Arial" font-size="16" text-anchor="middle" fill="#666">(-1,1)</text>
+  
+  <rect x="300" y="100" width="100" height="100" fill="#D0E7D2" stroke="#666" stroke-width="1" stroke-dasharray="5,5" />
+  <text x="350" y="150" font-family="Arial" font-size="16" text-anchor="middle" fill="#666">(1,-1)</text>
+  
+  <rect x="100" y="100" width="100" height="100" fill="#D0E7D2" stroke="#666" stroke-width="1" stroke-dasharray="5,5" />
+  <text x="150" y="150" font-family="Arial" font-size="16" text-anchor="middle" fill="#666">(-1,-1)</text>
+  
+  <!-- Player -->
+  <circle cx="240" cy="220" r="8" fill="blue" />
+  
+  <!-- Direction arrows -->
+  <g transform="translate(250, 50)">
+    <path d="M -5,5 L 0,0 L 5,5" fill="none" stroke="#000" stroke-width="2" />
+    <text x="15" y="5" font-family="Arial" font-size="12">North (-1)</text>
+  </g>
+  
+  <g transform="translate(400, 250) rotate(90)">
+    <path d="M -5,5 L 0,0 L 5,5" fill="none" stroke="#000" stroke-width="2" />
+    <text x="10" y="5" font-family="Arial" font-size="12">East (+1)</text>
+  </g>
+  
+  <g transform="translate(250, 450) rotate(180)">
+    <path d="M -5,5 L 0,0 L 5,5" fill="none" stroke="#000" stroke-width="2" />
+    <text x="15" y="5" font-family="Arial" font-size="12" transform="rotate(180)" text-anchor="end">South (+1)</text>
+  </g>
+  
+  <g transform="translate(100, 250) rotate(270)">
+    <path d="M -5,5 L 0,0 L 5,5" fill="none" stroke="#000" stroke-width="2" />
+    <text x="10" y="5" font-family="Arial" font-size="12" transform="rotate(270)" text-anchor="start">West (-1)</text>
+  </g>
+  
+  <!-- Legend -->
+  <rect x="380" y="400" width="20" height="20" fill="#8FBC8F" stroke="#000" stroke-width="2" />
+  <text x="410" y="415" font-family="Arial" font-size="12">Current Block</text>
+  
+  <rect x="380" y="425" width="20" height="20" fill="#A0D6B4" stroke="#000" stroke-width="2" />
+  <text x="410" y="440" font-family="Arial" font-size="12">Visited Block</text>
+  
+  <rect x="380" y="450" width="20" height="20" fill="#D0E7D2" stroke="#666" stroke-width="1" stroke-dasharray="5,5" />
+  <text x="410" y="465" font-family="Arial" font-size="12">Unexplored Block</text>
+  
+  <circle cx="390" cy="480" r="5" fill="blue" />
+  <text x="410" y="485" font-family="Arial" font-size="12">Player</text>
+</svg>
