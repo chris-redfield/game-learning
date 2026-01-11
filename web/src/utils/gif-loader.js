@@ -21,9 +21,12 @@ class GifLoader {
 
         try {
             // Fetch the GIF as binary data
+            console.log(`Fetching GIF from: ${url}`);
             const response = await fetch(url);
+            console.log(`Response status: ${response.status}, content-type: ${response.headers.get('content-type')}`);
             const arrayBuffer = await response.arrayBuffer();
             const data = new Uint8Array(arrayBuffer);
+            console.log(`Received ${data.length} bytes`);
 
             // Parse the GIF
             const gif = this.parseGif(data);
@@ -46,8 +49,9 @@ class GifLoader {
 
         // GIF header check
         const header = String.fromCharCode(...data.slice(0, 6));
+        console.log(`GIF header received: "${header}" (bytes: ${data.slice(0, 10).join(', ')})`);
         if (header !== 'GIF87a' && header !== 'GIF89a') {
-            console.error('Invalid GIF header');
+            console.error('Invalid GIF header:', header);
             return { frames: [], delays: [], width: 0, height: 0 };
         }
 
