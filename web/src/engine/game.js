@@ -7,8 +7,8 @@ class Game {
         this.ctx = this.canvas.getContext('2d');
 
         // Game configuration
-        this.width = 1600;
-        this.height = 1080;
+        this.width = 1280;
+        this.height = 720;
         this.targetFPS = 60;
         this.backgroundColor = '#004040'; // Teal green (0, 64, 64)
 
