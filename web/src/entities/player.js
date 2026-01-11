@@ -83,7 +83,7 @@ class Player {
         this.sword = result.sword;
     }
 
-    update(dt, game) {
+    update(dt, game, obstacles = []) {
         const currentTime = performance.now();
         const timeDelta = currentTime - this.lastUpdateTime;
 
@@ -143,9 +143,52 @@ class Player {
                     const moveX = this.knockbackDirection.x * this.currentKnockback * knockbackFactor * 0.5;
                     const moveY = this.knockbackDirection.y * this.currentKnockback * knockbackFactor * 0.5;
 
-                    // Apply knockback (collision check would go here)
-                    this.x += moveX;
-                    this.y += moveY;
+                    // Check X collision
+                    let xCollision = false;
+                    const testRectX = {
+                        x: this.x + moveX,
+                        y: this.y,
+                        width: this.width,
+                        height: this.height
+                    };
+                    for (const obstacle of obstacles) {
+                        if (obstacle === this) continue;
+                        if (this.checkCollision(testRectX.x, testRectX.y, obstacle)) {
+                            xCollision = true;
+                            break;
+                        }
+                    }
+
+                    // Only apply X movement if no collision
+                    if (!xCollision) {
+                        this.x += moveX;
+                    }
+
+                    // Check Y collision
+                    let yCollision = false;
+                    const testRectY = {
+                        x: this.x,
+                        y: this.y + moveY,
+                        width: this.width,
+                        height: this.height
+                    };
+                    for (const obstacle of obstacles) {
+                        if (obstacle === this) continue;
+                        if (this.checkCollision(testRectY.x, testRectY.y, obstacle)) {
+                            yCollision = true;
+                            break;
+                        }
+                    }
+
+                    // Only apply Y movement if no collision
+                    if (!yCollision) {
+                        this.y += moveY;
+                    }
+
+                    // If hit obstacle on both axes, end knockback early
+                    if (xCollision && yCollision) {
+                        this.isTakingDamage = false;
+                    }
                 }
             } else {
                 this.isTakingDamage = false;
@@ -363,8 +406,14 @@ class Player {
         // Offset the sword rotation center IN FRONT of the player
         const frontOffset = 15; // Distance in front of player
         switch (this.facing) {
-            case 'right': centerX += frontOffset; break;
-            case 'left': centerX -= frontOffset; break;
+            case 'right':
+                centerX += frontOffset;
+                centerY += 5; // Move hitbox down to align with arms
+                break;
+            case 'left':
+                centerX -= frontOffset;
+                centerY += 5; // Move hitbox down to align with arms
+                break;
             case 'up': centerY -= frontOffset; break;
             case 'down': centerY += frontOffset; break;
         }
@@ -493,8 +542,14 @@ class Player {
         // Offset the sword rotation center IN FRONT of the player
         const frontOffset = 15; // Distance in front of player
         switch (this.facing) {
-            case 'right': centerX += frontOffset; break;
-            case 'left': centerX -= frontOffset; break;
+            case 'right':
+                centerX += frontOffset;
+                centerY += 5; // Move sword down to align with arms, not mouth
+                break;
+            case 'left':
+                centerX -= frontOffset;
+                centerY += 5; // Move sword down to align with arms, not mouth
+                break;
             case 'up': centerY -= frontOffset; break;
             case 'down': centerY += frontOffset; break;
         }

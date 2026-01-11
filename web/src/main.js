@@ -152,11 +152,11 @@ function updateGame(dt) {
         console.log(`XP: ${player.attributes.xp}/${player.attributes.xpNeeded} | Level: ${player.attributes.level}`);
     }
 
-    // Update player
-    player.update(dt, game);
-
-    // Get all obstacles (for enemy collision)
+    // Get all obstacles (for collision)
     const allObstacles = [...obstacles];
+
+    // Update player (pass obstacles for knockback collision)
+    player.update(dt, game, allObstacles);
 
     // Update enemies
     const enemies = world.getEnemies();
