@@ -49,7 +49,7 @@ class InputHandler {
             'Enter': 'character',
             'Escape': 'pause',
             'KeyC': 'debug',
-            'Tab': 'inventory'
+            'Tab': 'tab'
         };
 
         // Gamepad button mappings (standard gamepad layout)

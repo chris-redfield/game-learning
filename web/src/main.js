@@ -11,6 +11,7 @@ const gameState = {
     player: null,
     world: null,
     hud: null, // HUD instance
+    characterScreen: null, // Character screen instance
     souls: [], // XP orbs dropped by enemies
     projectiles: [], // Active projectiles (firebolt, etc.)
     transitioning: false,
@@ -48,6 +49,9 @@ async function init() {
 
     // Create HUD
     gameState.hud = new HUD(gameState.player, game.width, game.height);
+
+    // Create Character Screen
+    gameState.characterScreen = new CharacterScreen(gameState.player, game.width, game.height);
 
     // Set up custom update handler
     game.onUpdate = (dt) => {
@@ -125,7 +129,12 @@ function updateGame(dt) {
 
     // Toggle character screen
     if (game.input.isKeyJustPressed('character')) {
-        game.showCharacterScreen = !game.showCharacterScreen;
+        gameState.characterScreen.toggle();
+    }
+
+    // Handle character screen input when visible
+    if (gameState.characterScreen.isVisible()) {
+        gameState.characterScreen.handleInput(game.input);
     }
 
     // Update player
@@ -301,8 +310,8 @@ function renderGame(ctx) {
         drawMapOverlay(ctx, world);
     }
 
-    if (game.showCharacterScreen) {
-        drawCharacterOverlay(ctx, player);
+    if (gameState.characterScreen.isVisible()) {
+        gameState.characterScreen.draw(ctx);
     }
 }
 
@@ -370,96 +379,6 @@ function drawMapOverlay(ctx, world) {
     ctx.font = '16px Arial';
     ctx.fillStyle = '#888';
     ctx.fillText('Press M to close', game.width / 2, game.height - 40);
-    ctx.textAlign = 'left';
-}
-
-// Character screen overlay
-function drawCharacterOverlay(ctx, player) {
-    if (!player) return;
-
-    const attrs = player.attributes;
-
-    // Background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-    ctx.fillRect(100, 80, game.width - 200, game.height - 160);
-
-    // Border
-    ctx.strokeStyle = '#666';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(100, 80, game.width - 200, game.height - 160);
-
-    // Title
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 28px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('CHARACTER', game.width / 2, 130);
-
-    ctx.textAlign = 'left';
-    ctx.font = '18px monospace';
-
-    const startX = 150;
-    let y = 180;
-
-    // Level info
-    ctx.fillStyle = '#ffdd44';
-    ctx.fillText(`Level: ${attrs.level} / ${attrs.maxLevel}`, startX, y);
-    y += 30;
-
-    // XP bar
-    ctx.fillStyle = '#888';
-    ctx.fillText(`XP: ${attrs.xp} / ${attrs.xpNeeded}`, startX, y);
-    y += 20;
-
-    // XP progress bar
-    ctx.fillStyle = '#333';
-    ctx.fillRect(startX, y, 300, 20);
-    const xpWidth = attrs.xpNeeded > 0 ? (attrs.xp / attrs.xpNeeded) * 300 : 300;
-    ctx.fillStyle = '#44aa44';
-    ctx.fillRect(startX, y, xpWidth, 20);
-    ctx.strokeStyle = '#666';
-    ctx.strokeRect(startX, y, 300, 20);
-    y += 50;
-
-    // Stats
-    ctx.fillStyle = '#ff6666';
-    ctx.fillText(`STR: ${attrs.str}`, startX, y);
-    ctx.fillStyle = '#aaa';
-    ctx.fillText(`(Attack Power: ${attrs.getAttackPower()})`, startX + 100, y);
-    y += 30;
-
-    ctx.fillStyle = '#66ff66';
-    ctx.fillText(`CON: ${attrs.con}`, startX, y);
-    ctx.fillStyle = '#aaa';
-    ctx.fillText(`(Max HP: ${attrs.maxHealth})`, startX + 100, y);
-    y += 30;
-
-    ctx.fillStyle = '#66ffff';
-    ctx.fillText(`DEX: ${attrs.dex}`, startX, y);
-    ctx.fillStyle = '#aaa';
-    ctx.fillText(`(Speed: ${player.baseSpeed.toFixed(2)})`, startX + 100, y);
-    y += 30;
-
-    ctx.fillStyle = '#ff66ff';
-    ctx.fillText(`INT: ${attrs.int}`, startX, y);
-    ctx.fillStyle = '#aaa';
-    ctx.fillText(`(Max MP: ${attrs.maxMana})`, startX + 100, y);
-    y += 50;
-
-    // Available points
-    if (attrs.statPoints > 0) {
-        ctx.fillStyle = '#ffff00';
-        ctx.fillText(`Available Stat Points: ${attrs.statPoints}`, startX, y);
-        y += 25;
-        ctx.fillStyle = '#888';
-        ctx.font = '14px monospace';
-        ctx.fillText('(Stat allocation coming in Phase 8)', startX, y);
-    }
-
-    // Close hint
-    ctx.fillStyle = '#888';
-    ctx.font = '16px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('Press ENTER to close', game.width / 2, game.height - 100);
     ctx.textAlign = 'left';
 }
 
