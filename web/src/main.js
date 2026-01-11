@@ -332,6 +332,12 @@ function updateGame(dt) {
         bonfire.update(dt, currentTime);
     }
 
+    // Update NPCs
+    const npcs = world.getNpcs();
+    for (const npc of npcs) {
+        npc.update(dt, currentTime, allObstacles, player);
+    }
+
     // Check sword collisions with enemies
     if (player.isSwinging()) {
         const swordRect = player.getSwordRect();
@@ -419,6 +425,11 @@ function updateGame(dt) {
         });
     }
 
+    // Update dialog balloons
+    if (window.dialogBalloonSystem) {
+        window.dialogBalloonSystem.update(currentTime);
+    }
+
     // Check for player death (exactly like Python)
     if (player.attributes.currentHealth <= 0 && !gameState.deathScreen.isActive()) {
         console.log('Player died!');
@@ -485,6 +496,11 @@ function renderGame(ctx) {
                 projectile.renderDebug(ctx);
             }
         }
+    }
+
+    // Draw dialog balloons (on top of entities, under HUD)
+    if (window.dialogBalloonSystem) {
+        window.dialogBalloonSystem.draw(ctx);
     }
 
     // Draw HUD (not when death screen is active, like Python)

@@ -1,15 +1,17 @@
 /**
  * NPC - Non-Player Character base class
  * Mirrors Python entities/npc/npc.py (simplified version)
+ * Exactly like it was implemented at the python code
  */
 class NPC {
-    constructor(x, y, characterName = 'default_npc') {
+    constructor(x, y, characterName = 'default_npc', game = null) {
         this.x = x;
         this.y = y;
         this.width = 35;
         this.height = 41;
         this.speed = 2;
         this.baseSpeed = 2;
+        this.game = game;
 
         // Character info
         this.characterName = characterName;
@@ -38,72 +40,34 @@ class NPC {
         // Visibility (for invulnerability flashing if needed)
         this.visible = true;
 
-        // Sprites (will load async)
+        // Sprites (will load using SpriteSheet if game is available)
         this.sprites = {};
         this.spritesLoaded = false;
 
         this.loadSprites();
     }
 
-    async loadSprites() {
-        try {
-            // Try to load character-specific sprite sheet
-            const img = new Image();
-            img.src = `assets/characters/${this.characterName}/spritesheet.png`;
-
-            await new Promise((resolve, reject) => {
-                img.onload = resolve;
-                img.onerror = reject;
-            });
-
-            // Parse sprite sheet (assuming standard format)
-            this.parseSprites(img);
-            this.spritesLoaded = true;
-            console.log(`NPC sprites loaded for ${this.characterName}`);
-        } catch (e) {
-            console.log(`Could not load sprites for ${this.characterName}, using placeholder`);
+    loadSprites() {
+        // Try to use SpriteSheet class if available (for 'link' character)
+        if (this.characterName.toLowerCase() === 'link' && window.SpriteSheet) {
+            try {
+                // Use the same sprite loading as Player
+                const spriteSheet = new SpriteSheet(this.game, this.characterName);
+                const result = spriteSheet.loadCharacterSprites(
+                    this.characterName,
+                    this.width,
+                    this.height
+                );
+                this.sprites = result.sprites;
+                this.spritesLoaded = true;
+                console.log(`NPC sprites loaded for ${this.characterName} via SpriteSheet`);
+            } catch (e) {
+                console.log(`Could not load sprites via SpriteSheet for ${this.characterName}, using placeholder`);
+                this.createPlaceholderSprites();
+            }
+        } else {
+            // Use placeholder for unknown characters
             this.createPlaceholderSprites();
-        }
-    }
-
-    parseSprites(img) {
-        // Standard sprite sheet layout
-        const frameWidth = 35;
-        const frameHeight = 41;
-        const directions = ['down', 'up', 'right'];
-
-        for (let dirIndex = 0; dirIndex < directions.length; dirIndex++) {
-            const dir = directions[dirIndex];
-
-            // Idle frames
-            this.sprites[`${dir}_idle`] = [];
-            for (let i = 0; i < 2; i++) {
-                const canvas = document.createElement('canvas');
-                canvas.width = frameWidth;
-                canvas.height = frameHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(
-                    img,
-                    i * frameWidth, dirIndex * frameHeight, frameWidth, frameHeight,
-                    0, 0, frameWidth, frameHeight
-                );
-                this.sprites[`${dir}_idle`].push(canvas);
-            }
-
-            // Walk frames
-            this.sprites[`${dir}_walk`] = [];
-            for (let i = 0; i < 4; i++) {
-                const canvas = document.createElement('canvas');
-                canvas.width = frameWidth;
-                canvas.height = frameHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(
-                    img,
-                    (2 + i) * frameWidth, dirIndex * frameHeight, frameWidth, frameHeight,
-                    0, 0, frameWidth, frameHeight
-                );
-                this.sprites[`${dir}_walk`].push(canvas);
-            }
         }
     }
 
@@ -125,6 +89,7 @@ class NPC {
             this.sprites[`${dir}_idle`] = [idleCanvas];
             this.sprites[`${dir}_walk`] = [idleCanvas];
         }
+        this.spritesLoaded = true;
     }
 
     getRect() {
@@ -369,22 +334,56 @@ class NPC {
 
 /**
  * LinkNPC - The Link character as an NPC
+ * Exactly like it was implemented at the python code (link.py)
  */
 class LinkNPC extends NPC {
-    constructor(x, y) {
-        super(x, y, 'link');
+    constructor(x, y, game = null) {
+        super(x, y, 'link', game);
+
+        // Link-specific dialog lines (matching Python)
         this.dialogLines = [
-            "Hey! Listen!",
-            "It's dangerous to go alone!",
-            "Have you found any souls?",
-            "The darkness grows stronger...",
-            "Be careful out there!"
+            "Hello, friend!",
+            "It's kinda dangerous to go alone!",
+            "I'm looking for Zelda...",
+            "Have you seen any rupees around?",
+            "This reminds me of Hyrule."
         ];
         this.lastDialogIndex = -1;
+
+        // Dialog cooldown
+        this.dialogCooldown = 0;
+        this.dialogCooldownDuration = 3000; // 3 seconds
+        this.lastTime = 0;
+
+        // Link is more interactive
+        this.interactionRange = 100;
     }
 
-    interact(player) {
-        // Pick a random dialog line (different from last)
+    update(dt, currentTime, obstacles = [], player = null) {
+        // Update dialog cooldown
+        if (this.dialogCooldown > 0 && currentTime > this.dialogCooldown) {
+            this.dialogCooldown = 0;
+        }
+        this.lastTime = currentTime;
+
+        // Call parent update
+        super.update(dt, currentTime, obstacles, player);
+    }
+
+    onPlayerNearby(player) {
+        // Small chance to say something when player is nearby
+        if (this.dialogCooldown === 0 && Math.random() < 0.01) {
+            this.sayRandomDialogue();
+        }
+    }
+
+    sayRandomDialogue() {
+        if (this.dialogCooldown > 0) return;
+
+        // Set cooldown
+        this.dialogCooldown = this.lastTime + this.dialogCooldownDuration;
+
+        // Pick a random line (different from last)
         let index;
         do {
             index = Math.floor(Math.random() * this.dialogLines.length);
@@ -398,6 +397,73 @@ class LinkNPC extends NPC {
                 line,
                 this.x, this.y, this.width, this.height
             );
+        }
+    }
+
+    interact(player) {
+        if (this.dialogCooldown === 0) {
+            // 80% chance to say dialogue, 20% chance to offer help
+            if (Math.random() < 0.8) {
+                this.sayRandomDialogue();
+            } else {
+                this.offerHelp(player);
+            }
+        }
+    }
+
+    offerHelp(player) {
+        if (this.dialogCooldown > 0) return;
+
+        this.dialogCooldown = this.lastTime + this.dialogCooldownDuration;
+
+        const helpTypes = ['rupees', 'wisdom', 'heal'];
+        const helpType = helpTypes[Math.floor(Math.random() * helpTypes.length)];
+
+        if (helpType === 'rupees') {
+            const xpAmount = 5 + Math.floor(Math.random() * 11); // 5-15
+            if (player && player.gainXp) {
+                player.gainXp(xpAmount);
+            }
+            if (window.dialogBalloonSystem) {
+                window.dialogBalloonSystem.addDialog(
+                    `Here, take these ${xpAmount} rupees!`,
+                    this.x, this.y, this.width, this.height
+                );
+            }
+        } else if (helpType === 'wisdom') {
+            const wisdomQuotes = [
+                "The Master Sword sleeps in the forest...",
+                "Courage need not be remembered, for it is never forgotten!",
+                "Sometimes you need to take a step back to move forward."
+            ];
+            const quote = wisdomQuotes[Math.floor(Math.random() * wisdomQuotes.length)];
+            if (window.dialogBalloonSystem) {
+                window.dialogBalloonSystem.addDialog(
+                    quote,
+                    this.x, this.y, this.width, this.height
+                );
+            }
+        } else if (helpType === 'heal') {
+            if (player && player.attributes &&
+                player.attributes.currentHealth < player.attributes.maxHealth) {
+                const healAmount = 10 + Math.floor(Math.random() * 16); // 10-25
+                if (player.heal) {
+                    player.heal(healAmount);
+                }
+                if (window.dialogBalloonSystem) {
+                    window.dialogBalloonSystem.addDialog(
+                        `My fairy healed you for ${healAmount} HP!`,
+                        this.x, this.y, this.width, this.height
+                    );
+                }
+            } else {
+                if (window.dialogBalloonSystem) {
+                    window.dialogBalloonSystem.addDialog(
+                        "You're already at full health!",
+                        this.x, this.y, this.width, this.height
+                    );
+                }
+            }
         }
     }
 }

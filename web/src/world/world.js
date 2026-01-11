@@ -146,6 +146,13 @@ class World {
         const potion = new HealthPotion(potionX, potionY);
         block.addEntity(potion);
         console.log(`Added Health Potion to starting block at (${potionX}, ${potionY})`);
+
+        // LinkNPC - southwest of player spawn (exactly like Python)
+        const npcX = centerX - 120;
+        const npcY = centerY + 80;
+        const linkNpc = new LinkNPC(npcX, npcY);
+        block.addEntity(linkNpc);
+        console.log(`Added LinkNPC to origin block at (${npcX}, ${npcY})`);
     }
 
     /**
@@ -691,6 +698,14 @@ class World {
     getBonfires() {
         const entities = this.getCurrentEntities();
         return entities.filter(e => e instanceof Bonfire);
+    }
+
+    /**
+     * Get all NPCs in the current block
+     */
+    getNpcs() {
+        const entities = this.getCurrentEntities();
+        return entities.filter(e => e instanceof NPC);
     }
 
     /**

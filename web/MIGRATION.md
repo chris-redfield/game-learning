@@ -25,7 +25,7 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 | 11 | Items (Dragon Heart, Ancient Scroll, Health Potion) | COMPLETED |
 | 12 | Bonfire & Rest Menu | COMPLETED |
 | 13 | Save/Load System | COMPLETED |
-| 14 | NPCs & Dialog | NOT STARTED |
+| 14 | NPCs & Dialog | COMPLETED |
 | 15 | Death Logic | COMPLETED |
 
 ---
@@ -224,33 +224,28 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 - `web/src/ui/death-screen.js` - DeathScreen class
 - `web/src/main.js` - Death detection, restartGame function
 
+### Phase 14: NPCs & Dialog - COMPLETED
+
+**Description:** NPC system with dialog balloons - exactly like Python implementation (no LLM).
+
+**Features Implemented:**
+- NPC base class with AI movement (idle/walking states)
+- Dialog balloon system with speech bubbles above NPCs
+- Interaction system (E key near NPC)
+- LinkNPC character with pre-defined dialogue lines
+- NPCs can randomly speak when player is nearby
+- NPCs can offer help (give XP, share wisdom, heal player)
+- Dialog cooldown to prevent spam
+
+**Key Files:**
+- `web/src/entities/npc.js` - NPC and LinkNPC classes
+- `web/src/ui/dialog-balloon.js` - DialogBalloon class
+
 ---
 
-## Remaining Phase (14)
+## ALL PHASES COMPLETED
 
-### Phase 14: NPCs & Dialog - NOT STARTED - exactly like it was implemented at the python code
-
-**Description:** Add NPC system with dialog balloons.
-
-**Tasks:**
-1. Create NPC base class
-2. Create dialog balloon UI component
-3. Add interaction system (E key near NPC)
-4. Create test NPC (Link character)
-5. Add dialog text system
-6. Implement dialog progression (multiple lines)
-
-**Python Reference Files:**
-- `entities/npc/npc.py`
-- `entities/npc/link_npc.py`
-- `ui/dialog_balloon.py`
-
-**Notes:**
-- NPCs should be non-hostile entities
-- Dialog appears in speech balloon above NPC
-- E key to advance dialog
-- NPCs can give hints, quests, or items
-- DO NOT implement LLM-based dialog (keep it simple static text)
+The migration from Python/Pygame to JavaScript/HTML5 Canvas is now complete!
 
 ---
 
@@ -307,7 +302,8 @@ web/
     │   ├── soul.js               # XP soul pickup
     │   ├── bonfire.js            # Bonfire rest point
     │   ├── items.js              # Item classes
-    │   └── inventory.js          # Inventory system
+    │   ├── inventory.js          # Inventory system
+    │   └── npc.js                # NPC and LinkNPC classes
     ├── world/
     │   ├── world.js              # World generation
     │   ├── block.js              # Block container
@@ -321,16 +317,31 @@ web/
         ├── hud.js                # HUD display
         ├── character-screen.js   # Character/Skill screen
         ├── bonfire-menu.js       # Save/Load dialogs
-        └── death-screen.js       # Death overlay
+        ├── death-screen.js       # Death overlay
+        └── dialog-balloon.js     # NPC speech bubbles
 ```
 
 ---
 
-## Next Session Priorities
+## Migration Complete!
 
-1. **Phase 14: NPCs** - Add NPC system with test character - exactly like it was implemented at the python code
+All 15 phases have been successfully migrated from Python/Pygame to JavaScript/HTML5 Canvas:
 
-**Note:** Phase 15 (Death Logic) has been completed. Only Phase 14 remains.
+1. Core Engine
+2. Player
+3. World Generation
+4. Combat System
+5. Enemies
+6. Projectiles & Particles
+7. HUD
+8. Character Screen
+9. Skill Tree
+10. Inventory System
+11. Items
+12. Bonfire & Rest Menu
+13. Save/Load System
+14. NPCs & Dialog
+15. Death Logic
 
 ---
 
