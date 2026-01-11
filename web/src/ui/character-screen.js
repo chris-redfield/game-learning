@@ -1072,14 +1072,20 @@ class CharacterScreen {
                     const count = itemData.count;
 
                     if (item) {
-                        // Get item icon if available
-                        if (item.icon) {
-                            // Center the icon in the cell
-                            const iconX = cellX + (this.cellSize - item.icon.width) / 2;
-                            const iconY = cellY + (this.cellSize - item.icon.height) / 2;
-                            ctx.drawImage(item.icon, iconX, iconY);
+                        // Get item sprite for inventory display
+                        // Use originalSprite for potions (non-rotated), otherwise use sprite
+                        const iconSprite = item.originalSprite || item.sprite;
+
+                        if (iconSprite && item.spriteLoaded) {
+                            // Calculate icon size (fit within cell with padding)
+                            const iconSize = this.cellSize - 8;
+                            const iconX = cellX + 4;
+                            const iconY = cellY + 4;
+
+                            // Draw the sprite scaled to fit
+                            ctx.drawImage(iconSprite, iconX, iconY, iconSize, iconSize);
                         } else {
-                            // Fallback to a colored rectangle
+                            // Fallback to a colored rectangle with initial
                             ctx.fillStyle = 'rgb(150, 150, 150)';
                             ctx.fillRect(cellX + 5, cellY + 5, this.cellSize - 10, this.cellSize - 10);
 
