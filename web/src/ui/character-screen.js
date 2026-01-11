@@ -37,7 +37,8 @@ class CharacterScreen {
         // Current tab and selection
         this.currentTab = 'attributes';
         this.selectedIndex = 0;
-        this.buttonOrder = ['inc_str', 'inc_con', 'inc_dex', 'inc_int'];
+        // Button order includes stat buttons AND tab buttons for full navigation
+        this.buttonOrder = ['inc_str', 'inc_con', 'inc_dex', 'inc_int', 'tab_attributes', 'tab_skills'];
 
         // Button rectangles for mouse interaction
         this.buttons = {};
@@ -47,10 +48,114 @@ class CharacterScreen {
         this.skillSelected = null;
         this.skillRects = {};
 
+        // Mouse state
+        this.mouseX = 0;
+        this.mouseY = 0;
+        this.hoveredButton = null;
+
         // Portrait (will load async)
         this.portrait = null;
         this.portraitSize = 150;
         this.loadPortrait();
+
+        // Setup mouse listeners
+        this.setupMouseListeners();
+    }
+
+    setupMouseListeners() {
+        const canvas = document.getElementById('game-canvas');
+        if (canvas) {
+            canvas.addEventListener('mousemove', (e) => {
+                if (!this.visible) return;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                this.mouseX = (e.clientX - rect.left) * scaleX;
+                this.mouseY = (e.clientY - rect.top) * scaleY;
+                this.updateHover();
+            });
+
+            canvas.addEventListener('click', (e) => {
+                if (!this.visible) return;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const clickX = (e.clientX - rect.left) * scaleX;
+                const clickY = (e.clientY - rect.top) * scaleY;
+                this.handleClick(clickX, clickY);
+            });
+        }
+    }
+
+    updateHover() {
+        this.hoveredButton = null;
+
+        // Check stat buttons
+        for (const [buttonId, rect] of Object.entries(this.buttons)) {
+            if (this.pointInRect(this.mouseX, this.mouseY, rect)) {
+                this.hoveredButton = buttonId;
+                return;
+            }
+        }
+
+        // Check tab buttons
+        for (const [tabId, rect] of Object.entries(this.tabRects)) {
+            if (this.pointInRect(this.mouseX, this.mouseY, rect)) {
+                this.hoveredButton = `tab_${tabId}`;
+                return;
+            }
+        }
+
+        // Check skill nodes (in skills tab)
+        if (this.currentTab === 'skills') {
+            for (const [skillId, rect] of Object.entries(this.skillRects)) {
+                if (this.pointInRect(this.mouseX, this.mouseY, rect)) {
+                    this.hoveredButton = `skill_${skillId}`;
+                    return;
+                }
+            }
+        }
+    }
+
+    handleClick(x, y) {
+        // Check tab clicks
+        for (const [tabId, rect] of Object.entries(this.tabRects)) {
+            if (this.pointInRect(x, y, rect)) {
+                this.currentTab = tabId;
+                this.skillSelected = null;
+                // Update selection to the clicked tab
+                this.selectedIndex = this.buttonOrder.indexOf(`tab_${tabId}`);
+                return true;
+            }
+        }
+
+        if (this.currentTab === 'attributes') {
+            // Check stat button clicks
+            for (const [buttonId, rect] of Object.entries(this.buttons)) {
+                if (this.pointInRect(x, y, rect)) {
+                    if (this.player.attributes.statPoints > 0) {
+                        const stat = buttonId.replace('inc_', '');
+                        this.player.attributes.increaseStat(stat);
+                        return true;
+                    }
+                }
+            }
+        } else if (this.currentTab === 'skills') {
+            // Check skill node clicks
+            for (const [skillId, rect] of Object.entries(this.skillRects)) {
+                if (this.pointInRect(x, y, rect)) {
+                    this.skillSelected = skillId;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    pointInRect(x, y, rect) {
+        return x >= rect.x && x <= rect.x + rect.width &&
+               y >= rect.y && y <= rect.y + rect.height;
     }
 
     async loadPortrait() {
@@ -85,26 +190,49 @@ class CharacterScreen {
 
     // Navigation methods
     selectNext() {
-        this.selectedIndex = (this.selectedIndex + 1) % this.buttonOrder.length;
+        if (this.currentTab === 'attributes') {
+            // Navigate through stat buttons and tab buttons
+            this.selectedIndex = (this.selectedIndex + 1) % this.buttonOrder.length;
+        }
     }
 
     selectPrev() {
-        this.selectedIndex = (this.selectedIndex - 1 + this.buttonOrder.length) % this.buttonOrder.length;
+        if (this.currentTab === 'attributes') {
+            this.selectedIndex = (this.selectedIndex - 1 + this.buttonOrder.length) % this.buttonOrder.length;
+        }
     }
 
     activateSelected() {
-        if (this.currentTab === 'attributes') {
-            const buttonId = this.buttonOrder[this.selectedIndex];
+        const buttonId = this.buttonOrder[this.selectedIndex];
+
+        // Handle tab button activation
+        if (buttonId === 'tab_attributes') {
+            this.currentTab = 'attributes';
+            this.skillSelected = null;
+            return true;
+        }
+        if (buttonId === 'tab_skills') {
+            this.currentTab = 'skills';
+            this.skillSelected = null;
+            return true;
+        }
+
+        // Handle stat button activation
+        if (this.currentTab === 'attributes' && buttonId.startsWith('inc_')) {
             const stat = buttonId.replace('inc_', '');
             if (this.player.attributes.statPoints > 0) {
                 this.player.attributes.increaseStat(stat);
                 return true;
             }
-        } else if (this.currentTab === 'skills' && this.skillSelected) {
+        }
+
+        // Handle skill unlock
+        if (this.currentTab === 'skills' && this.skillSelected) {
             if (this.player.skillTree.unlockSkill(this.skillSelected)) {
                 return true;
             }
         }
+
         return false;
     }
 
@@ -138,6 +266,7 @@ class CharacterScreen {
         if (input.isKeyJustPressed('tabAttributes')) {
             this.currentTab = 'attributes';
             this.skillSelected = null;
+            this.selectedIndex = this.buttonOrder.indexOf('tab_attributes');
             return true;
         }
         if (input.isKeyJustPressed('tabSkills')) {
@@ -147,7 +276,7 @@ class CharacterScreen {
         }
 
         if (this.currentTab === 'attributes') {
-            // Navigation
+            // Navigation with up/down arrows
             if (input.isKeyJustPressed('up')) {
                 this.selectPrev();
                 return true;
@@ -156,7 +285,7 @@ class CharacterScreen {
                 this.selectNext();
                 return true;
             }
-            // Activation
+            // Activation with E or Space
             if (input.isKeyJustPressed('interact') || input.isKeyJustPressed('attack')) {
                 this.activateSelected();
                 return true;
@@ -179,7 +308,7 @@ class CharacterScreen {
                 this.navigateSkills('right');
                 return true;
             }
-            // Unlock skill
+            // Unlock skill with E
             if (input.isKeyJustPressed('interact') || input.isKeyJustPressed('attack')) {
                 this.activateSelected();
                 return true;
@@ -234,7 +363,18 @@ class CharacterScreen {
 
         // Attributes tab
         const attrTabX = this.screenWidth / 2 - tabWidth - 5;
-        const attrColor = this.currentTab === 'attributes' ? this.colors.buttonHover : this.colors.button;
+        const isAttrSelected = this.buttonOrder[this.selectedIndex] === 'tab_attributes';
+        const isAttrHovered = this.hoveredButton === 'tab_attributes';
+        let attrColor = this.currentTab === 'attributes' ? this.colors.buttonHover : this.colors.button;
+        if (isAttrHovered) attrColor = this.colors.buttonHover;
+
+        // Draw selection cursor for attributes tab
+        if (isAttrSelected) {
+            ctx.strokeStyle = this.colors.cursor;
+            ctx.lineWidth = 3;
+            ctx.strokeRect(attrTabX - 3, tabY - 3, tabWidth + 6, tabHeight + 6);
+        }
+
         ctx.fillStyle = attrColor;
         ctx.fillRect(attrTabX, tabY, tabWidth, tabHeight);
         ctx.strokeStyle = this.colors.border;
@@ -248,10 +388,22 @@ class CharacterScreen {
 
         // Skills tab
         const skillsTabX = this.screenWidth / 2 + 5;
-        const skillsColor = this.currentTab === 'skills' ? this.colors.buttonHover : this.colors.button;
+        const isSkillsSelected = this.buttonOrder[this.selectedIndex] === 'tab_skills';
+        const isSkillsHovered = this.hoveredButton === 'tab_skills';
+        let skillsColor = this.currentTab === 'skills' ? this.colors.buttonHover : this.colors.button;
+        if (isSkillsHovered) skillsColor = this.colors.buttonHover;
+
+        // Draw selection cursor for skills tab
+        if (isSkillsSelected) {
+            ctx.strokeStyle = this.colors.cursor;
+            ctx.lineWidth = 3;
+            ctx.strokeRect(skillsTabX - 3, tabY - 3, tabWidth + 6, tabHeight + 6);
+        }
+
         ctx.fillStyle = skillsColor;
         ctx.fillRect(skillsTabX, tabY, tabWidth, tabHeight);
         ctx.strokeStyle = this.colors.border;
+        ctx.lineWidth = 1;
         ctx.strokeRect(skillsTabX, tabY, tabWidth, tabHeight);
 
         ctx.fillStyle = this.colors.text;
@@ -259,7 +411,7 @@ class CharacterScreen {
 
         ctx.textAlign = 'left';
 
-        // Store tab rects
+        // Store tab rects for click detection
         this.tabRects = {
             attributes: { x: attrTabX, y: tabY, width: tabWidth, height: tabHeight },
             skills: { x: skillsTabX, y: tabY, width: tabWidth, height: tabHeight }
@@ -276,7 +428,7 @@ class CharacterScreen {
         ctx.font = '14px Arial';
         ctx.fillStyle = 'rgb(150, 150, 150)';
         ctx.textAlign = 'center';
-        ctx.fillText('Press 1/2 to switch tabs', this.screenWidth / 2, tabY + tabHeight + 20);
+        ctx.fillText('Press 1/2 or click to switch tabs', this.screenWidth / 2, tabY + tabHeight + 20);
         ctx.textAlign = 'left';
     }
 
@@ -390,9 +542,13 @@ class CharacterScreen {
             let buttonColor = this.colors.buttonDisabled;
             if (attrs.statPoints > 0) {
                 buttonColor = this.colors.button;
+                // Check if hovered
+                if (this.hoveredButton === buttonId) {
+                    buttonColor = this.colors.buttonHover;
+                }
             }
 
-            // Check if selected
+            // Check if selected with controller/keyboard
             const isSelected = this.buttonOrder[this.selectedIndex] === buttonId;
             if (isSelected) {
                 ctx.strokeStyle = this.colors.cursor;
@@ -496,7 +652,7 @@ class CharacterScreen {
         // Instructions
         ctx.font = this.textFont;
         ctx.fillStyle = this.colors.text;
-        ctx.fillText('Use arrow keys to select, E to unlock', margin + 50, margin + 130);
+        ctx.fillText('Use arrow keys to select, E to unlock, or click', margin + 50, margin + 130);
 
         // Draw skill tree
         const skills = this.player.skillTree.skills;
@@ -526,6 +682,12 @@ class CharacterScreen {
                 nodeColor = this.colors.skillAvailable;
             } else {
                 nodeColor = this.colors.skillUnavailable;
+            }
+
+            // Check if hovered
+            const isHovered = this.hoveredButton === `skill_${skillId}`;
+            if (isHovered && !skill.unlocked) {
+                nodeColor = this.colors.buttonHover;
             }
 
             // Draw diamond shape
@@ -599,7 +761,7 @@ class CharacterScreen {
                 statusText = 'UNLOCKED';
                 statusColor = this.colors.skillUnlocked;
             } else if (attrs.level >= skill.levelRequired && attrs.skillPoints > 0) {
-                statusText = 'Press E to Unlock';
+                statusText = 'Press E to Unlock or Click';
                 statusColor = this.colors.skillAvailable;
             } else if (attrs.level < skill.levelRequired) {
                 statusText = `Requires Level ${skill.levelRequired}`;

@@ -32,7 +32,7 @@ body {
 #fps-counter {
     position: absolute;
     top: 10px;
-    right: 10px;
+    right: 200px;
     color: #00ff00;
     font-size: 14px;
     font-family: monospace;
@@ -43,6 +43,7 @@ body {
 }
 
 #debug-info {
+    display: none;
     position: absolute;
     bottom: 10px;
     left: 10px;
