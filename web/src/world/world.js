@@ -122,6 +122,9 @@ class World {
             this._addEnemies(block, safeArea, xCoord, yCoord);
         }
 
+        // Add special items at specific coordinates
+        this._addSpecialItems(block, xCoord, yCoord);
+
         block.markAsVisited();
     }
 
@@ -135,20 +138,29 @@ class World {
         const potion = new HealthPotion(potionX, potionY);
         block.addEntity(potion);
         console.log(`Added Health Potion to starting block at (${potionX}, ${potionY})`);
+    }
 
-        // Ancient Scroll - below player spawn
-        const scrollX = centerX - 40;
-        const scrollY = centerY + 100;
-        const scroll = new AncientScroll(scrollX, scrollY);
-        block.addEntity(scroll);
-        console.log(`Added Ancient Scroll to starting block at (${scrollX}, ${scrollY})`);
+    /**
+     * Add special items at specific block coordinates
+     * Ancient Scroll at (-4, 3), Dragon Heart at (8, -9)
+     */
+    _addSpecialItems(block, xCoord, yCoord) {
+        const centerX = this.screenWidth / 2;
+        const centerY = this.screenHeight / 2;
 
-        // Dragon Heart - to the left of player spawn (for testing, normally at block 5,5)
-        const heartX = centerX - 120;
-        const heartY = centerY - 20;
-        const heart = new DragonHeart(heartX, heartY);
-        block.addEntity(heart);
-        console.log(`Added Dragon Heart to starting block at (${heartX}, ${heartY})`);
+        // Ancient Scroll at block (-4, 3)
+        if (xCoord === -4 && yCoord === 3) {
+            const scroll = new AncientScroll(centerX, centerY);
+            block.addEntity(scroll);
+            console.log(`Added Ancient Scroll to block (${xCoord}, ${yCoord})`);
+        }
+
+        // Dragon Heart at block (8, -9)
+        if (xCoord === 8 && yCoord === -9) {
+            const heart = new DragonHeart(centerX, centerY);
+            block.addEntity(heart);
+            console.log(`Added Dragon Heart to block (${xCoord}, ${yCoord})`);
+        }
     }
 
     /**
