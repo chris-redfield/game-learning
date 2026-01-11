@@ -109,22 +109,22 @@ function updateGame(dt) {
         player.startSwing();
     }
 
-    // Handle dash
-    if (game.input.isKeyJustPressed('dash')) {
+    // Handle dash (only if unlocked)
+    if (game.input.isKeyJustPressed('dash') && player.skillTree.isSkillUnlocked('dash')) {
         if (player.dash(currentTime)) {
             console.log('Dash activated!');
         }
     }
 
-    // Handle blink
-    if (game.input.isKeyJustPressed('blink')) {
+    // Handle blink (only if unlocked)
+    if (game.input.isKeyJustPressed('blink') && player.skillTree.isSkillUnlocked('blink')) {
         if (player.blink(obstacles, currentTime)) {
             console.log('Blink!');
         }
     }
 
-    // Handle firebolt
-    if (game.input.isKeyJustPressed('firebolt')) {
+    // Handle firebolt (only if unlocked)
+    if (game.input.isKeyJustPressed('firebolt') && player.skillTree.isSkillUnlocked('firebolt')) {
         castFirebolt(currentTime);
     }
 

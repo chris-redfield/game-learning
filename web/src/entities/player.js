@@ -564,10 +564,12 @@ class PlayerAttributes {
         this.foundDragonHeart = false;
 
         // Dash ability
+        this.canDash = false;  // Must be unlocked via skill tree
         this.dashDuration = 1500;
         this.dashCooldown = 3000;
 
         // Blink ability
+        this.canBlink = false;  // Must be unlocked via skill tree
         this.blinkDistance = 80;
         this.blinkCooldown = 2000;
 
@@ -776,19 +778,9 @@ class SkillTree {
         this.skills['extended_sword3'] = new Skill('extended_sword3', 'Extended Sword III', 'Maximum sword reach', 13, 'extended_sword2', false);
         this.skills['teleport_sword'] = new Skill('teleport_sword', 'Teleport Sword', 'Teleport to sword location', 16, 'throw_sword', false);
 
-        // Unlocks that should be present at game start
+        // Only basic_sword is unlocked at game start
+        // All other skills must be unlocked via skill points
         this.skills['basic_sword'].unlocked = true;
-
-        // Check if any skills should be unlocked based on current level/state
-        if (this.player.attributes.canDash) {
-            this.skills['dash'].unlocked = true;
-        }
-        if (this.player.attributes.swordLength > this.player.attributes.baseSwordLength) {
-            this.skills['extended_sword'].unlocked = true;
-        }
-        if (this.player.attributes.canBlink) {
-            this.skills['blink'].unlocked = true;
-        }
     }
 
     isSkillUnlocked(skillId) {

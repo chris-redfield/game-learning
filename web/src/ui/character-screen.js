@@ -696,10 +696,10 @@ class CharacterScreen {
 
         const screenWidth = this.screenWidth - margin * 2 - 100;
         const branchWidth = screenWidth / 3;
-        const startY = margin + 170;
-        const diamondSize = 20;
-        const levelSpacing = 110;
-        const skillSpacing = 140;
+        const startY = margin + 150;
+        const diamondSize = 17;       // 15% smaller
+        const levelSpacing = 94;      // 15% smaller
+        const skillSpacing = 119;     // 15% smaller
 
         this.skillRects = {};
         const skillPositions = {};
@@ -752,7 +752,7 @@ class CharacterScreen {
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.moveTo(branchX, startY + diamondSize * 2);
-                ctx.lineTo(skillX, skillY - 18);
+                ctx.lineTo(skillX, skillY - 15);
                 ctx.stroke();
 
                 // Draw the skill node
@@ -790,8 +790,8 @@ class CharacterScreen {
                         ctx.strokeStyle = this.colors.border;
                         ctx.lineWidth = 2;
                         ctx.beginPath();
-                        ctx.moveTo(parentPos.x, parentPos.y + 18);
-                        ctx.lineTo(childX, childY - 18);
+                        ctx.moveTo(parentPos.x, parentPos.y + 15);
+                        ctx.lineTo(childX, childY - 15);
                         ctx.stroke();
 
                         // Draw the skill node
@@ -893,7 +893,7 @@ class CharacterScreen {
 
     drawSkillNode(ctx, skill, x, y) {
         const attrs = this.player.attributes;
-        const nodeSize = 18;
+        const nodeSize = 15;  // 15% smaller
 
         // Determine skill color based on state
         let nodeColor;
@@ -932,13 +932,13 @@ class CharacterScreen {
         ctx.stroke();
 
         // Draw skill name above diamond
-        ctx.font = '14px Arial';
+        ctx.font = '12px Arial';  // Slightly smaller font
         ctx.fillStyle = this.colors.text;
         ctx.textAlign = 'center';
-        ctx.fillText(skill.name, x, y - nodeSize - 8);
+        ctx.fillText(skill.name, x, y - nodeSize - 6);
 
         // Draw level requirement below diamond
-        ctx.fillText(`Level ${skill.levelRequired}+`, x, y + nodeSize + 18);
+        ctx.fillText(`Level ${skill.levelRequired}+`, x, y + nodeSize + 15);
 
         // Store rect for mouse interaction (larger hitbox)
         const hitboxSize = 50;
