@@ -10,7 +10,8 @@ let game;
 const gameState = {
     player: null,
     world: null,
-    currentBlock: { x: 0, y: 0 }
+    transitioning: false,
+    transitionCallback: null
 };
 
 // Initialize game
@@ -25,9 +26,15 @@ async function init() {
     await game.loadAssets();
     console.log('Assets loaded!');
 
+    // Create world
+    gameState.world = new World(game);
+
+    // Generate the starting block (origin)
+    const startBlock = gameState.world.generateBlock(0, 0, { x: game.width / 2, y: game.height / 2 });
+
     // Create player at center of screen
-    const centerX = game.width / 2 - 17; // Half player width
-    const centerY = game.height / 2 - 20; // Half player height
+    const centerX = game.width / 2 - 17;
+    const centerY = game.height / 2 - 20;
     gameState.player = new Player(game, centerX, centerY, 'link');
 
     // Set up custom update handler
@@ -51,14 +58,23 @@ async function init() {
 
 // Game update logic
 function updateGame(dt) {
+    // Don't update during transitions
+    if (gameState.transitioning) {
+        return;
+    }
+
     const player = gameState.player;
+    const world = gameState.world;
     const currentTime = performance.now();
+
+    // Get obstacles for collision
+    const obstacles = world.getObstacles();
 
     // Handle movement
     const movement = game.input.getMovementVector();
     const dx = movement.x * player.speed;
     const dy = movement.y * player.speed;
-    player.move(dx, dy, []);
+    player.move(dx, dy, obstacles);
 
     // Handle attack
     if (game.input.isKeyJustPressed('attack')) {
@@ -74,7 +90,7 @@ function updateGame(dt) {
 
     // Handle blink
     if (game.input.isKeyJustPressed('blink')) {
-        if (player.blink([], currentTime)) {
+        if (player.blink(obstacles, currentTime)) {
             console.log('Blink!');
         }
     }
@@ -86,7 +102,8 @@ function updateGame(dt) {
 
     // Handle interact
     if (game.input.isKeyJustPressed('interact')) {
-        console.log('Interact pressed!');
+        player.gainXp(5);
+        console.log(`XP: ${player.attributes.xp}/${player.attributes.xpNeeded} | Level: ${player.attributes.level}`);
     }
 
     // Toggle map
@@ -102,35 +119,59 @@ function updateGame(dt) {
     // Update player
     player.update(dt, game);
 
-    // Keep player in bounds (temporary - will be replaced by world transitions)
-    player.x = Math.max(0, Math.min(game.width - player.width, player.x));
-    player.y = Math.max(0, Math.min(game.height - player.height, player.y));
+    // Check for block transition
+    const transition = world.checkPlayerBlockTransition(player);
+    if (transition.changed) {
+        // Start fade out transition
+        gameState.transitioning = true;
 
-    // Debug: gain XP on interact (for testing)
-    if (game.input.isKeyJustPressed('interact')) {
-        player.gainXp(5);
-        console.log(`XP: ${player.attributes.xp}/${player.attributes.xpNeeded} | Level: ${player.attributes.level}`);
+        game.startTransition(false, () => {
+            // Move player to new position
+            player.x = transition.newPlayerPos.x;
+            player.y = transition.newPlayerPos.y;
+
+            // Start fade in
+            game.startTransition(true, () => {
+                gameState.transitioning = false;
+            });
+        });
     }
 }
 
 // Game render logic
 function renderGame(ctx) {
     const player = gameState.player;
+    const world = gameState.world;
 
-    // Draw ground pattern
-    drawGroundPattern(ctx);
+    // Get all entities in current block
+    const entities = world.getCurrentEntities();
 
-    // Render player
+    // Combine entities with player for depth sorting
+    const allRenderables = [...entities];
     if (player) {
-        player.render(ctx, game);
+        allRenderables.push(player);
     }
 
-    // Draw HUD (temporary until Phase 7)
-    drawTemporaryHUD(ctx, player);
+    // Sort by Y position for depth (items lower on screen drawn on top)
+    allRenderables.sort((a, b) => {
+        const ay = a.y + (a.height || 0);
+        const by = b.y + (b.height || 0);
+        return ay - by;
+    });
+
+    // Render all entities
+    for (const entity of allRenderables) {
+        if (entity.render) {
+            entity.render(ctx, game);
+        }
+    }
+
+    // Draw HUD
+    drawTemporaryHUD(ctx, player, world);
 
     // Draw overlays
     if (game.showMap) {
-        drawMapOverlay(ctx);
+        drawMapOverlay(ctx, world);
     }
 
     if (game.showCharacterScreen) {
@@ -138,40 +179,17 @@ function renderGame(ctx) {
     }
 }
 
-// Draw a simple ground pattern
-function drawGroundPattern(ctx) {
-    // Draw subtle grid pattern
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.lineWidth = 1;
-    const gridSize = 50;
-
-    for (let x = 0; x < game.width; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, game.height);
-        ctx.stroke();
-    }
-
-    for (let y = 0; y < game.height; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(game.width, y);
-        ctx.stroke();
-    }
-}
-
 // Temporary HUD until Phase 7
-function drawTemporaryHUD(ctx, player) {
+function drawTemporaryHUD(ctx, player, world) {
     if (!player) return;
 
     const attrs = player.attributes;
 
     // Background
     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.fillRect(10, 10, 200, 100);
+    ctx.fillRect(10, 10, 200, 120);
 
     ctx.font = '14px monospace';
-    ctx.fillStyle = 'white';
 
     // Health
     ctx.fillStyle = '#ff4444';
@@ -189,14 +207,19 @@ function drawTemporaryHUD(ctx, player) {
     ctx.fillStyle = '#44ff44';
     ctx.fillText(`XP: ${attrs.xp}/${attrs.xpNeeded} (${xpPercent}%)`, 20, 90);
 
+    // Block info
+    ctx.fillStyle = '#aaaaaa';
+    const { x, y } = world.currentBlockCoords;
+    ctx.fillText(`Block: (${x}, ${y})`, 20, 110);
+
     // Controls hint
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     ctx.font = '12px monospace';
-    ctx.fillText('WASD: Move | SPACE: Attack | SHIFT: Dash | B: Blink', 10, game.height - 10);
+    ctx.fillText('WASD: Move | SPACE: Attack | E: +5 XP | M: Map', 10, game.height - 10);
 }
 
 // Map overlay
-function drawMapOverlay(ctx) {
+function drawMapOverlay(ctx, world) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
     ctx.fillRect(0, 0, game.width, game.height);
 
@@ -205,33 +228,56 @@ function drawMapOverlay(ctx) {
     ctx.textAlign = 'center';
     ctx.fillText('WORLD MAP', game.width / 2, 60);
 
-    ctx.font = '18px Arial';
-    ctx.fillText('(Coming in Phase 3 - World System)', game.width / 2, 100);
+    // Draw block grid
+    const gridSize = 50;
+    const gridRange = 5; // Show 5x5 grid around current position
+    const offsetX = game.width / 2 - gridSize * gridRange / 2;
+    const offsetY = game.height / 2 - gridSize * gridRange / 2;
 
-    // Draw a placeholder grid
-    const gridSize = 60;
-    const offsetX = game.width / 2 - gridSize * 2.5;
-    const offsetY = game.height / 2 - gridSize * 2;
+    const currentX = world.currentBlockCoords.x;
+    const currentY = world.currentBlockCoords.y;
 
-    for (let y = 0; y < 5; y++) {
-        for (let x = 0; x < 5; x++) {
-            const px = offsetX + x * gridSize;
-            const py = offsetY + y * gridSize;
+    for (let dy = -Math.floor(gridRange / 2); dy <= Math.floor(gridRange / 2); dy++) {
+        for (let dx = -Math.floor(gridRange / 2); dx <= Math.floor(gridRange / 2); dx++) {
+            const blockX = currentX + dx;
+            const blockY = currentY + dy;
+            const blockKey = `${blockX},${blockY}`;
 
-            ctx.strokeStyle = '#444';
+            const px = offsetX + (dx + Math.floor(gridRange / 2)) * gridSize;
+            const py = offsetY + (dy + Math.floor(gridRange / 2)) * gridSize;
+
+            // Check if block has been visited
+            const visited = world.blocks[blockKey]?.isVisited();
+
+            if (dx === 0 && dy === 0) {
+                // Current block
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+                ctx.fillRect(px, py, gridSize - 2, gridSize - 2);
+            } else if (visited) {
+                // Visited blocks
+                ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+                ctx.fillRect(px, py, gridSize - 2, gridSize - 2);
+            }
+
+            // Draw border
+            ctx.strokeStyle = visited || (dx === 0 && dy === 0) ? '#666' : '#333';
             ctx.lineWidth = 1;
             ctx.strokeRect(px, py, gridSize - 2, gridSize - 2);
 
-            // Current block indicator
-            if (x === 2 && y === 2) {
-                ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-                ctx.fillRect(px, py, gridSize - 2, gridSize - 2);
-                ctx.fillStyle = 'lime';
-                ctx.font = '12px Arial';
-                ctx.fillText('YOU', px + gridSize / 2, py + gridSize / 2 + 4);
+            // Draw coordinates for current block
+            if (dx === 0 && dy === 0) {
+                ctx.fillStyle = 'white';
+                ctx.font = '10px Arial';
+                ctx.fillText(`${blockX},${blockY}`, px + gridSize / 2, py + gridSize / 2 + 3);
             }
         }
     }
+
+    // Draw difficulty indicator
+    const difficulty = world.getDifficultyLevel(currentX, currentY);
+    ctx.fillStyle = '#ffaa00';
+    ctx.font = '18px Arial';
+    ctx.fillText(`Current Block: (${currentX}, ${currentY}) | Difficulty: ${difficulty}`, game.width / 2, game.height - 80);
 
     ctx.font = '16px Arial';
     ctx.fillStyle = '#888';
@@ -335,13 +381,15 @@ function showControlsInfo() {
 === The Dark Garden of Z - Controls ===
 WASD / Arrow Keys - Move
 Space - Attack (Sword Swing)
-E - Interact (also gives 5 XP for testing)
+E - Interact (+5 XP for testing)
 Shift - Dash (speed boost)
 B - Blink (teleport forward)
 F - Firebolt (Coming Phase 6)
-M - Map
+M - Map (shows visited blocks)
 Enter - Character Screen
 C - Debug Mode
+
+Walk to screen edge to transition to new block!
 
 Gamepad:
 Left Stick - Move
