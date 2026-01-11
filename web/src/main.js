@@ -10,6 +10,7 @@ let game;
 const gameState = {
     player: null,
     world: null,
+    hud: null, // HUD instance
     souls: [], // XP orbs dropped by enemies
     projectiles: [], // Active projectiles (firebolt, etc.)
     transitioning: false,
@@ -44,6 +45,9 @@ async function init() {
     const centerX = game.width / 2 - 17;
     const centerY = game.height / 2 - 20;
     gameState.player = new Player(game, centerX, centerY, 'link');
+
+    // Create HUD
+    gameState.hud = new HUD(gameState.player, game.width, game.height);
 
     // Set up custom update handler
     game.onUpdate = (dt) => {
@@ -286,7 +290,11 @@ function renderGame(ctx) {
     }
 
     // Draw HUD
-    drawTemporaryHUD(ctx, player, world);
+    const enemies = world.getEnemies();
+    gameState.hud.draw(ctx, world, {
+        entities: enemies,
+        showEnemyDebug: game.showDebug
+    });
 
     // Draw overlays
     if (game.showMap) {
@@ -296,45 +304,6 @@ function renderGame(ctx) {
     if (game.showCharacterScreen) {
         drawCharacterOverlay(ctx, player);
     }
-}
-
-// Temporary HUD until Phase 7
-function drawTemporaryHUD(ctx, player, world) {
-    if (!player) return;
-
-    const attrs = player.attributes;
-
-    // Background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.fillRect(10, 10, 200, 120);
-
-    ctx.font = '14px monospace';
-
-    // Health
-    ctx.fillStyle = '#ff4444';
-    ctx.fillText(`HP: ${attrs.currentHealth}/${attrs.maxHealth}`, 20, 30);
-
-    // Mana
-    ctx.fillStyle = '#4444ff';
-    ctx.fillText(`MP: ${attrs.currentMana}/${attrs.maxMana}`, 20, 50);
-
-    // Level & XP
-    ctx.fillStyle = '#ffff44';
-    ctx.fillText(`Level: ${attrs.level}`, 20, 70);
-
-    const xpPercent = attrs.xpNeeded > 0 ? ((attrs.xp / attrs.xpNeeded) * 100).toFixed(1) : 100;
-    ctx.fillStyle = '#44ff44';
-    ctx.fillText(`XP: ${attrs.xp}/${attrs.xpNeeded} (${xpPercent}%)`, 20, 90);
-
-    // Block info
-    ctx.fillStyle = '#aaaaaa';
-    const { x, y } = world.currentBlockCoords;
-    ctx.fillText(`Block: (${x}, ${y})`, 20, 110);
-
-    // Controls hint
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = '12px monospace';
-    ctx.fillText('WASD: Move | SPACE: Attack | F: Firebolt | E: +5 XP | M: Map', 10, game.height - 10);
 }
 
 // Map overlay

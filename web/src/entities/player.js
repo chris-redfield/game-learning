@@ -57,6 +57,9 @@ class Player {
         this.dashing = false;
         this.blinkTimer = 0;
 
+        // Skill tree for ability tracking
+        this.skillTree = new SkillTree(this);
+
         // Sprites
         this.sprites = null;
         this.sword = null;
@@ -687,6 +690,64 @@ class PlayerAttributes {
     }
 }
 
+/**
+ * SkillTree - Manages skill unlocks and abilities
+ * Mirrors Python entities/player/skill_tree.py
+ */
+class SkillTree {
+    constructor(player) {
+        this.player = player;
+        this.skills = {};
+        this.initializeSkills();
+    }
+
+    initializeSkills() {
+        // Basic sword is always unlocked
+        this.skills['basic_sword'] = { unlocked: true, levelRequired: 1 };
+
+        // Dash ability (level 2)
+        this.skills['dash'] = { unlocked: true, levelRequired: 2 };
+
+        // Extended sword (level 3)
+        this.skills['extended_sword'] = { unlocked: false, levelRequired: 3 };
+
+        // Blink ability (level 4)
+        this.skills['blink'] = { unlocked: true, levelRequired: 4 };
+
+        // Firebolt (level 4)
+        this.skills['firebolt'] = { unlocked: true, levelRequired: 4 };
+    }
+
+    isSkillUnlocked(skillId) {
+        if (this.skills[skillId]) {
+            return this.skills[skillId].unlocked;
+        }
+        return false;
+    }
+
+    unlockSkill(skillId) {
+        if (!this.skills[skillId]) return false;
+        if (this.skills[skillId].unlocked) return false;
+
+        const levelRequired = this.skills[skillId].levelRequired;
+        if (this.player.attributes.level < levelRequired) return false;
+
+        if (this.player.attributes.skillPoints <= 0) return false;
+
+        this.skills[skillId].unlocked = true;
+        this.player.attributes.skillPoints--;
+
+        // Apply skill effects
+        if (skillId === 'extended_sword') {
+            this.player.attributes.swordLength = Math.floor(this.player.attributes.baseSwordLength * 1.5);
+        }
+
+        console.log(`Unlocked skill: ${skillId}`);
+        return true;
+    }
+}
+
 // Export
 window.Player = Player;
 window.PlayerAttributes = PlayerAttributes;
+window.SkillTree = SkillTree;
