@@ -19,6 +19,12 @@ class Player {
         this.animationSpeed = 0.2;
         this.animationCounter = 0;
 
+        // Track dominant direction for diagonal movement
+        // The first direction pressed becomes dominant until released
+        this.dominantAxis = null; // 'horizontal' or 'vertical'
+        this.lastDx = 0;
+        this.lastDy = 0;
+
         // Sword swing states
         this.swinging = false;
         this.swingFrame = 0;
@@ -159,12 +165,44 @@ class Player {
         if (dx !== 0 || dy !== 0) {
             this.moving = true;
 
-            // Set facing direction
-            if (Math.abs(dx) > Math.abs(dy)) {
+            // Determine dominant axis for diagonal movement
+            // The first direction pressed becomes dominant
+            const wasMovingHorizontal = this.lastDx !== 0;
+            const wasMovingVertical = this.lastDy !== 0;
+            const nowMovingHorizontal = dx !== 0;
+            const nowMovingVertical = dy !== 0;
+
+            // If we just started moving in a new axis, that becomes dominant
+            if (nowMovingHorizontal && nowMovingVertical) {
+                // Diagonal movement
+                if (!wasMovingHorizontal && nowMovingHorizontal) {
+                    // Just started horizontal, but was already moving vertical - vertical stays dominant
+                    this.dominantAxis = 'vertical';
+                } else if (!wasMovingVertical && nowMovingVertical) {
+                    // Just started vertical, but was already moving horizontal - horizontal stays dominant
+                    this.dominantAxis = 'horizontal';
+                }
+                // If both were already pressed or neither, keep current dominant
+                if (this.dominantAxis === null) {
+                    // Default: first press wins, check which has larger magnitude
+                    this.dominantAxis = Math.abs(dx) >= Math.abs(dy) ? 'horizontal' : 'vertical';
+                }
+            } else if (nowMovingHorizontal && !nowMovingVertical) {
+                this.dominantAxis = 'horizontal';
+            } else if (nowMovingVertical && !nowMovingHorizontal) {
+                this.dominantAxis = 'vertical';
+            }
+
+            // Set facing direction based on dominant axis
+            if (this.dominantAxis === 'horizontal') {
                 this.facing = dx > 0 ? 'right' : 'left';
             } else {
                 this.facing = dy > 0 ? 'down' : 'up';
             }
+
+            // Store current movement for next frame comparison
+            this.lastDx = dx;
+            this.lastDy = dy;
 
             // Simple collision detection
             let canMove = true;
@@ -185,6 +223,10 @@ class Player {
             }
         } else {
             this.moving = false;
+            // Reset dominant axis when not moving
+            this.dominantAxis = null;
+            this.lastDx = 0;
+            this.lastDy = 0;
         }
     }
 
@@ -308,11 +350,17 @@ class Player {
     getSwordRect() {
         if (!this.swinging) return null;
 
-        const centerX = this.x + this.width / 2;
+        // Start from player center
+        let centerX = this.x + this.width / 2;
         let centerY = this.y + this.height / 2;
 
-        if (this.facing === 'up') {
-            centerY -= 9;
+        // Offset the sword rotation center IN FRONT of the player
+        const frontOffset = 15; // Distance in front of player
+        switch (this.facing) {
+            case 'right': centerX += frontOffset; break;
+            case 'left': centerX -= frontOffset; break;
+            case 'up': centerY -= frontOffset; break;
+            case 'down': centerY += frontOffset; break;
         }
 
         let hitboxSize = 24;
@@ -331,11 +379,7 @@ class Player {
             case 'right': baseDirX = 1; break;
             case 'left': baseDirX = -1; break;
             case 'up': baseDirY = -1; scaledDistance *= 1.2; break;
-            case 'down':
-                baseDirY = 1;
-                scaledDistance *= 1.2;
-                centerY += 10;
-                break;
+            case 'down': baseDirY = 1; scaledDistance *= 1.2; break;
         }
 
         // Calculate swing angle
@@ -436,11 +480,17 @@ class Player {
     renderSword(ctx) {
         if (!this.swinging || !this.sword || !this.sword.image) return;
 
-        const centerX = this.x + this.width / 2;
+        // Start from player center
+        let centerX = this.x + this.width / 2;
         let centerY = this.y + this.height / 2;
 
-        if (this.facing === 'up') {
-            centerY -= 9;
+        // Offset the sword rotation center IN FRONT of the player
+        const frontOffset = 15; // Distance in front of player
+        switch (this.facing) {
+            case 'right': centerX += frontOffset; break;
+            case 'left': centerX -= frontOffset; break;
+            case 'up': centerY -= frontOffset; break;
+            case 'down': centerY += frontOffset; break;
         }
 
         // Base angles
