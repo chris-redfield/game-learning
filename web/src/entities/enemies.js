@@ -491,7 +491,8 @@ class Enemy {
     }
 
     getXpValue() {
-        return this.attributes.level * 2 + 3;
+        // XP value equals enemy level (matches Soul value in original)
+        return this.attributes.level;
     }
 
     render(ctx, game) {
@@ -538,7 +539,7 @@ class Enemy {
 }
 
 /**
- * Slime - Fast, small enemy
+ * Slime - Fast, small enemy using GIF assets
  */
 class Slime extends Enemy {
     constructor(game, x, y) {
@@ -547,13 +548,10 @@ class Slime extends Enemy {
         this.attributes = new EnemyAttributes(this, 1, this.enemyType);
         this.health = this.attributes.maxHealth;
         this.animationSpeed = 0.03;
-
-        // Slime uses simple colored rectangles (GIF loading not supported in canvas)
-        this.color = '#00cc00';
     }
 
     handlePlayerCollision(player) {
-        // Slimes don't stop when attacking
+        // Slimes don't stop when attacking - they keep moving
         if (this.isRecovering) return;
         const attackPower = this.attributes.getAttackPower();
         const centerX = this.x + this.width / 2;
@@ -588,39 +586,26 @@ class Slime extends Enemy {
     }
 
     renderSprite(ctx, game) {
-        // Simple slime rendering
         const visible = !this.hit || Math.floor(this.hitTimer / 40) % 2 === 0;
         if (!visible) return;
 
-        // Draw slime body
-        ctx.fillStyle = this.state === 'moving' ? '#00aa00' : '#00cc00';
-        ctx.beginPath();
-        ctx.ellipse(
-            this.x + this.width / 2,
-            this.y + this.height / 2,
-            this.width / 2,
-            this.height / 2,
-            0, 0, Math.PI * 2
-        );
-        ctx.fill();
+        // Get the appropriate GIF image based on state
+        const spriteKey = this.state === 'moving' ? 'slime_move' : 'slime_idle';
+        const sprite = game.getImage(spriteKey);
 
-        // Eyes
-        ctx.fillStyle = 'white';
-        ctx.beginPath();
-        ctx.arc(this.x + this.width * 0.35, this.y + this.height * 0.4, 4, 0, Math.PI * 2);
-        ctx.arc(this.x + this.width * 0.65, this.y + this.height * 0.4, 4, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = 'black';
-        ctx.beginPath();
-        ctx.arc(this.x + this.width * 0.35, this.y + this.height * 0.4, 2, 0, Math.PI * 2);
-        ctx.arc(this.x + this.width * 0.65, this.y + this.height * 0.4, 2, 0, Math.PI * 2);
-        ctx.fill();
+        if (sprite) {
+            // Draw the GIF image (browser handles animation automatically)
+            ctx.drawImage(sprite, this.x, this.y, this.width, this.height);
+        } else {
+            // Fallback: green rectangle if image not loaded
+            ctx.fillStyle = '#00cc00';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
     }
 }
 
 /**
- * Skeleton - Normal/brute enemy with sprite sheet
+ * Skeleton - Normal/brute enemy with sprite sheet and chasing AI
  */
 class Skeleton extends Enemy {
     constructor(game, x, y) {
@@ -634,6 +619,202 @@ class Skeleton extends Enemy {
         this.idleFrames = [0, 95, 191, 287, 383, 479, 575];
         this.walkFrames = [0, 95, 191, 287, 383, 479, 575, 671, 767];
         this.frameWidth = 42;
+
+        // Attack properties
+        this.attackTimer = 0;
+        this.attackDuration = 500;
+        this.attackCooldown = 800;
+        this.attackCooldownTimer = 0;
+        this.canAttack = true;
+    }
+
+    update(dt, player, obstacles) {
+        const frameMs = 16.67;
+
+        // Check for death
+        if (this.health <= 0 && this.state !== 'dying') {
+            this.die();
+            return;
+        }
+
+        // Dying state
+        if (this.state === 'dying') {
+            this.deathTimer += frameMs;
+            this.updateDeathParticles();
+            if (this.deathTimer >= this.deathDuration) {
+                this.shouldRemove = true;
+                this.willDropSoul = true;
+            }
+            return;
+        }
+
+        // Recovery state - skeleton pauses after being hit
+        if (this.isRecovering) {
+            this.recoveryTimer += frameMs;
+            if (this.recoveryTimer >= this.recoveryDuration) {
+                this.isRecovering = false;
+                this.recoveryTimer = 0;
+            }
+            this.updateAnimation();
+            this.updateHitEffect(frameMs);
+            return;
+        }
+
+        // Knockback
+        if (this.isBeingKnockedBack) {
+            this.knockbackTimer += frameMs;
+            if (this.knockbackTimer < this.knockbackDuration) {
+                const progress = this.knockbackTimer / this.knockbackDuration;
+                const factor = 1 - progress;
+                const moveX = this.knockbackDirection.x * this.currentKnockback * factor * 0.5;
+                const moveY = this.knockbackDirection.y * this.currentKnockback * factor * 0.5;
+                this.move(moveX, moveY, obstacles);
+            } else {
+                this.isBeingKnockedBack = false;
+                if (this.shouldRecover) {
+                    this.state = 'idle';
+                    this.isRecovering = true;
+                    this.recoveryTimer = 0;
+                    this.shouldRecover = false;
+                }
+            }
+            this.updateHitEffect(frameMs);
+            return;
+        }
+
+        // Update attack cooldown
+        if (!this.canAttack) {
+            this.attackCooldownTimer += frameMs;
+            if (this.attackCooldownTimer >= this.attackCooldown) {
+                this.canAttack = true;
+                this.attackCooldownTimer = 0;
+            }
+        }
+
+        // Attack state
+        if (this.state === 'attacking') {
+            this.attackTimer += frameMs;
+            if (this.attackTimer >= this.attackDuration) {
+                this.attackTimer = 0;
+                this.state = 'idle';
+                this.canAttack = false;
+                this.attackCooldownTimer = 0;
+            }
+            this.updateAnimation();
+            this.updateHitEffect(frameMs);
+            return;
+        }
+
+        // Check player collision
+        if (player && this.checkCollision(player)) {
+            this.handlePlayerCollision(player);
+        }
+
+        // CHASING AI - Skeleton chases player when in detection range
+        if (player && this.state !== 'attacking') {
+            const playerRect = player.getRect();
+            const skeletonCenterX = this.x + this.width / 2;
+            const skeletonCenterY = this.y + this.height / 2;
+            const playerCenterX = playerRect.x + playerRect.width / 2;
+            const playerCenterY = playerRect.y + playerRect.height / 2;
+
+            const dx = playerCenterX - skeletonCenterX;
+            const dy = playerCenterY - skeletonCenterY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // If player is within detection range but outside attack range, chase
+            if (distance < this.detectionRange && distance > this.attackRange) {
+                this.state = 'moving';
+
+                // Calculate direction to player
+                if (distance > 0) {
+                    this.dx = (dx / distance) * this.speed;
+                    this.dy = (dy / distance) * this.speed;
+
+                    // Update facing direction
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        this.direction = dx > 0 ? 'right' : 'left';
+                    }
+                }
+
+                // Move toward player
+                this.move(this.dx, this.dy, obstacles);
+            }
+            // If within attack range and can attack, attack
+            else if (distance <= this.attackRange && this.canAttack) {
+                this.attack(player);
+            }
+            // If player is outside detection range, use normal wandering AI
+            else if (distance >= this.detectionRange) {
+                this.movementTimer++;
+
+                if (this.state === 'idle') {
+                    if (this.movementTimer >= this.movementPause) {
+                        this.movementTimer = 0;
+                        this.startMoving();
+                    }
+                } else if (this.state === 'moving') {
+                    if (this.movementTimer >= this.movementDuration) {
+                        this.movementTimer = 0;
+                        this.stopMoving();
+                    } else {
+                        this.move(this.dx, this.dy, obstacles);
+                    }
+                }
+            }
+        } else {
+            // No player or in attack state - normal wandering
+            this.movementTimer++;
+
+            if (this.state === 'idle') {
+                if (this.movementTimer >= this.movementPause) {
+                    this.movementTimer = 0;
+                    this.startMoving();
+                }
+            } else if (this.state === 'moving') {
+                if (this.movementTimer >= this.movementDuration) {
+                    this.movementTimer = 0;
+                    this.stopMoving();
+                } else {
+                    this.move(this.dx, this.dy, obstacles);
+                }
+            }
+        }
+
+        this.updateAnimation();
+        this.updateHitEffect(frameMs);
+    }
+
+    handlePlayerCollision(player) {
+        // Skip if attacking, knocked back, or recovering
+        if (this.state === 'attacking' || this.isBeingKnockedBack || this.isRecovering) {
+            return;
+        }
+
+        this.stopMoving();
+
+        const attackPower = this.attributes.getAttackPower();
+        const centerX = this.x + this.width / 2;
+        const centerY = this.y + this.height / 2;
+        player.takeDamage(attackPower, centerX, centerY);
+
+        // Start attacking state
+        this.attack(player);
+    }
+
+    attack(player) {
+        if (this.state === 'attacking' || this.isBeingKnockedBack || !this.canAttack || this.isRecovering) {
+            return;
+        }
+
+        this.state = 'attacking';
+        this.animationCounter = 0;
+        this.attackTimer = 0;
+
+        const attackPower = this.attributes.getAttackPower();
+        const centerX = this.x + this.width / 2;
+        const centerY = this.y + this.height / 2;
+        player.takeDamage(attackPower, centerX, centerY);
     }
 
     renderSprite(ctx, game) {
