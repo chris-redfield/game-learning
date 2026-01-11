@@ -135,6 +135,9 @@ function updateGame(dt) {
     if (player.isSwinging()) {
         const swordRect = player.getSwordRect();
         if (swordRect) {
+            const playerCenterX = player.x + player.width / 2;
+            const playerCenterY = player.y + player.height / 2;
+
             for (const enemy of enemies) {
                 if (enemy.state === 'dying') continue;
                 if (player.hitEnemies.has(enemy)) continue;
@@ -142,10 +145,13 @@ function updateGame(dt) {
                 const enemyRect = enemy.getRect();
                 if (rectsOverlap(swordRect, enemyRect)) {
                     const damage = player.attributes.getAttackPower();
-                    const playerCenterX = player.x + player.width / 2;
-                    const playerCenterY = player.y + player.height / 2;
                     enemy.takeDamage(damage, playerCenterX, playerCenterY);
                     player.hitEnemies.add(enemy);
+
+                    // Spawn blood particles
+                    if (window.particleSystem) {
+                        window.particleSystem.spawnEnemyBlood(enemy, playerCenterX, playerCenterY);
+                    }
                 }
             }
         }
@@ -157,7 +163,12 @@ function updateGame(dt) {
     }
 
     // Clean up dead projectiles
-    gameState.projectiles = gameState.projectiles.filter(p => p.alive || p.particles.length > 0);
+    gameState.projectiles = gameState.projectiles.filter(p => p.alive);
+
+    // Update particle system
+    if (window.particleSystem) {
+        window.particleSystem.update(obstacles);
+    }
 
     // Clean up dead enemies and spawn souls
     const deadEnemies = world.cleanupDeadEnemies();
@@ -190,9 +201,12 @@ function updateGame(dt) {
             player.x = transition.newPlayerPos.x;
             player.y = transition.newPlayerPos.y;
 
-            // Clear souls and projectiles when changing blocks
+            // Clear souls, projectiles, and particles when changing blocks
             gameState.souls = [];
             gameState.projectiles = [];
+            if (window.particleSystem) {
+                window.particleSystem.clear();
+            }
 
             // Start fade in
             game.startTransition(true, () => {
@@ -230,22 +244,30 @@ function renderGame(ctx) {
         }
     }
 
-    // Render projectiles (on top of everything)
-    for (const projectile of gameState.projectiles) {
-        projectile.render(ctx);
-        // Also render explosion particles if projectile is dead but has particles
-        if (!projectile.alive && projectile.renderExplosionParticles) {
-            projectile.renderExplosionParticles(ctx);
-        }
+    // Render particles (blood, fire trail, explosions)
+    if (window.particleSystem) {
+        window.particleSystem.render(ctx);
     }
 
-    // Draw enemy debug info when debug mode is on
+    // Render projectiles
+    for (const projectile of gameState.projectiles) {
+        projectile.render(ctx);
+    }
+
+    // Draw debug info when debug mode is on
     if (game.showDebug) {
+        // Enemy debug info
         const enemies = world.getEnemies();
-        let debugY = 150;
         for (const enemy of enemies) {
             if (enemy.renderDebugInfo && enemy.state !== 'dying') {
                 enemy.renderDebugInfo(ctx, enemy.x, enemy.y - 15);
+            }
+        }
+
+        // Projectile debug (bounding boxes)
+        for (const projectile of gameState.projectiles) {
+            if (projectile.renderDebug) {
+                projectile.renderDebug(ctx);
             }
         }
     }
