@@ -571,7 +571,8 @@ class Enemy {
 }
 
 /**
- * Slime - Fast, small enemy using GIF assets with frame-by-frame animation
+ * Slime - Fast, small enemy with programmatic animation
+ * Note: slime_idle.gif and slime_move.gif are actually static PNG images
  */
 class Slime extends Enemy {
     constructor(game, x, y) {
@@ -579,52 +580,29 @@ class Slime extends Enemy {
         this.enemyType = 'fast';
         this.attributes = new EnemyAttributes(this, 1, this.enemyType);
         this.health = this.attributes.maxHealth;
-        this.animationSpeed = 0.15; // Animation speed for frame cycling
+        this.animationSpeed = 0.15;
 
-        // GIF animation frames
-        this.idleFrames = [];
-        this.moveFrames = [];
-        this.framesLoaded = false;
-
-        // Frame timing
-        this.frameTimer = 0;
-        this.frameDelay = 100; // ms between frames (from GIF)
-
-        // Load GIF frames
-        this.loadGifFrames();
-    }
-
-    async loadGifFrames() {
-        if (window.gifLoader) {
-            try {
-                // Load idle animation
-                const idleGif = await window.gifLoader.loadGif('assets/slime_idle.gif');
-                this.idleFrames = idleGif.frames;
-                this.frameDelay = idleGif.delays[0] || 100;
-
-                // Load move animation
-                const moveGif = await window.gifLoader.loadGif('assets/slime_move.gif');
-                this.moveFrames = moveGif.frames;
-
-                this.framesLoaded = true;
-                console.log(`Slime GIF loaded: ${this.idleFrames.length} idle frames, ${this.moveFrames.length} move frames`);
-            } catch (error) {
-                console.error('Error loading slime GIF frames:', error);
-            }
-        }
+        // Animation properties for wobble/squash effect
+        this.wobbleTimer = 0;
+        this.wobbleSpeed = 0.15;
+        this.squashAmount = 0;
+        this.baseWidth = 32;
+        this.baseHeight = 24;
     }
 
     update(dt, player, obstacles) {
-        // Update frame timer for animation
-        this.frameTimer += 16.67; // ~60 FPS
+        // Update wobble animation
+        this.wobbleTimer += this.wobbleSpeed;
+        if (this.wobbleTimer >= Math.PI * 2) {
+            this.wobbleTimer -= Math.PI * 2;
+        }
 
-        if (this.frameTimer >= this.frameDelay) {
-            this.frameTimer = 0;
-            // Advance frame
-            const frames = this.state === 'moving' ? this.moveFrames : this.idleFrames;
-            if (frames.length > 0) {
-                this.frame = (this.frame + 1) % frames.length;
-            }
+        // Squash and stretch based on movement
+        if (this.state === 'moving') {
+            this.squashAmount = Math.sin(this.wobbleTimer * 3) * 0.15;
+        } else {
+            // Gentle breathing when idle
+            this.squashAmount = Math.sin(this.wobbleTimer) * 0.08;
         }
 
         // Call parent update
@@ -670,28 +648,57 @@ class Slime extends Enemy {
         const visible = !this.hit || Math.floor(this.hitTimer / 40) % 2 === 0;
         if (!visible) return;
 
-        // Get the appropriate frames based on state
-        const frames = this.state === 'moving' ? this.moveFrames : this.idleFrames;
+        // Get the sprite image
+        const spriteKey = this.state === 'moving' ? 'slime_move' : 'slime_idle';
+        const sprite = game.getImage(spriteKey);
 
-        if (this.framesLoaded && frames.length > 0) {
-            // Use parsed GIF frames
-            const frameIndex = Math.min(this.frame, frames.length - 1);
-            const frameCanvas = frames[frameIndex];
-            if (frameCanvas) {
-                ctx.drawImage(frameCanvas, this.x, this.y, this.width, this.height);
-            }
+        // Calculate squash and stretch dimensions
+        const squashWidth = this.baseWidth * (1 + this.squashAmount);
+        const squashHeight = this.baseHeight * (1 - this.squashAmount);
+
+        // Center the sprite after squash/stretch
+        const offsetX = (this.baseWidth - squashWidth) / 2;
+        const offsetY = this.baseHeight - squashHeight; // Keep bottom aligned
+
+        ctx.save();
+
+        if (sprite) {
+            ctx.drawImage(
+                sprite,
+                this.x + offsetX,
+                this.y + offsetY,
+                squashWidth,
+                squashHeight
+            );
         } else {
-            // Fallback: use static image or green rectangle
-            const spriteKey = this.state === 'moving' ? 'slime_move' : 'slime_idle';
-            const sprite = game.getImage(spriteKey);
+            // Fallback: draw a green slime shape
+            ctx.fillStyle = '#00cc00';
+            ctx.beginPath();
+            ctx.ellipse(
+                this.x + this.baseWidth / 2,
+                this.y + this.baseHeight / 2 + offsetY / 2,
+                squashWidth / 2,
+                squashHeight / 2,
+                0, 0, Math.PI * 2
+            );
+            ctx.fill();
 
-            if (sprite) {
-                ctx.drawImage(sprite, this.x, this.y, this.width, this.height);
-            } else {
-                ctx.fillStyle = '#00cc00';
-                ctx.fillRect(this.x, this.y, this.width, this.height);
-            }
+            // Eyes
+            const eyeY = this.y + this.baseHeight * 0.4 + offsetY / 2;
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(this.x + this.baseWidth * 0.35, eyeY, 3, 0, Math.PI * 2);
+            ctx.arc(this.x + this.baseWidth * 0.65, eyeY, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(this.x + this.baseWidth * 0.35, eyeY, 1.5, 0, Math.PI * 2);
+            ctx.arc(this.x + this.baseWidth * 0.65, eyeY, 1.5, 0, Math.PI * 2);
+            ctx.fill();
         }
+
+        ctx.restore();
     }
 }
 
