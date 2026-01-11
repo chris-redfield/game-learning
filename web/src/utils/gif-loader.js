@@ -251,20 +251,34 @@ class GifLoader {
     }
 
     /**
-     * Inflate (decompress) zlib data
+     * Inflate (decompress) zlib data using pako
      */
     async inflateData(compressedData) {
-        // Use browser's DecompressionStream API if available
+        // Use pako for reliable zlib decompression
+        if (typeof pako !== 'undefined') {
+            try {
+                return pako.inflate(compressedData);
+            } catch (e) {
+                console.warn('pako.inflate failed, trying raw inflate:', e.message);
+                try {
+                    // Try raw inflate (without zlib header)
+                    return pako.inflateRaw(compressedData);
+                } catch (e2) {
+                    console.error('pako.inflateRaw also failed:', e2.message);
+                }
+            }
+        }
+
+        // Fallback to DecompressionStream if pako not available
         if (typeof DecompressionStream !== 'undefined') {
             try {
-                const ds = new DecompressionStream('deflate-raw');
-
-                // Skip zlib header (first 2 bytes) if present
+                // Strip zlib header and trailer for deflate-raw
                 let dataToDecompress = compressedData;
                 if (compressedData[0] === 0x78) {
-                    dataToDecompress = compressedData.slice(2);
+                    dataToDecompress = compressedData.slice(2, compressedData.length - 4);
                 }
 
+                const ds = new DecompressionStream('deflate-raw');
                 const writer = ds.writable.getWriter();
                 writer.write(dataToDecompress);
                 writer.close();
@@ -280,51 +294,11 @@ class GifLoader {
 
                 return this.concatArrays(chunks);
             } catch (e) {
-                console.warn('DecompressionStream failed, trying alternative:', e);
+                console.error('DecompressionStream failed:', e.message);
             }
         }
 
-        // Fallback: use pako if available or implement basic inflate
-        if (typeof pako !== 'undefined') {
-            return pako.inflate(compressedData);
-        }
-
-        // Manual zlib decompression (basic implementation)
-        return this.manualInflate(compressedData);
-    }
-
-    /**
-     * Basic manual inflate implementation for zlib data
-     */
-    manualInflate(data) {
-        // Skip zlib header
-        let pos = 2;
-        if (data[0] !== 0x78) pos = 0;
-
-        const output = [];
-
-        while (pos < data.length - 4) { // -4 for adler32
-            const bfinal = data[pos] & 1;
-            const btype = (data[pos] >> 1) & 3;
-
-            if (btype === 0) {
-                // Stored block
-                pos++;
-                const len = data[pos] | (data[pos + 1] << 8);
-                pos += 4; // Skip len and nlen
-                for (let i = 0; i < len; i++) {
-                    output.push(data[pos++]);
-                }
-            } else {
-                // Compressed blocks are complex - this is a simplified fallback
-                // For proper support, use pako or DecompressionStream
-                throw new Error('Compressed deflate blocks require pako library');
-            }
-
-            if (bfinal) break;
-        }
-
-        return new Uint8Array(output);
+        throw new Error('No decompression method available');
     }
 
     /**
