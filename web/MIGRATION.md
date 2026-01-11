@@ -22,10 +22,11 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 | 8 | Character Screen | COMPLETED |
 | 9 | Skill Tree | COMPLETED |
 | 10 | Inventory System | COMPLETED |
-| 11 | Items (Dragon Heart, Ancient Scroll) | NOT STARTED |
-| 12 | Bonfire & Rest Menu | NOT STARTED |
-| 13 | Save/Load System | NOT STARTED |
+| 11 | Items (Dragon Heart, Ancient Scroll, Health Potion) | COMPLETED |
+| 12 | Bonfire & Rest Menu | COMPLETED |
+| 13 | Save/Load System | COMPLETED |
 | 14 | NPCs & Dialog | NOT STARTED |
+| 15 | Death Logic | NOT STARTED |
 
 ---
 
@@ -154,43 +155,9 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 
 ---
 
-## Remaining Phases (11-14)
+## Remaining Phases (12-15)
 
-### Phase 11: Items (Dragon Heart, Ancient Scroll) - NOT STARTED
-
-**Description:** Add special progression items that affect XP gain.
-
-**Items to Implement:**
-
-#### Ancient Scroll
-- Reduces XP multiplier from 1.5 to 1.3
-- Found in the world (specific location or random drop)
-- Stored in inventory
-
-#### Dragon Heart
-- Reduces XP multiplier from 1.3 to 1.2 (or 1.5 to 1.2 if no scroll)
-- Found in the world (specific location or random drop)
-- Stored in inventory
-
-**Tasks:**
-1. Create Item base class
-2. Create AncientScroll item class
-3. Create DragonHeart item class
-4. Add item pickup logic
-5. Modify XP calculation to check for items
-6. Add visual representation in world
-
-**Python Reference Files:**
-- `entities/player/attributes.py` - XP multiplier logic
-- `entities/items/` directory
-
-**Notes:**
-- `foundAncientScroll` and `foundDragonHeart` flags already exist in PlayerAttributes
-- XP table generation already checks these flags
-
----
-
-### Phase 12: Bonfire & Rest Menu - NOT STARTED
+### Phase 12: Bonfire & Rest Menu - NOT STARTED - exactly like it was implemented at the python code
 
 **Description:** Add bonfire rest points with menu system.
 
@@ -219,7 +186,7 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 
 ---
 
-### Phase 13: Save/Load System - NOT STARTED
+### Phase 13: Save/Load System - NOT STARTED - exactly like it was implemented at the python code
 
 **Description:** Implement game state persistence using localStorage.
 
@@ -252,7 +219,7 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 
 ---
 
-### Phase 14: NPCs & Dialog - NOT STARTED
+### Phase 14: NPCs & Dialog - NOT STARTED - exactly like it was implemented at the python code
 
 **Description:** Add NPC system with dialog balloons.
 
@@ -275,6 +242,35 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 - E key to advance dialog
 - NPCs can give hints, quests, or items
 - DO NOT implement LLM-based dialog (keep it simple static text)
+
+---
+
+### Phase 15: Death Logic - NOT STARTED - exactly like it was implemented at the python code
+
+**Description:** Add player death handling and respawn system.
+
+**Features:**
+- Player death when HP reaches 0
+- Death screen/overlay
+- Respawn at last bonfire or origin
+- XP/soul loss on death (if applicable)
+- Death animation/effect
+
+**Tasks:**
+1. Detect player death (HP <= 0)
+2. Create death overlay/screen
+3. Implement respawn logic
+4. Add death animation/visual feedback
+5. Handle game state reset on death
+6. Integrate with save system (load last save on respawn if applicable)
+
+**Python Reference Files:**
+- `main.py` - Death handling logic
+- `entities/player/player.py` - Player death state
+
+**Notes:**
+- Check how Python handles death in main game loop
+- May involve resetting world state or loading save
 
 ---
 
@@ -345,10 +341,10 @@ web/
 
 ## Next Session Priorities
 
-1. **Phase 11: Items** - Add Dragon Heart and Ancient Scroll
-2. **Phase 12: Bonfire** - Add rest points
-3. **Phase 13: Save/Load** - Implement persistence
-4. **Phase 14: NPCs** - Add NPC system with test character
+1. **Phase 12: Bonfire** - Add rest points - exactly like it was implemented at the python code
+2. **Phase 13: Save/Load** - Implement persistence - exactly like it was implemented at the python code
+3. **Phase 14: NPCs** - Add NPC system with test character - exactly like it was implemented at the python code
+4. **Phase 15: Death Logic** - Implement death handling and respawn - exactly like it was implemented at the python code
 
 ---
 

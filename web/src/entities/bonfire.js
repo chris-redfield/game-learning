@@ -23,6 +23,9 @@ class Bonfire {
         this.blockX = 0;
         this.blockY = 0;
 
+        // Save/load callback (set by main.js for origin bonfire)
+        this.saveLoadCallback = null;
+
         // Load sprites
         this.sprites = [];
         this.loadSprites();
@@ -129,19 +132,17 @@ class Bonfire {
             console.log('Player already at full health');
         }
 
-        // Show dialog
-        if (window.dialogBalloonSystem) {
-            if (healed) {
-                window.dialogBalloonSystem.addDialog(
-                    'The bonfire restores your health...',
-                    this.x, this.y, this.width, this.height
-                );
-            } else {
-                window.dialogBalloonSystem.addDialog(
-                    'You rest by the bonfire...',
-                    this.x, this.y, this.width, this.height
-                );
-            }
+        // Restore mana to full as well
+        const manaAmount = player.attributes.maxMana - player.attributes.currentMana;
+        if (manaAmount > 0) {
+            player.attributes.restoreMana(manaAmount);
+            console.log(`Bonfire restored ${manaAmount} mana`);
+        }
+
+        // If this is the origin bonfire, show save/load dialog
+        if (this.isOriginBonfire() && this.saveLoadCallback) {
+            console.log('Origin bonfire - showing save/load dialog');
+            this.saveLoadCallback();
         }
 
         return healed || this.isOriginBonfire();

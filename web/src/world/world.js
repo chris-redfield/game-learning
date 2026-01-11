@@ -132,6 +132,14 @@ class World {
      * Add starting items to the origin block
      */
     _addStartingItems(block, centerX, centerY) {
+        // Bonfire - northeast of player spawn (exactly like Python)
+        const bonfireX = centerX + 100;
+        const bonfireY = centerY - 100;
+        const bonfire = new Bonfire(bonfireX, bonfireY);
+        bonfire.setBlockCoordinates(0, 0);
+        block.addEntity(bonfire);
+        console.log(`Added Bonfire to origin block at (${bonfireX}, ${bonfireY})`);
+
         // Health Potion - to the right of player spawn
         const potionX = centerX + 80;
         const potionY = centerY - 20;
@@ -675,6 +683,14 @@ class World {
     getItems() {
         const entities = this.getCurrentEntities();
         return entities.filter(e => e instanceof Item);
+    }
+
+    /**
+     * Get all bonfires in current block
+     */
+    getBonfires() {
+        const entities = this.getCurrentEntities();
+        return entities.filter(e => e instanceof Bonfire);
     }
 
     /**

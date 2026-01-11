@@ -12,6 +12,8 @@ const gameState = {
     world: null,
     hud: null, // HUD instance
     characterScreen: null, // Character screen instance
+    bonfireMenu: null, // Bonfire save/load menu
+    saveLoadManager: null, // Save/Load manager
     souls: [], // XP orbs dropped by enemies
     projectiles: [], // Active projectiles (firebolt, etc.)
     transitioning: false,
@@ -53,6 +55,28 @@ async function init() {
     // Create Character Screen
     gameState.characterScreen = new CharacterScreen(gameState.player, game.width, game.height);
 
+    // Create Bonfire Menu and Save/Load Manager
+    gameState.bonfireMenu = new BonfireMenu();
+    gameState.saveLoadManager = new SaveLoadManager();
+
+    // Set bonfire menu callbacks
+    gameState.bonfireMenu.onSave = () => {
+        // For now, save to slot 1
+        gameState.saveLoadManager.saveGame(1, gameState.player, gameState.world);
+        console.log('Game saved!');
+    };
+    gameState.bonfireMenu.onLoad = () => {
+        // For now, load from slot 1
+        if (gameState.saveLoadManager.loadGame(1, gameState.player, gameState.world)) {
+            console.log('Game loaded!');
+        } else {
+            console.log('No save data found');
+        }
+    };
+
+    // Set bonfire callback for origin bonfire
+    setBonfireCallback();
+
     // Set up custom update handler
     game.onUpdate = (dt) => {
         updateGame(dt);
@@ -76,6 +100,12 @@ async function init() {
 function updateGame(dt) {
     // Don't update during transitions
     if (gameState.transitioning) {
+        return;
+    }
+
+    // Handle bonfire menu input when visible (highest priority)
+    if (gameState.bonfireMenu && gameState.bonfireMenu.isVisible()) {
+        gameState.bonfireMenu.handleInput(game.input);
         return;
     }
 
@@ -146,6 +176,11 @@ function updateGame(dt) {
         castFirebolt(currentTime);
     }
 
+    // Handle interact (E key) - for bonfires and NPCs
+    if (game.input.isKeyJustPressed('interact')) {
+        checkEntityInteraction(player, world, currentTime);
+    }
+
     // Handle add XP (+ key for testing, matching Python)
     if (game.input.isKeyJustPressed('addXp')) {
         player.gainXp(5);
@@ -174,6 +209,12 @@ function updateGame(dt) {
                 currentBlock.removeEntity(item);
             }
         }
+    }
+
+    // Update bonfires
+    const bonfires = world.getBonfires();
+    for (const bonfire of bonfires) {
+        bonfire.update(dt, currentTime);
     }
 
     // Check sword collisions with enemies
@@ -339,6 +380,11 @@ function renderGame(ctx) {
 
     if (gameState.characterScreen.isVisible()) {
         gameState.characterScreen.draw(ctx);
+    }
+
+    // Draw bonfire menu on top
+    if (gameState.bonfireMenu && gameState.bonfireMenu.isVisible()) {
+        gameState.bonfireMenu.render(ctx, game.width, game.height);
     }
 }
 
@@ -511,6 +557,7 @@ function showControlsInfo() {
 === The Dark Garden of Z - Controls ===
 WASD / Arrow Keys - Move
 Space - Attack (Sword Swing)
+E - Interact (bonfires, NPCs)
 F - Firebolt (magic projectile)
 + - Add XP (+5 for testing)
 Shift - Dash (speed boost)
@@ -531,6 +578,65 @@ LB/RB - Dash
 Start - Character Screen
 ===================================
     `);
+}
+
+// Check if player can interact with any entities nearby (E key)
+// Exactly like Python main.py check_entity_interaction function
+function checkEntityInteraction(player, world, currentTime) {
+    const entities = world.getCurrentEntities();
+    const playerRect = player.getRect();
+    const playerCenterX = playerRect.x + playerRect.width / 2;
+    const playerCenterY = playerRect.y + playerRect.height / 2;
+
+    // Check each entity for interaction
+    for (const entity of entities) {
+        if (!entity.interact) continue;
+
+        const entityRect = entity.getRect();
+        const entityCenterX = entityRect.x + entityRect.width / 2;
+        const entityCenterY = entityRect.y + entityRect.height / 2;
+
+        // Calculate distance between centers
+        const dx = playerCenterX - entityCenterX;
+        const dy = playerCenterY - entityCenterY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // If within 60 pixels, allow interaction
+        if (distance < 60) {
+            entity.interact(player, currentTime);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Set the save/load callback for the origin bonfire
+// Exactly like Python main.py set_bonfire_callback function
+function setBonfireCallback() {
+    const world = gameState.world;
+    if (!world) return;
+
+    // Get the origin block
+    const originBlock = world.getBlockAt(0, 0);
+    if (!originBlock) return;
+
+    // Find the bonfire entity
+    const entities = originBlock.getEntities();
+    for (const entity of entities) {
+        if (entity instanceof Bonfire && entity.isOriginBonfire()) {
+            // Set the callback to show bonfire menu
+            entity.saveLoadCallback = () => {
+                if (gameState.bonfireMenu) {
+                    gameState.bonfireMenu.show();
+                }
+            };
+            console.log('Set save/load callback for origin bonfire');
+            return;
+        }
+    }
+
+    console.warn('Could not find origin bonfire to set callback');
 }
 
 // Helper function to check if two rectangles overlap

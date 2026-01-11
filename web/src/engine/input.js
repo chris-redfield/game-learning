@@ -47,13 +47,20 @@ class InputHandler {
             // UI
             'KeyM': 'map',
             'Enter': 'character',
-            'Escape': 'pause',
+            'Escape': 'escape',
             'KeyC': 'debug',
             'Tab': 'inventory',
             'Digit1': 'tabAttributes',
             'Digit2': 'tabSkills',
             'Equal': 'addXp',           // + key (unshifted)
             'NumpadAdd': 'addXp'        // Numpad +
+        };
+
+        // Alias mappings for menu navigation
+        this.aliasMap = {
+            'confirm': ['attack', 'interact'],  // Space or E
+            'back': ['escape'],
+            'pause': ['escape']
         };
 
         // Gamepad button mappings (standard gamepad layout)
@@ -210,6 +217,15 @@ class InputHandler {
     }
 
     isKeyJustPressed(action) {
+        // Check aliases first
+        if (this.aliasMap && this.aliasMap[action]) {
+            for (const aliasAction of this.aliasMap[action]) {
+                if (this.isKeyJustPressed(aliasAction)) {
+                    return true;
+                }
+            }
+        }
+
         // Check keyboard
         for (const [code, mappedAction] of Object.entries(this.keyMap)) {
             if (mappedAction === action && this.keysJustPressed[code]) {
