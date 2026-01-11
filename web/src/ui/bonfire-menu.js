@@ -530,10 +530,68 @@ class SaveLoadManager {
     }
 }
 
+// MessageDialog - Simple message with OK button
+class MessageDialog extends Dialog {
+    constructor(title = 'Message', message = '') {
+        super(title, ['OK'], null);
+        this.message = message;
+        this.width = 400;
+    }
+
+    setMessage(title, message) {
+        this.title = title;
+        this.message = message;
+    }
+
+    selectOption() {
+        this.hide();
+    }
+
+    render(ctx, screenWidth, screenHeight) {
+        if (!this.visible) return;
+
+        const messageHeight = this.message ? 40 : 0;
+        const height = 120 + messageHeight;
+        const x = (screenWidth - this.width) / 2;
+        const y = (screenHeight - height) / 2;
+
+        // Draw background
+        ctx.fillStyle = this.colors.background;
+        ctx.fillRect(x, y, this.width, height);
+
+        // Draw border
+        ctx.strokeStyle = this.colors.border;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, this.width, height);
+
+        // Draw title
+        ctx.font = 'bold 24px Arial';
+        ctx.fillStyle = this.colors.title;
+        ctx.textAlign = 'center';
+        ctx.fillText(this.title, x + this.width / 2, y + this.padding + 20);
+
+        // Draw message
+        if (this.message) {
+            ctx.font = '18px Arial';
+            ctx.fillStyle = this.colors.text;
+            ctx.fillText(this.message, x + this.width / 2, y + this.padding + 55);
+        }
+
+        // Draw OK button
+        const buttonY = y + height - 45;
+        ctx.font = '20px Arial';
+        ctx.fillStyle = this.colors.selected;
+        ctx.fillText('> OK', x + this.width / 2 - 20, buttonY);
+
+        ctx.textAlign = 'left';
+    }
+}
+
 // Export
 window.Dialog = Dialog;
 window.BonfireMenu = BonfireMenu;
 window.FileDialog = FileDialog;
 window.SaveOverwriteDialog = SaveOverwriteDialog;
 window.LoadFileDialog = LoadFileDialog;
+window.MessageDialog = MessageDialog;
 window.SaveLoadManager = SaveLoadManager;

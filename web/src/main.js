@@ -15,6 +15,7 @@ const gameState = {
     bonfireMenu: null, // Bonfire save/load menu
     saveDialog: null, // Save file dialog
     loadDialog: null, // Load file dialog
+    messageDialog: null, // Message dialog for confirmations
     saveLoadManager: null, // Save/Load manager
     souls: [], // XP orbs dropped by enemies
     projectiles: [], // Active projectiles (firebolt, etc.)
@@ -60,15 +61,25 @@ async function init() {
     // Create Save/Load Manager
     gameState.saveLoadManager = new SaveLoadManager(gameState.player, gameState.world);
 
+    // Create Message Dialog for confirmations
+    gameState.messageDialog = new MessageDialog();
+
     // Create Save and Load file dialogs
     gameState.saveDialog = new SaveOverwriteDialog(gameState.saveLoadManager, (filename) => {
         console.log(`Game saved to ${filename}`);
+        // Show success message
+        gameState.messageDialog.setMessage('Save Game', `Game saved successfully to ${filename}`);
+        gameState.messageDialog.show();
     });
     gameState.loadDialog = new LoadFileDialog(gameState.saveLoadManager, (filename, success) => {
         if (success) {
             console.log(`Game loaded from ${filename}`);
+            gameState.messageDialog.setMessage('Load Game', `Game loaded successfully from ${filename}`);
+            gameState.messageDialog.show();
         } else {
             console.log('Failed to load game');
+            gameState.messageDialog.setMessage('Load Game', 'Failed to load game');
+            gameState.messageDialog.show();
         }
     });
 
@@ -79,11 +90,16 @@ async function init() {
     );
 
     // Add keyboard listener for filename entry in save dialog
+    // This must run BEFORE the input system processes the key
     document.addEventListener('keydown', (event) => {
-        if (gameState.saveDialog && gameState.saveDialog.handleKeyDown(event)) {
+        // Block all key events when in filename editing mode
+        if (gameState.saveDialog && gameState.saveDialog.editingName && gameState.saveDialog.visible) {
+            gameState.saveDialog.handleKeyDown(event);
             event.preventDefault();
+            event.stopPropagation();
+            return;
         }
-    });
+    }, true); // Use capture phase to run before other handlers
 
     // Set bonfire callback for origin bonfire
     setBonfireCallback();
@@ -114,7 +130,13 @@ function updateGame(dt) {
         return;
     }
 
-    // Handle save dialog input when visible (highest priority)
+    // Handle message dialog input when visible (highest priority)
+    if (gameState.messageDialog && gameState.messageDialog.isVisible()) {
+        gameState.messageDialog.handleInput(game.input);
+        return;
+    }
+
+    // Handle save dialog input when visible
     if (gameState.saveDialog && gameState.saveDialog.isVisible()) {
         if (!gameState.saveDialog.editingName) {
             gameState.saveDialog.handleInput(game.input);
@@ -420,6 +442,11 @@ function renderGame(ctx) {
     // Draw load dialog on top of everything
     if (gameState.loadDialog && gameState.loadDialog.isVisible()) {
         gameState.loadDialog.render(ctx, game.width, game.height);
+    }
+
+    // Draw message dialog on top of everything (success/error messages)
+    if (gameState.messageDialog && gameState.messageDialog.isVisible()) {
+        gameState.messageDialog.render(ctx, game.width, game.height);
     }
 }
 
