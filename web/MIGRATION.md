@@ -155,69 +155,60 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 
 ---
 
-## Remaining Phases (12-15)
+## Completed Phases (11-13)
 
-### Phase 12: Bonfire & Rest Menu - NOT STARTED - exactly like it was implemented at the python code
+### Phase 11: Items - COMPLETED
+- Dragon Heart, Ancient Scroll, Health Potion items
+- Item pickup with collision detection
+- Bobbing animation effect
+- Sprite loading from assets
+- Special items placed at specific block coordinates
 
-**Description:** Add bonfire rest points with menu system.
+**Key Files:**
+- `web/src/entities/items.js` - Item classes
+- `web/src/world/world.js` - Item spawning
 
-**Features:**
-- Bonfire entity in world
-- Rest menu when interacting (E key)
-- Options: Rest (heal), Save Game, Return to Game
-- Visual bonfire effect (animated flames)
+### Phase 12: Bonfire & Rest Menu - COMPLETED
 
-**Tasks:**
-1. Create Bonfire entity class
-2. Add bonfire sprite/animation
-3. Create BonfireMenu UI class
-4. Implement rest/heal functionality
-5. Integrate with save system
-6. Add bonfire spawning in world
+**Description:** Bonfire rest points with menu system - exactly like Python implementation.
 
-**Python Reference Files:**
-- `entities/bonfire.py`
-- `ui/bonfire_menu.py`
+**Features Implemented:**
+- Bonfire entity with animated flames (4-frame animation)
+- Bonfire collision (player cannot walk through)
+- Interact with E key when near bonfire
+- Heals player to full HP and MP
+- Origin bonfire shows Save/Load menu
+- Debug collision box visible when C held
 
-**Notes:**
-- Bonfires should be rare (maybe 1 per few blocks)
-- Resting restores HP and MP to full
-- Menu should pause game like character screen
+**Key Files:**
+- `web/src/entities/bonfire.js` - Bonfire entity class
+- `web/src/ui/bonfire-menu.js` - Dialog and menu classes
 
----
+### Phase 13: Save/Load System - COMPLETED
 
-### Phase 13: Save/Load System - NOT STARTED - exactly like it was implemented at the python code
+**Description:** Game state persistence using localStorage - exactly like Python implementation.
 
-**Description:** Implement game state persistence using localStorage.
+**Features Implemented:**
+- SaveLoadManager class for save/load operations
+- Save game with file selection dialog
+- Create new save with custom filename
+- Overwrite existing saves
+- Load game from file list
+- Success/error message dialogs
+- Saves player position, stats, skills, progression items
 
-**Data to Save:**
+**Data Saved:**
 - Player position (x, y, current block)
-- Player attributes (level, XP, stats, stat points, skill points)
+- Player attributes (level, XP, stats, stat/skill points)
 - Unlocked skills
-- Inventory items
-- Visited blocks (for map)
-- Found items (Ancient Scroll, Dragon Heart flags)
+- Progression items (Ancient Scroll, Dragon Heart flags)
 
-**Tasks:**
-1. Create SaveManager class
-2. Implement save data serialization
-3. Implement save to localStorage
-4. Implement load from localStorage
-5. Add save slot system (optional, at least 1 slot)
-6. Add save confirmation UI
-7. Add load game option on start
-8. Auto-save at bonfires
-
-**Python Reference Files:**
-- `save_manager.py`
-
-**Notes:**
-- Use JSON format for save data
-- localStorage key: `dark_garden_save_1`
-- Validate save data on load
-- Handle corrupted save gracefully
+**Key Files:**
+- `web/src/ui/bonfire-menu.js` - SaveLoadManager, dialogs
 
 ---
+
+## Remaining Phases (14-15)
 
 ### Phase 14: NPCs & Dialog - NOT STARTED - exactly like it was implemented at the python code
 
@@ -293,7 +284,8 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 
 ### Testing Notes
 - Use `+` key to add XP for testing skill unlocks
-- Press `C` for debug mode (currently disabled)
+- Hold `C` to show debug collision boxes (not a toggle)
+- Press `E` near bonfire to interact and access save/load
 - Gamepad support tested with standard layout
 
 ---
@@ -311,6 +303,7 @@ web/
 │   ├── skeleton-spritesheet.png
 │   ├── grass-spritesheet.png
 │   ├── rock-spritesheet.png
+│   ├── bonfire-sprites.png
 │   ├── soul.png
 │   └── portrait-pixel-art.png
 └── src/
@@ -322,7 +315,10 @@ web/
     │   ├── player.js             # Player, Attributes, SkillTree
     │   ├── slime.js              # Slime enemy
     │   ├── skeleton.js           # Skeleton enemy
-    │   └── soul.js               # XP soul pickup
+    │   ├── soul.js               # XP soul pickup
+    │   ├── bonfire.js            # Bonfire rest point
+    │   ├── items.js              # Item classes
+    │   └── inventory.js          # Inventory system
     ├── world/
     │   ├── world.js              # World generation
     │   ├── block.js              # Block container
@@ -334,17 +330,16 @@ web/
     │   └── particles.js          # Particle system
     └── ui/
         ├── hud.js                # HUD display
-        └── character-screen.js   # Character/Skill screen
+        ├── character-screen.js   # Character/Skill screen
+        └── bonfire-menu.js       # Save/Load dialogs
 ```
 
 ---
 
 ## Next Session Priorities
 
-1. **Phase 12: Bonfire** - Add rest points - exactly like it was implemented at the python code
-2. **Phase 13: Save/Load** - Implement persistence - exactly like it was implemented at the python code
-3. **Phase 14: NPCs** - Add NPC system with test character - exactly like it was implemented at the python code
-4. **Phase 15: Death Logic** - Implement death handling and respawn - exactly like it was implemented at the python code
+1. **Phase 14: NPCs** - Add NPC system with test character - exactly like it was implemented at the python code
+2. **Phase 15: Death Logic** - Implement death handling and respawn - exactly like it was implemented at the python code
 
 ---
 
