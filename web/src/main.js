@@ -82,12 +82,30 @@ function updateGame(dt) {
     // Toggle character screen (must work even when paused)
     if (game.input.isKeyJustPressed('character')) {
         gameState.characterScreen.toggle();
+        // Close map if opening character screen
+        if (gameState.characterScreen.isVisible()) {
+            game.showMap = false;
+        }
+    }
+
+    // Toggle map (must work even when paused)
+    if (game.input.isKeyJustPressed('map')) {
+        game.showMap = !game.showMap;
+        // Close character screen if opening map
+        if (game.showMap && gameState.characterScreen.isVisible()) {
+            gameState.characterScreen.toggle();
+        }
     }
 
     // Handle character screen input when visible (before pause check)
     if (gameState.characterScreen && gameState.characterScreen.isVisible()) {
         gameState.characterScreen.handleInput(game.input);
         // Pause game when character screen is open
+        return;
+    }
+
+    // Pause game when map is open
+    if (game.showMap) {
         return;
     }
 
@@ -132,11 +150,6 @@ function updateGame(dt) {
     if (game.input.isKeyJustPressed('addXp')) {
         player.gainXp(5);
         console.log(`XP: ${player.attributes.xp}/${player.attributes.xpNeeded} | Level: ${player.attributes.level}`);
-    }
-
-    // Toggle map
-    if (game.input.isKeyJustPressed('map')) {
-        game.showMap = !game.showMap;
     }
 
     // Update player
