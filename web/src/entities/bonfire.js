@@ -151,7 +151,7 @@ class Bonfire {
         return healed || this.isOriginBonfire();
     }
 
-    render(ctx) {
+    render(ctx, game) {
         // Draw current frame
         if (this.sprites.length > 0) {
             const frame = this.sprites[this.frameIndex % this.sprites.length];
@@ -180,13 +180,14 @@ class Bonfire {
                 ctx.fill();
             }
         }
-    }
 
-    renderDebug(ctx) {
-        const rect = this.getRect();
-        ctx.strokeStyle = '#00ff00';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+        // Draw debug collision box when C is held
+        if (game && game.showDebug) {
+            const rect = this.getRect();
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+        }
     }
 }
 

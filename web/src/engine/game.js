@@ -185,10 +185,8 @@ class Game {
         // Update gamepad state
         this.input.updateGamepad();
 
-        // Handle debug toggle
-        if (this.input.isKeyJustPressed('debug')) {
-            this.showDebug = !this.showDebug;
-        }
+        // Show debug only while C key is held down (not a toggle)
+        this.showDebug = this.input.isKeyDown('debug');
 
         // Fixed timestep for physics/logic
         this.accumulator += this.deltaTime;
