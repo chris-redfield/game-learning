@@ -164,6 +164,18 @@ function updateGame(dt) {
         enemy.update(dt, player, allObstacles);
     }
 
+    // Update items (for bobbing animation and pickup detection)
+    const items = world.getItems();
+    for (const item of items) {
+        if (item.update(player)) {
+            // Item was collected, remove from block
+            const currentBlock = world.getCurrentBlock();
+            if (currentBlock) {
+                currentBlock.removeEntity(item);
+            }
+        }
+    }
+
     // Check sword collisions with enemies
     if (player.isSwinging()) {
         const swordRect = player.getSwordRect();

@@ -21,15 +21,15 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 | 7 | HUD | COMPLETED |
 | 8 | Character Screen | COMPLETED |
 | 9 | Skill Tree | COMPLETED |
-| 10 | Inventory System | NOT STARTED |
+| 10 | Inventory System | COMPLETED |
 | 11 | Items (Dragon Heart, Ancient Scroll) | NOT STARTED |
-| 12 | NPCs & Dialog | NOT STARTED |
-| 13 | Bonfire & Rest Menu | NOT STARTED |
-| 14 | Save/Load System | NOT STARTED |
+| 12 | Bonfire & Rest Menu | NOT STARTED |
+| 13 | Save/Load System | NOT STARTED |
+| 14 | NPCs & Dialog | NOT STARTED |
 
 ---
 
-## Completed Phases (1-9)
+## Completed Phases (1-10)
 
 ### Phase 1: Core Engine - COMPLETED
 - HTML5 Canvas setup (1280x720)
@@ -138,31 +138,23 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 
 (*) = Not yet implemented in gameplay
 
----
+### Phase 10: Inventory System - COMPLETED
+- Inventory class with add/remove items and stackable item support
+- Inventory grid (6x4) displayed on Attributes tab below portrait
+- TAB key switches between stats and inventory sections
+- Arrow key navigation within inventory grid
+- E key / Space to use selected items
+- Mouse hover and click support for inventory items
+- Item tooltips on hover/selection
+- Feedback messages when items can't be used
 
-## Remaining Phases (10-14)
-
-### Phase 10: Inventory System - NOT STARTED
-
-**Description:** Add inventory tab to character screen for managing items.
-
-**Tasks:**
-1. Add third tab "INVENTORY" to character screen
-2. Create inventory grid UI (matching Python)
-3. Add item slot system
-4. Implement item selection and info display
-5. Add keyboard navigation for inventory
-
-**Python Reference Files:**
-- `character_screen.py` - `draw_inventory_tab()` method
-- `entities/player/inventory.py`
-
-**Notes:**
-- Inventory should be a new tab alongside ATTRIBUTES and SKILLS
-- Grid-based layout for item slots
-- Item info panel when hovering/selecting
+**Key Files:**
+- `web/src/entities/inventory.js` - Inventory class
+- `web/src/ui/character-screen.js` - Inventory grid UI
 
 ---
+
+## Remaining Phases (11-14)
 
 ### Phase 11: Items (Dragon Heart, Ancient Scroll) - NOT STARTED
 
@@ -198,33 +190,7 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 
 ---
 
-### Phase 12: NPCs & Dialog - NOT STARTED
-
-**Description:** Add NPC system with dialog balloons.
-
-**Tasks:**
-1. Create NPC base class
-2. Create dialog balloon UI component
-3. Add interaction system (E key near NPC)
-4. Create test NPC (Link character)
-5. Add dialog text system
-6. Implement dialog progression (multiple lines)
-
-**Python Reference Files:**
-- `entities/npc/npc.py`
-- `entities/npc/link_npc.py`
-- `ui/dialog_balloon.py`
-
-**Notes:**
-- NPCs should be non-hostile entities
-- Dialog appears in speech balloon above NPC
-- E key to advance dialog
-- NPCs can give hints, quests, or items
-- DO NOT implement LLM-based dialog (keep it simple static text)
-
----
-
-### Phase 13: Bonfire & Rest Menu - NOT STARTED
+### Phase 12: Bonfire & Rest Menu - NOT STARTED
 
 **Description:** Add bonfire rest points with menu system.
 
@@ -253,7 +219,7 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 
 ---
 
-### Phase 14: Save/Load System - NOT STARTED
+### Phase 13: Save/Load System - NOT STARTED
 
 **Description:** Implement game state persistence using localStorage.
 
@@ -283,6 +249,32 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 - localStorage key: `dark_garden_save_1`
 - Validate save data on load
 - Handle corrupted save gracefully
+
+---
+
+### Phase 14: NPCs & Dialog - NOT STARTED
+
+**Description:** Add NPC system with dialog balloons.
+
+**Tasks:**
+1. Create NPC base class
+2. Create dialog balloon UI component
+3. Add interaction system (E key near NPC)
+4. Create test NPC (Link character)
+5. Add dialog text system
+6. Implement dialog progression (multiple lines)
+
+**Python Reference Files:**
+- `entities/npc/npc.py`
+- `entities/npc/link_npc.py`
+- `ui/dialog_balloon.py`
+
+**Notes:**
+- NPCs should be non-hostile entities
+- Dialog appears in speech balloon above NPC
+- E key to advance dialog
+- NPCs can give hints, quests, or items
+- DO NOT implement LLM-based dialog (keep it simple static text)
 
 ---
 
@@ -353,11 +345,10 @@ web/
 
 ## Next Session Priorities
 
-1. **Phase 10: Inventory System** - Add inventory tab to character screen
-2. **Phase 11: Items** - Add Dragon Heart and Ancient Scroll
-3. **Phase 12: NPCs** - Add NPC system with test character
-4. **Phase 13: Bonfire** - Add rest points
-5. **Phase 14: Save/Load** - Implement persistence
+1. **Phase 11: Items** - Add Dragon Heart and Ancient Scroll
+2. **Phase 12: Bonfire** - Add rest points
+3. **Phase 13: Save/Load** - Implement persistence
+4. **Phase 14: NPCs** - Add NPC system with test character
 
 ---
 

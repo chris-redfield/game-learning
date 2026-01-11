@@ -637,6 +637,26 @@ class PlayerAttributes {
         return false;
     }
 
+    findAncientScroll() {
+        if (!this.foundAncientScroll) {
+            this.foundAncientScroll = true;
+            this.xpNeeded = this.getXpNeeded();
+            console.log("You found an Ancient Scroll of Knowledge! Your XP gains are now more efficient.");
+            return true;
+        }
+        return false;
+    }
+
+    findDragonHeart() {
+        if (!this.foundDragonHeart) {
+            this.foundDragonHeart = true;
+            this.xpNeeded = this.getXpNeeded();
+            console.log("You found a Dragon Heart! Your XP gains are now greatly amplified!");
+            return true;
+        }
+        return false;
+    }
+
     increaseStat(statName) {
         if (this.statPoints <= 0) return false;
 

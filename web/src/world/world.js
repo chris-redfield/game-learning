@@ -106,7 +106,8 @@ class World {
                 height: 300
             };
 
-            // Note: Bonfire and NPCs will be added in Phase 9
+            // Add items at origin block for testing
+            this._addStartingItems(block, centerX, centerY);
         }
 
         // Add environment entities
@@ -122,6 +123,89 @@ class World {
         }
 
         block.markAsVisited();
+    }
+
+    /**
+     * Add starting items to the origin block
+     */
+    _addStartingItems(block, centerX, centerY) {
+        // Health Potion - to the right of player spawn
+        const potionX = centerX + 80;
+        const potionY = centerY - 20;
+        const potion = new HealthPotion(potionX, potionY);
+        block.addEntity(potion);
+        console.log(`Added Health Potion to starting block at (${potionX}, ${potionY})`);
+
+        // Ancient Scroll - below player spawn
+        const scrollX = centerX - 40;
+        const scrollY = centerY + 100;
+        const scroll = new AncientScroll(scrollX, scrollY);
+        block.addEntity(scroll);
+        console.log(`Added Ancient Scroll to starting block at (${scrollX}, ${scrollY})`);
+
+        // Dragon Heart - to the left of player spawn (for testing, normally at block 5,5)
+        const heartX = centerX - 120;
+        const heartY = centerY - 20;
+        const heart = new DragonHeart(heartX, heartY);
+        block.addEntity(heart);
+        console.log(`Added Dragon Heart to starting block at (${heartX}, ${heartY})`);
+    }
+
+    /**
+     * Add items of a specific type to a block
+     */
+    _addItems(block, count, itemType, positions = null, safeArea = null) {
+        let itemsAdded = 0;
+
+        // If specific positions are provided, use those
+        if (positions && positions.length > 0) {
+            for (const pos of positions.slice(0, count)) {
+                const item = new itemType(pos.x, pos.y);
+                block.addEntity(item);
+                itemsAdded++;
+                console.log(`Added ${item.name} to block at (${pos.x}, ${pos.y})`);
+            }
+            return itemsAdded;
+        }
+
+        // Random placement
+        const minDistance = 48;
+        let attempts = 0;
+
+        while (itemsAdded < count && attempts < 100) {
+            const x = 80 + Math.random() * (this.screenWidth - 160);
+            const y = 80 + Math.random() * (this.screenHeight - 160);
+
+            const newRect = { x, y, width: 32, height: 32 };
+
+            // Check safe area
+            if (safeArea && this._rectsOverlap(newRect, safeArea)) {
+                attempts++;
+                continue;
+            }
+
+            // Check distance from other entities
+            let tooClose = false;
+            for (const entity of block.getEntities()) {
+                const entityRect = entity.getRect();
+                if (this._rectsOverlap(newRect, entityRect) ||
+                    this._distance(newRect, entityRect) < minDistance) {
+                    tooClose = true;
+                    break;
+                }
+            }
+
+            if (!tooClose) {
+                const item = new itemType(x, y);
+                block.addEntity(item);
+                itemsAdded++;
+                console.log(`Added ${item.name} to block at (${x}, ${y})`);
+            }
+
+            attempts++;
+        }
+
+        return itemsAdded;
     }
 
     /**
@@ -571,6 +655,14 @@ class World {
     getEnemies() {
         const entities = this.getCurrentEntities();
         return entities.filter(e => e instanceof Enemy || e instanceof Slime || e instanceof Skeleton);
+    }
+
+    /**
+     * Get all items in current block
+     */
+    getItems() {
+        const entities = this.getCurrentEntities();
+        return entities.filter(e => e instanceof Item);
     }
 
     /**
