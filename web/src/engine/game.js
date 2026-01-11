@@ -294,27 +294,9 @@ class Game {
         }
     }
 
-    // Debug rendering
+    // Debug rendering (disabled - no visual overlay)
     renderDebug() {
-        // Draw debug text with outline for visibility (no black rectangle)
-        this.ctx.font = '14px monospace';
-        const debugLines = [
-            `FPS: ${this.fps}`,
-            `Entities: ${this.entities.length}`,
-            this.input.getDebugInfo(),
-            `Gamepad: ${this.input.hasGamepad() ? 'Connected' : 'None'}`
-        ];
-
-        for (let i = 0; i < debugLines.length; i++) {
-            const y = 30 + i * 20;
-            // Draw outline
-            this.ctx.strokeStyle = '#000000';
-            this.ctx.lineWidth = 3;
-            this.ctx.strokeText(debugLines[i], 20, y);
-            // Draw text
-            this.ctx.fillStyle = '#00ff00';
-            this.ctx.fillText(debugLines[i], 20, y);
-        }
+        // Debug overlay removed per user request
     }
 
     updateFPSDisplay() {
