@@ -116,7 +116,10 @@ class World {
         this._addGrassPatches(block, grassCount, safeArea);
         this._addRockPatches(block, rockCount, safeArea);
 
-        // Note: Enemies will be added in Phase 5
+        // Add enemies (not at origin block)
+        if (!(xCoord === 0 && yCoord === 0)) {
+            this._addEnemies(block, safeArea, xCoord, yCoord);
+        }
 
         block.markAsVisited();
     }
@@ -201,6 +204,105 @@ class World {
 
             attempts++;
         }
+    }
+
+    /**
+     * Add enemies to a block based on difficulty
+     */
+    _addEnemies(block, safeArea, xCoord, yCoord) {
+        const difficultyLevel = this.getDifficultyLevel(xCoord, yCoord);
+        const difficultyFactor = this.getDifficultyFactor(xCoord, yCoord);
+
+        // Calculate total difficulty points
+        const baseDifficultyPoints = difficultyLevel * difficultyLevel + 2;
+        const totalPoints = Math.max(2, baseDifficultyPoints + Math.floor(Math.random() * 5) - 2);
+
+        // Enemy tier definitions
+        const tiers = {
+            1: [{ type: 'slime', weight: 100 }],
+            2: [{ type: 'slime', weight: 80 }, { type: 'skeleton', weight: 20 }],
+            3: [{ type: 'slime', weight: 60 }, { type: 'skeleton', weight: 40 }],
+            4: [{ type: 'slime', weight: 50 }, { type: 'skeleton', weight: 50 }],
+            5: [{ type: 'slime', weight: 30 }, { type: 'skeleton', weight: 70, subtype: 'brute' }],
+            6: [{ type: 'slime', weight: 20 }, { type: 'skeleton', weight: 80, subtype: 'brute' }]
+        };
+
+        const tierData = tiers[Math.min(difficultyLevel, 6)];
+        let remainingPoints = totalPoints;
+        const maxEnemyLevel = Math.max(1, Math.round(totalPoints * 0.25));
+        let attempts = 0;
+
+        while (remainingPoints > 0 && attempts < 50) {
+            // Select enemy type by weight
+            const totalWeight = tierData.reduce((sum, t) => sum + t.weight, 0);
+            let roll = Math.random() * totalWeight;
+            let selectedType = tierData[0];
+
+            for (const t of tierData) {
+                roll -= t.weight;
+                if (roll <= 0) {
+                    selectedType = t;
+                    break;
+                }
+            }
+
+            // Determine level
+            const maxLevel = Math.min(maxEnemyLevel, remainingPoints);
+            if (maxLevel < 1) break;
+            const enemyLevel = 1 + Math.floor(Math.random() * maxLevel);
+
+            // Try to place enemy
+            if (this._addSingleEnemy(block, selectedType.type, enemyLevel, selectedType.subtype || 'normal', safeArea, difficultyFactor)) {
+                remainingPoints -= enemyLevel;
+            }
+
+            attempts++;
+        }
+    }
+
+    /**
+     * Add a single enemy to the block
+     */
+    _addSingleEnemy(block, type, level, subtype, safeArea, difficultyFactor) {
+        const width = type === 'skeleton' ? 48 : 32;
+        const height = type === 'skeleton' ? 52 : 24;
+
+        for (let attempt = 0; attempt < 20; attempt++) {
+            const x = 100 + Math.random() * (this.screenWidth - 200);
+            const y = 100 + Math.random() * (this.screenHeight - 200);
+
+            const enemyRect = { x, y, width, height };
+
+            // Check safe area
+            if (safeArea && this._rectsOverlap(enemyRect, safeArea)) {
+                continue;
+            }
+
+            // Check collision with existing entities
+            let collision = false;
+            for (const entity of block.getEntities()) {
+                if (this._rectsOverlap(enemyRect, entity.getRect())) {
+                    collision = true;
+                    break;
+                }
+            }
+
+            if (!collision) {
+                let enemy;
+                if (type === 'skeleton') {
+                    enemy = new Skeleton(this.game, x, y);
+                    enemy.enemyType = subtype;
+                } else {
+                    enemy = new Slime(this.game, x, y);
+                }
+
+                enemy.setLevel(level, difficultyFactor);
+                block.addEntity(enemy);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -458,6 +560,37 @@ class World {
     getObstacles() {
         const entities = this.getCurrentEntities();
         return entities.filter(e => e.isObstacle);
+    }
+
+    /**
+     * Get all enemies in current block
+     */
+    getEnemies() {
+        const entities = this.getCurrentEntities();
+        return entities.filter(e => e instanceof Enemy || e instanceof Slime || e instanceof Skeleton);
+    }
+
+    /**
+     * Remove dead enemies and return XP to award
+     */
+    cleanupDeadEnemies() {
+        const currentBlock = this.getCurrentBlock();
+        if (!currentBlock) return [];
+
+        const deadEnemies = [];
+        const entities = currentBlock.getEntities();
+
+        for (const entity of entities) {
+            if ((entity instanceof Enemy || entity instanceof Slime || entity instanceof Skeleton) && entity.shouldRemove) {
+                deadEnemies.push(entity);
+            }
+        }
+
+        for (const dead of deadEnemies) {
+            currentBlock.removeEntity(dead);
+        }
+
+        return deadEnemies;
     }
 }
 

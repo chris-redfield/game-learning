@@ -8,6 +8,7 @@ class Grass {
         this.y = y;
         this.width = 32;
         this.height = 32;
+        this.isObstacle = true; // Grass/bushes block movement
 
         // Randomly select bush sprite
         const bushOptions = ['bush1', 'bush2', 'bush3'];

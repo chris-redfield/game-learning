@@ -119,6 +119,45 @@ function updateGame(dt) {
     // Update player
     player.update(dt, game);
 
+    // Get all obstacles (for enemy collision)
+    const allObstacles = [...obstacles];
+
+    // Update enemies
+    const enemies = world.getEnemies();
+    for (const enemy of enemies) {
+        enemy.update(dt, player, allObstacles);
+    }
+
+    // Check sword collisions with enemies
+    if (player.isSwinging()) {
+        const swordRect = player.getSwordRect();
+        if (swordRect) {
+            for (const enemy of enemies) {
+                if (enemy.state === 'dying') continue;
+                if (player.hitEnemies.has(enemy)) continue;
+
+                const enemyRect = enemy.getRect();
+                if (rectsOverlap(swordRect, enemyRect)) {
+                    const damage = player.attributes.getAttackPower();
+                    const playerCenterX = player.x + player.width / 2;
+                    const playerCenterY = player.y + player.height / 2;
+                    enemy.takeDamage(damage, playerCenterX, playerCenterY);
+                    player.hitEnemies.add(enemy);
+                }
+            }
+        }
+    }
+
+    // Clean up dead enemies and award XP
+    const deadEnemies = world.cleanupDeadEnemies();
+    for (const dead of deadEnemies) {
+        if (dead.willDropSoul) {
+            const xp = dead.getXpValue();
+            player.gainXp(xp);
+            console.log(`Gained ${xp} XP from ${dead.constructor.name}`);
+        }
+    }
+
     // Check for block transition
     const transition = world.checkPlayerBlockTransition(player);
     if (transition.changed) {
@@ -401,6 +440,14 @@ LB/RB - Dash
 Start - Character Screen
 ===================================
     `);
+}
+
+// Helper function to check if two rectangles overlap
+function rectsOverlap(rect1, rect2) {
+    return rect1.x < rect2.x + rect2.width &&
+           rect1.x + rect1.width > rect2.x &&
+           rect1.y < rect2.y + rect2.height &&
+           rect1.y + rect1.height > rect2.y;
 }
 
 // Start the game when page loads
