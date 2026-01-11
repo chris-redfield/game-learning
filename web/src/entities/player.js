@@ -60,6 +60,9 @@ class Player {
         // Skill tree for ability tracking
         this.skillTree = new SkillTree(this);
 
+        // Inventory
+        this.inventory = new Inventory(24);
+
         // Sprites
         this.sprites = null;
         this.sword = null;

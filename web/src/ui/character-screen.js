@@ -25,7 +25,16 @@ class CharacterScreen {
             cursor: 'rgb(255, 255, 0)',
             skillUnlocked: 'rgb(0, 150, 0)',
             skillAvailable: 'rgb(150, 150, 0)',
-            skillUnavailable: 'rgb(100, 100, 100)'
+            skillUnavailable: 'rgb(100, 100, 100)',
+            // Inventory colors
+            gridBg: 'rgb(40, 40, 50)',
+            gridBorder: 'rgb(100, 100, 120)',
+            itemHover: 'rgb(80, 80, 100)',
+            itemSelected: 'rgb(100, 100, 150)',
+            usable: 'rgb(100, 180, 100)',
+            unusable: 'rgb(180, 100, 100)',
+            feedbackBg: 'rgba(0, 0, 0, 0.7)',
+            feedbackText: 'rgb(255, 220, 100)'
         };
 
         // Fonts
@@ -48,6 +57,30 @@ class CharacterScreen {
         this.skillSelected = null;
         this.skillRects = {};
         this.unlockButtonRect = null;
+
+        // Item grid configuration (matching Python)
+        this.gridCols = 6;
+        this.gridRows = 4;
+        this.cellSize = 50;
+        this.gridPadding = 5;
+
+        // Item selection variables
+        this.selectedItemIndex = -1;  // No item selected initially
+        this.hoveredItemIndex = -1;   // No item hovered initially
+        this.tooltipVisible = false;
+        this.tooltipItem = null;
+
+        // Navigation mode
+        this.currentSection = 'stats';  // Can be 'stats' or 'inventory'
+        this.gridSelectedRow = 0;
+        this.gridSelectedCol = 0;
+
+        // Cursor position for tooltip rendering
+        this.cursorPos = { x: 0, y: 0 };
+
+        // Item feedback message
+        this.itemFeedbackMessage = null;
+        this.itemFeedbackTimer = 0;
 
         // Mouse state
         this.mouseX = 0;
@@ -122,6 +155,31 @@ class CharacterScreen {
                 }
             }
         }
+
+        // Check inventory items hover (in attributes tab)
+        if (this.currentTab === 'attributes' && this.player.inventory) {
+            this.hoveredItemIndex = -1;
+
+            const inventoryItems = this.player.inventory.getItemsAndCounts();
+            const margin = 30;
+            const portraitX = margin + 50;
+            const portraitY = margin + 80;
+            const gridStartY = portraitY + this.portraitSize + 30 + 35;
+
+            for (let idx = 0; idx < inventoryItems.length; idx++) {
+                const row = Math.floor(idx / this.gridCols);
+                const col = idx % this.gridCols;
+
+                const cellX = portraitX + col * (this.cellSize + this.gridPadding) + this.gridPadding;
+                const cellY = gridStartY + row * (this.cellSize + this.gridPadding) + this.gridPadding;
+                const cellRect = { x: cellX, y: cellY, width: this.cellSize, height: this.cellSize };
+
+                if (this.pointInRect(this.mouseX, this.mouseY, cellRect)) {
+                    this.hoveredItemIndex = idx;
+                    break;
+                }
+            }
+        }
     }
 
     handleClick(x, y) {
@@ -143,6 +201,51 @@ class CharacterScreen {
                     if (this.player.attributes.statPoints > 0) {
                         const stat = buttonId.replace('inc_', '');
                         this.player.attributes.increaseStat(stat);
+                        return true;
+                    }
+                }
+            }
+
+            // Check inventory item clicks
+            if (this.player.inventory) {
+                const inventoryItems = this.player.inventory.getItemsAndCounts();
+                const margin = 30;
+                const portraitX = margin + 50;
+                const portraitY = margin + 80;
+                const gridStartY = portraitY + this.portraitSize + 30 + 35;
+
+                for (let idx = 0; idx < inventoryItems.length; idx++) {
+                    const row = Math.floor(idx / this.gridCols);
+                    const col = idx % this.gridCols;
+
+                    const cellX = portraitX + col * (this.cellSize + this.gridPadding) + this.gridPadding;
+                    const cellY = gridStartY + row * (this.cellSize + this.gridPadding) + this.gridPadding;
+                    const cellRect = { x: cellX, y: cellY, width: this.cellSize, height: this.cellSize };
+
+                    if (this.pointInRect(x, y, cellRect)) {
+                        const item = inventoryItems[idx].item;
+
+                        // Toggle selection of this item
+                        if (this.selectedItemIndex === idx) {
+                            // If already selected, use the item
+                            if (item && typeof item.use === 'function') {
+                                const useResult = item.use(this.player);
+                                if (typeof useResult === 'string') {
+                                    this.itemFeedbackMessage = useResult;
+                                    this.itemFeedbackTimer = 120;
+                                } else if (useResult === true) {
+                                    const actualIndex = this.player.inventory.items.indexOf(item);
+                                    this.player.inventory.removeItem(actualIndex);
+                                }
+                            }
+                        } else {
+                            // Select this item
+                            this.selectedItemIndex = idx;
+                            this.gridSelectedRow = row;
+                            this.gridSelectedCol = col;
+                            this.currentSection = 'inventory';
+                            this.updateSelectedItemPosition();
+                        }
                         return true;
                     }
                 }
@@ -195,6 +298,10 @@ class CharacterScreen {
             this.selectedIndex = 0;
             this.currentTab = 'attributes';
             this.skillSelected = null;
+            this.currentSection = 'stats';
+            this.selectedItemIndex = -1;
+            this.gridSelectedRow = 0;
+            this.gridSelectedCol = 0;
         }
         return this.visible;
     }
@@ -274,6 +381,185 @@ class CharacterScreen {
         }
     }
 
+    // Switch between stats and inventory sections
+    switchSection() {
+        if (this.currentSection === 'stats') {
+            this.currentSection = 'inventory';
+            // Initialize inventory selection
+            if (this.player.inventory && this.player.inventory.getItemsAndCounts().length > 0) {
+                this.selectedItemIndex = 0;
+                this.gridSelectedRow = 0;
+                this.gridSelectedCol = 0;
+            } else {
+                this.selectedItemIndex = -1;
+            }
+        } else {
+            this.currentSection = 'stats';
+            this.selectedItemIndex = -1;
+        }
+
+        // Update cursor position if we switched to inventory
+        if (this.currentSection === 'inventory' && this.selectedItemIndex >= 0) {
+            this.updateSelectedItemPosition();
+        }
+    }
+
+    // Navigate inventory grid up
+    selectInventoryUp() {
+        if (this.currentSection !== 'inventory') return;
+
+        const inventorySize = this.player.inventory ? this.player.inventory.getItemsAndCounts().length : 0;
+        if (inventorySize === 0) return;
+
+        // Move to previous row or wrap to bottom
+        this.gridSelectedRow = (this.gridSelectedRow - 1 + this.gridRows) % this.gridRows;
+        this.selectedItemIndex = this.gridSelectedRow * this.gridCols + this.gridSelectedCol;
+
+        // Validate selection is within inventory bounds
+        if (this.selectedItemIndex >= inventorySize) {
+            // Wrap to bottom row
+            this.gridSelectedRow = Math.floor((inventorySize - 1) / this.gridCols);
+            const maxCol = Math.min(this.gridCols - 1, inventorySize - 1 - (this.gridSelectedRow * this.gridCols));
+            if (this.gridSelectedCol > maxCol) {
+                this.gridSelectedCol = maxCol;
+            }
+            this.selectedItemIndex = this.gridSelectedRow * this.gridCols + this.gridSelectedCol;
+        }
+
+        this.updateSelectedItemPosition();
+    }
+
+    // Navigate inventory grid down
+    selectInventoryDown() {
+        if (this.currentSection !== 'inventory') return;
+
+        const inventorySize = this.player.inventory ? this.player.inventory.getItemsAndCounts().length : 0;
+        if (inventorySize === 0) return;
+
+        // Move to next row or wrap to top
+        this.gridSelectedRow = (this.gridSelectedRow + 1) % this.gridRows;
+        this.selectedItemIndex = this.gridSelectedRow * this.gridCols + this.gridSelectedCol;
+
+        // Validate selection is within inventory bounds
+        if (this.selectedItemIndex >= inventorySize) {
+            // Wrap to first row
+            this.gridSelectedRow = 0;
+            this.selectedItemIndex = this.gridSelectedCol;
+        }
+
+        this.updateSelectedItemPosition();
+    }
+
+    // Navigate inventory grid left
+    selectInventoryLeft() {
+        if (this.currentSection !== 'inventory') return;
+
+        const inventorySize = this.player.inventory ? this.player.inventory.getItemsAndCounts().length : 0;
+        if (inventorySize === 0) return;
+
+        // Move to previous column or wrap to last column
+        this.gridSelectedCol = (this.gridSelectedCol - 1 + this.gridCols) % this.gridCols;
+        this.selectedItemIndex = this.gridSelectedRow * this.gridCols + this.gridSelectedCol;
+
+        // Validate selection is within inventory bounds
+        if (this.selectedItemIndex >= inventorySize) {
+            this.selectedItemIndex = inventorySize - 1;
+            this.gridSelectedRow = Math.floor(this.selectedItemIndex / this.gridCols);
+            this.gridSelectedCol = this.selectedItemIndex % this.gridCols;
+        }
+
+        this.updateSelectedItemPosition();
+    }
+
+    // Navigate inventory grid right
+    selectInventoryRight() {
+        if (this.currentSection !== 'inventory') return;
+
+        const inventorySize = this.player.inventory ? this.player.inventory.getItemsAndCounts().length : 0;
+        if (inventorySize === 0) return;
+
+        // Move to next column or wrap to first column
+        this.gridSelectedCol = (this.gridSelectedCol + 1) % this.gridCols;
+        this.selectedItemIndex = this.gridSelectedRow * this.gridCols + this.gridSelectedCol;
+
+        // Validate selection is within inventory bounds
+        if (this.selectedItemIndex >= inventorySize) {
+            this.gridSelectedCol = 0;
+            this.gridSelectedRow = (this.gridSelectedRow + 1) % this.gridRows;
+            this.selectedItemIndex = this.gridSelectedRow * this.gridCols;
+
+            if (this.selectedItemIndex >= inventorySize) {
+                this.gridSelectedRow = 0;
+                this.gridSelectedCol = 0;
+                this.selectedItemIndex = 0;
+            }
+        }
+
+        this.updateSelectedItemPosition();
+    }
+
+    // Update cursor position for the currently selected inventory item
+    updateSelectedItemPosition() {
+        if (this.currentSection !== 'inventory' || this.selectedItemIndex < 0) return;
+
+        const row = Math.floor(this.selectedItemIndex / this.gridCols);
+        const col = this.selectedItemIndex % this.gridCols;
+
+        // Calculate grid starting position (must match drawItemsGrid)
+        const margin = 30;
+        const portraitX = margin + 50;
+        const portraitY = margin + 80;
+        const gridStartY = portraitY + this.portraitSize + 30 + 35;
+
+        const cellX = portraitX + col * (this.cellSize + this.gridPadding) + this.gridPadding;
+        const cellY = gridStartY + row * (this.cellSize + this.gridPadding) + this.gridPadding;
+
+        this.cursorPos = { x: cellX + this.cellSize + 10, y: cellY };
+    }
+
+    // Use the currently selected inventory item
+    useSelectedItem() {
+        if (this.currentSection !== 'inventory' || this.selectedItemIndex < 0) return false;
+        if (!this.player.inventory) return false;
+
+        const inventoryItems = this.player.inventory.getItemsAndCounts();
+        if (this.selectedItemIndex >= inventoryItems.length) return false;
+
+        const itemData = inventoryItems[this.selectedItemIndex];
+        const item = itemData.item;
+
+        if (item && typeof item.use === 'function') {
+            // Try to use the item
+            const useResult = item.use(this.player);
+
+            // If useResult is a string, it's a message to display
+            if (typeof useResult === 'string') {
+                this.itemFeedbackMessage = useResult;
+                this.itemFeedbackTimer = 120;
+                return false;
+            }
+            // If useResult is true, item was used successfully
+            else if (useResult === true) {
+                // Item was used successfully, remove from inventory
+                const actualIndex = this.player.inventory.items.indexOf(item);
+                this.player.inventory.removeItem(actualIndex);
+
+                // If inventory is now empty, reset selection
+                if (this.player.inventory.getItemsAndCounts().length === 0) {
+                    this.selectedItemIndex = -1;
+                }
+                // Otherwise adjust selection if it's now invalid
+                else if (this.selectedItemIndex >= this.player.inventory.getItemsAndCounts().length) {
+                    this.selectedItemIndex = this.player.inventory.getItemsAndCounts().length - 1;
+                    this.gridSelectedRow = Math.floor(this.selectedItemIndex / this.gridCols);
+                    this.gridSelectedCol = this.selectedItemIndex % this.gridCols;
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
     handleInput(input) {
         if (!this.visible) return false;
 
@@ -297,33 +583,64 @@ class CharacterScreen {
         }
 
         if (this.currentTab === 'attributes') {
-            // Navigation with up/down arrows
-            if (input.isKeyJustPressed('up')) {
-                this.selectPrev();
+            // TAB key to switch between stats and inventory sections
+            if (input.isKeyJustPressed('inventory')) {
+                this.switchSection();
                 return true;
             }
-            if (input.isKeyJustPressed('down')) {
-                this.selectNext();
-                return true;
-            }
-            // Left/right navigation between tab buttons
-            const currentButton = this.buttonOrder[this.selectedIndex];
-            if (input.isKeyJustPressed('left')) {
-                if (currentButton === 'tab_skills') {
-                    this.selectedIndex = this.buttonOrder.indexOf('tab_attributes');
+
+            if (this.currentSection === 'stats') {
+                // Navigation with up/down arrows for stats
+                if (input.isKeyJustPressed('up')) {
+                    this.selectPrev();
                     return true;
                 }
-            }
-            if (input.isKeyJustPressed('right')) {
-                if (currentButton === 'tab_attributes') {
-                    this.selectedIndex = this.buttonOrder.indexOf('tab_skills');
+                if (input.isKeyJustPressed('down')) {
+                    this.selectNext();
                     return true;
                 }
-            }
-            // Activation with E or Space
-            if (input.isKeyJustPressed('interact') || input.isKeyJustPressed('attack')) {
-                this.activateSelected();
-                return true;
+                // Left/right navigation between tab buttons
+                const currentButton = this.buttonOrder[this.selectedIndex];
+                if (input.isKeyJustPressed('left')) {
+                    if (currentButton === 'tab_skills') {
+                        this.selectedIndex = this.buttonOrder.indexOf('tab_attributes');
+                        return true;
+                    }
+                }
+                if (input.isKeyJustPressed('right')) {
+                    if (currentButton === 'tab_attributes') {
+                        this.selectedIndex = this.buttonOrder.indexOf('tab_skills');
+                        return true;
+                    }
+                }
+                // Activation with E or Space
+                if (input.isKeyJustPressed('interact') || input.isKeyJustPressed('attack')) {
+                    this.activateSelected();
+                    return true;
+                }
+            } else if (this.currentSection === 'inventory') {
+                // Inventory navigation
+                if (input.isKeyJustPressed('up')) {
+                    this.selectInventoryUp();
+                    return true;
+                }
+                if (input.isKeyJustPressed('down')) {
+                    this.selectInventoryDown();
+                    return true;
+                }
+                if (input.isKeyJustPressed('left')) {
+                    this.selectInventoryLeft();
+                    return true;
+                }
+                if (input.isKeyJustPressed('right')) {
+                    this.selectInventoryRight();
+                    return true;
+                }
+                // Use item with E or Space
+                if (input.isKeyJustPressed('interact') || input.isKeyJustPressed('attack')) {
+                    this.useSelectedItem();
+                    return true;
+                }
             }
         } else if (this.currentTab === 'skills') {
             // Skill navigation
@@ -607,6 +924,17 @@ class CharacterScreen {
 
         // Abilities section
         this.drawAbilitiesSection(ctx, attributesX, attributesY + 260);
+
+        // Items grid below portrait
+        this.drawItemsGrid(ctx, portraitX, portraitY + this.portraitSize + 30);
+
+        // Draw item tooltip if needed
+        if (this.tooltipVisible && this.tooltipItem) {
+            const tooltipPos = this.hoveredItemIndex >= 0
+                ? { x: this.mouseX, y: this.mouseY }
+                : this.cursorPos;
+            this.drawItemTooltip(ctx, this.tooltipItem, tooltipPos);
+        }
     }
 
     drawResourceBars(ctx, x, y) {
@@ -672,6 +1000,248 @@ class CharacterScreen {
         if (!hasAbilities) {
             ctx.fillStyle = 'rgb(150, 150, 150)';
             ctx.fillText('No abilities unlocked yet', x, abilityY);
+        }
+    }
+
+    drawItemsGrid(ctx, x, y) {
+        // Title for items section
+        ctx.font = this.statFont;
+        ctx.fillStyle = this.colors.title;
+        ctx.fillText('ITEMS', x, y);
+
+        // Draw control instructions
+        if (this.currentSection === 'inventory' && this.player.inventory &&
+            this.player.inventory.getItemsAndCounts().length > 0) {
+            ctx.font = this.textFont;
+            ctx.fillStyle = this.colors.text;
+            ctx.fillText('Press E to use selected item', x + 100, y);
+        }
+
+        // Calculate grid dimensions
+        const gridWidth = this.cellSize * this.gridCols + this.gridPadding * (this.gridCols + 1);
+        const gridHeight = this.cellSize * this.gridRows + this.gridPadding * (this.gridRows + 1);
+
+        // Draw grid background
+        ctx.fillStyle = this.colors.gridBg;
+        ctx.fillRect(x, y + 35, gridWidth, gridHeight);
+        ctx.strokeStyle = this.colors.border;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y + 35, gridWidth, gridHeight);
+
+        // Get player inventory items
+        const inventoryItems = this.player.inventory ? this.player.inventory.getItemsAndCounts() : [];
+
+        // Reset tooltip state (will be set if item is hovered/selected)
+        this.tooltipVisible = false;
+        this.tooltipItem = null;
+
+        // Draw grid cells
+        for (let row = 0; row < this.gridRows; row++) {
+            for (let col = 0; col < this.gridCols; col++) {
+                const cellX = x + col * (this.cellSize + this.gridPadding) + this.gridPadding;
+                const cellY = y + 35 + row * (this.cellSize + this.gridPadding) + this.gridPadding;
+
+                // Get item index
+                const itemIdx = row * this.gridCols + col;
+
+                // Determine cell background color based on selection status
+                let cellColor = this.colors.gridBorder;
+
+                // Check if this is the selected cell
+                const isSelected = itemIdx === this.selectedItemIndex;
+                const isHovered = itemIdx === this.hoveredItemIndex;
+
+                // Draw selected or hovered item with different background
+                if (isSelected && this.currentSection === 'inventory') {
+                    cellColor = this.colors.itemSelected;
+                } else if (isHovered) {
+                    cellColor = this.colors.itemHover;
+                }
+
+                // Draw cell background
+                ctx.fillStyle = cellColor;
+                ctx.fillRect(cellX, cellY, this.cellSize, this.cellSize);
+                ctx.strokeStyle = this.colors.gridBorder;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(cellX, cellY, this.cellSize, this.cellSize);
+
+                // Draw item if it exists in inventory
+                if (itemIdx < inventoryItems.length) {
+                    const itemData = inventoryItems[itemIdx];
+                    const item = itemData.item;
+                    const count = itemData.count;
+
+                    if (item) {
+                        // Get item icon if available
+                        if (item.icon) {
+                            // Center the icon in the cell
+                            const iconX = cellX + (this.cellSize - item.icon.width) / 2;
+                            const iconY = cellY + (this.cellSize - item.icon.height) / 2;
+                            ctx.drawImage(item.icon, iconX, iconY);
+                        } else {
+                            // Fallback to a colored rectangle
+                            ctx.fillStyle = 'rgb(150, 150, 150)';
+                            ctx.fillRect(cellX + 5, cellY + 5, this.cellSize - 10, this.cellSize - 10);
+
+                            // Draw item name initial
+                            ctx.font = 'bold 16px Arial';
+                            ctx.fillStyle = this.colors.text;
+                            ctx.textAlign = 'center';
+                            ctx.fillText(item.name.charAt(0).toUpperCase(), cellX + this.cellSize / 2, cellY + this.cellSize / 2 + 5);
+                            ctx.textAlign = 'left';
+                        }
+
+                        // Draw item count if more than 1
+                        if (count > 1) {
+                            ctx.font = this.textFont;
+                            ctx.fillStyle = this.colors.text;
+                            const countText = `${count}`;
+                            ctx.fillText(countText, cellX + this.cellSize - 15, cellY + this.cellSize - 5);
+                        }
+
+                        // Add visual indication if item is usable
+                        if (typeof item.use === 'function' && !item.oneTimeUse) {
+                            // Small green indicator in the corner
+                            ctx.fillStyle = this.colors.usable;
+                            ctx.fillRect(cellX + 2, cellY + 2, 6, 6);
+                        }
+
+                        // Draw selection outline
+                        if (isSelected && this.currentSection === 'inventory') {
+                            // Draw a bright border around the selected item
+                            ctx.strokeStyle = this.colors.cursor;
+                            ctx.lineWidth = 3;
+                            ctx.strokeRect(cellX - 2, cellY - 2, this.cellSize + 4, this.cellSize + 4);
+
+                            // Show button prompt
+                            ctx.font = this.buttonFont;
+                            ctx.fillStyle = this.colors.cursor;
+                            ctx.fillText('E', cellX + this.cellSize - 12, cellY + 12);
+
+                            // Store selected item for tooltip rendering
+                            if (this.hoveredItemIndex !== itemIdx) {
+                                this.tooltipVisible = true;
+                                this.tooltipItem = item;
+                            }
+                        }
+
+                        // Set tooltip for hovered items
+                        if (isHovered) {
+                            this.tooltipVisible = true;
+                            this.tooltipItem = item;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Draw feedback message below the grid if active
+        if (this.itemFeedbackMessage && this.itemFeedbackTimer > 0) {
+            this.itemFeedbackTimer--;
+            this.drawItemFeedback(ctx, x + 100, y + 35 + gridHeight + 10);
+        }
+    }
+
+    drawItemFeedback(ctx, x, y) {
+        if (!this.itemFeedbackMessage) return;
+
+        // Calculate message position - center horizontally
+        const padding = 8;
+        ctx.font = this.statFont;
+        const textWidth = ctx.measureText(this.itemFeedbackMessage).width;
+
+        const msgX = x + (this.gridCols * (this.cellSize + this.gridPadding)) / 2 - textWidth / 2;
+        const msgY = y;
+
+        // Draw message background
+        ctx.fillStyle = this.colors.feedbackBg;
+        ctx.fillRect(msgX - padding, msgY - padding - 15, textWidth + padding * 2, 30 + padding * 2);
+
+        // Draw border
+        ctx.strokeStyle = this.colors.border;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(msgX - padding, msgY - padding - 15, textWidth + padding * 2, 30 + padding * 2);
+
+        // Draw message text
+        ctx.fillStyle = this.colors.feedbackText;
+        ctx.fillText(this.itemFeedbackMessage, msgX, msgY);
+
+        // Clear message when timer expires
+        if (this.itemFeedbackTimer <= 0) {
+            this.itemFeedbackMessage = null;
+        }
+    }
+
+    drawItemTooltip(ctx, item, mousePos) {
+        if (!item) return;
+
+        // Get item information
+        const name = item.name || 'Unknown Item';
+        let description = item.description || 'No description available.';
+
+        // Add usage hint if applicable
+        const usable = typeof item.use === 'function' && !item.oneTimeUse;
+        if (usable) {
+            description += ' (Press E to use)';
+        }
+
+        // Calculate tooltip dimensions
+        const padding = 10;
+        const maxWidth = 250;
+
+        // Render text dimensions
+        ctx.font = this.statFont;
+        const nameWidth = ctx.measureText(name).width;
+
+        // Word wrap description
+        ctx.font = '14px Arial';
+        const words = description.split(' ');
+        const wrappedDesc = [];
+        let currentLine = '';
+
+        for (const word of words) {
+            const testLine = currentLine ? currentLine + ' ' + word : word;
+            const testWidth = ctx.measureText(testLine).width;
+
+            if (testWidth < maxWidth) {
+                currentLine = testLine;
+            } else {
+                wrappedDesc.push(currentLine);
+                currentLine = word;
+            }
+        }
+        if (currentLine) {
+            wrappedDesc.push(currentLine);
+        }
+
+        // Calculate tooltip size
+        const tooltipWidth = Math.max(maxWidth, nameWidth) + padding * 2;
+        const lineHeight = 18;
+        const tooltipHeight = padding * 2 + 25 + wrappedDesc.length * lineHeight + 5;
+
+        // Position tooltip near mouse but ensure it stays on screen
+        let tooltipX = Math.min(mousePos.x + 15, this.screenWidth - tooltipWidth - 10);
+        let tooltipY = Math.min(mousePos.y + 15, this.screenHeight - tooltipHeight - 10);
+
+        // Draw tooltip background
+        ctx.fillStyle = this.colors.background;
+        ctx.fillRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
+        ctx.strokeStyle = this.colors.border;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
+
+        // Draw name
+        ctx.font = this.statFont;
+        ctx.fillStyle = this.colors.title;
+        ctx.fillText(name, tooltipX + padding, tooltipY + padding + 15);
+
+        // Draw description
+        ctx.font = '14px Arial';
+        ctx.fillStyle = this.colors.text;
+        let yOffset = tooltipY + padding + 25 + 15;
+        for (const line of wrappedDesc) {
+            ctx.fillText(line, tooltipX + padding, yOffset);
+            yOffset += lineHeight;
         }
     }
 
