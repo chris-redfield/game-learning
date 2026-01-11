@@ -490,6 +490,14 @@ function renderGame(ctx) {
             }
         }
 
+        // NPC debug (collision boxes)
+        const npcs = world.getNpcs();
+        for (const npc of npcs) {
+            if (npc.renderDebug) {
+                npc.renderDebug(ctx);
+            }
+        }
+
         // Projectile debug (bounding boxes)
         for (const projectile of gameState.projectiles) {
             if (projectile.renderDebug) {

@@ -13,6 +13,9 @@ class NPC {
         this.baseSpeed = 2;
         this.game = game;
 
+        // NPC is an obstacle (player can't walk through)
+        this.isObstacle = true;
+
         // Character info
         this.characterName = characterName;
         this.name = characterName;
@@ -40,35 +43,106 @@ class NPC {
         // Visibility (for invulnerability flashing if needed)
         this.visible = true;
 
-        // Sprites (will load using SpriteSheet if game is available)
+        // Sprites (will load directly from image)
         this.sprites = {};
         this.spritesLoaded = false;
+        this.spriteImage = null;
 
         this.loadSprites();
     }
 
     loadSprites() {
-        // Try to use SpriteSheet class if available (for 'link' character)
-        if (this.characterName.toLowerCase() === 'link' && window.SpriteSheet) {
-            try {
-                // Use the same sprite loading as Player
-                const spriteSheet = new SpriteSheet(this.game, this.characterName);
-                const result = spriteSheet.loadCharacterSprites(
-                    this.characterName,
-                    this.width,
-                    this.height
-                );
-                this.sprites = result.sprites;
+        // Load sprites directly from image file (without needing game object)
+        if (this.characterName.toLowerCase() === 'link') {
+            this.spriteImage = new Image();
+            this.spriteImage.onload = () => {
+                this.extractLinkSprites();
                 this.spritesLoaded = true;
-                console.log(`NPC sprites loaded for ${this.characterName} via SpriteSheet`);
-            } catch (e) {
-                console.log(`Could not load sprites via SpriteSheet for ${this.characterName}, using placeholder`);
+                console.log(`NPC sprites loaded for ${this.characterName}`);
+            };
+            this.spriteImage.onerror = () => {
+                console.log(`Could not load sprites for ${this.characterName}, using placeholder`);
                 this.createPlaceholderSprites();
-            }
+            };
+            this.spriteImage.src = 'assets/sprites.png';
         } else {
             // Use placeholder for unknown characters
             this.createPlaceholderSprites();
         }
+    }
+
+    extractLinkSprites() {
+        // Link sprite definitions (same as SpriteSheet)
+        const defs = {
+            'down_idle': [{ x: 1, y: 3, w: 16, h: 24 }],
+            'down_walk': [
+                { x: 1, y: 3, w: 16, h: 24 },
+                { x: 19, y: 3, w: 16, h: 24 },
+                { x: 36, y: 3, w: 16, h: 24 },
+                { x: 53, y: 3, w: 16, h: 24 },
+                { x: 70, y: 3, w: 16, h: 24 },
+                { x: 87, y: 3, w: 16, h: 24 },
+                { x: 104, y: 3, w: 16, h: 24 },
+                { x: 121, y: 3, w: 16, h: 24 },
+                { x: 138, y: 3, w: 16, h: 24 }
+            ],
+            'up_idle': [{ x: 1, y: 111, w: 16, h: 24 }],
+            'up_walk': [
+                { x: 1, y: 111, w: 16, h: 24 },
+                { x: 19, y: 111, w: 16, h: 24 },
+                { x: 36, y: 111, w: 16, h: 24 },
+                { x: 53, y: 111, w: 16, h: 24 },
+                { x: 70, y: 111, w: 16, h: 24 },
+                { x: 87, y: 111, w: 16, h: 24 },
+                { x: 104, y: 111, w: 16, h: 24 },
+                { x: 121, y: 111, w: 16, h: 24 },
+                { x: 138, y: 111, w: 16, h: 24 }
+            ],
+            'right_idle': [{ x: 1, y: 56, w: 16, h: 24 }],
+            'right_walk': [
+                { x: 1, y: 56, w: 16, h: 24 },
+                { x: 19, y: 56, w: 16, h: 24 },
+                { x: 36, y: 56, w: 16, h: 24 },
+                { x: 54, y: 56, w: 16, h: 24 },
+                { x: 72, y: 56, w: 16, h: 24 },
+                { x: 89, y: 56, w: 16, h: 24 },
+                { x: 107, y: 56, w: 16, h: 24 },
+                { x: 125, y: 56, w: 16, h: 24 },
+                { x: 142, y: 56, w: 16, h: 24 }
+            ]
+        };
+
+        // Create sprite frames using canvas extraction
+        for (const [key, frames] of Object.entries(defs)) {
+            this.sprites[key] = frames.map(frame => {
+                const canvas = document.createElement('canvas');
+                canvas.width = this.width;
+                canvas.height = this.height;
+                const ctx = canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(
+                    this.spriteImage,
+                    frame.x, frame.y, frame.w, frame.h,
+                    0, 0, this.width, this.height
+                );
+                return canvas;
+            });
+        }
+
+        // Create left sprites by flipping right
+        this.sprites['left_idle'] = this.sprites['right_idle'].map(canvas => this.flipCanvas(canvas));
+        this.sprites['left_walk'] = this.sprites['right_walk'].map(canvas => this.flipCanvas(canvas));
+    }
+
+    flipCanvas(sourceCanvas) {
+        const flipped = document.createElement('canvas');
+        flipped.width = sourceCanvas.width;
+        flipped.height = sourceCanvas.height;
+        const ctx = flipped.getContext('2d');
+        ctx.translate(flipped.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(sourceCanvas, 0, 0);
+        return flipped;
     }
 
     createPlaceholderSprites() {
