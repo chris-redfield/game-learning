@@ -132,17 +132,13 @@ class DeathScreen {
     /**
      * Render the death screen
      */
-    render(ctx, screenWidth, screenHeight, player = null) {
+    render(ctx, screenWidth, screenHeight) {
         if (!this.active) return;
 
         // Draw semi-transparent overlay
+        // (game world and player are already rendered underneath)
         ctx.fillStyle = this.colors.overlay;
         ctx.fillRect(0, 0, screenWidth, screenHeight);
-
-        // If player is provided, draw player sprite on top of overlay
-        if (player && player.render) {
-            player.render(ctx);
-        }
 
         const centerX = screenWidth / 2;
         const centerY = screenHeight / 2;

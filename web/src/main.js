@@ -525,7 +525,7 @@ function renderGame(ctx) {
 
     // Draw death screen on top of everything (when player dies)
     if (gameState.deathScreen && gameState.deathScreen.isActive()) {
-        gameState.deathScreen.render(ctx, game.width, game.height, gameState.player);
+        gameState.deathScreen.render(ctx, game.width, game.height);
         // Draw load dialog on top of death screen if visible
         if (gameState.loadDialog && gameState.loadDialog.isVisible()) {
             gameState.loadDialog.render(ctx, game.width, game.height);
