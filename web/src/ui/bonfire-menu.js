@@ -11,6 +11,7 @@ class Dialog {
         this.callback = callback;
         this.visible = false;
         this.selectedOption = 0;
+        this.justShown = false; // Prevent input on same frame as show()
 
         // Colors matching Python
         this.colors = {
@@ -31,6 +32,7 @@ class Dialog {
     show() {
         this.visible = true;
         this.selectedOption = 0;
+        this.justShown = true; // Will be cleared after first input check
     }
 
     hide() {
@@ -61,6 +63,13 @@ class Dialog {
 
     handleInput(input) {
         if (!this.visible) return false;
+
+        // Skip input on the same frame the dialog was shown
+        // This prevents the key that opened this dialog from also selecting an option
+        if (this.justShown) {
+            this.justShown = false;
+            return true; // Block input but don't process
+        }
 
         if (input.isKeyJustPressed('up')) {
             this.selectPrev();
@@ -326,6 +335,7 @@ class LoadFileDialog extends FileDialog {
         super('Load Game', 'Select a save file to load:');
         this.saveManager = saveManager;
         this.onLoadComplete = onLoadComplete;
+        this.noSaves = false;
     }
 
     show() {
@@ -336,19 +346,27 @@ class LoadFileDialog extends FileDialog {
     refreshFiles() {
         const files = this.saveManager.getSaveFiles();
         if (files.length === 0) {
-            this.setFiles(['No save files found']);
+            this.noSaves = true;
+            this.message = 'There are no save files.';
+            this.setFiles(['Back']);
         } else {
-            this.setFiles(files);
+            this.noSaves = false;
+            this.message = 'Select a save file to load:';
+            // Add Back option at the end of file list
+            this.setFiles([...files, 'Back']);
         }
     }
 
     selectOption() {
         const selected = this.options[this.selectedOption];
-        if (selected === 'No save files found') {
+
+        // Back option - just hide the dialog
+        if (selected === 'Back') {
             this.hide();
             return;
         }
 
+        // Load the selected save file
         const success = this.saveManager.loadGameFromFile(selected);
         this.hide();
 
