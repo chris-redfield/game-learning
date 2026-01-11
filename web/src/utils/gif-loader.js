@@ -1,6 +1,7 @@
 /**
- * GIF Frame Loader - Extracts frames from animated GIFs for canvas rendering
+ * Animation Frame Loader - Extracts frames from animated GIFs and APNGs for canvas rendering
  * Mimics Python PIL's ImageSequence.Iterator behavior
+ * Handles both GIF and APNG (Animated PNG) formats
  */
 
 class GifLoader {
@@ -9,8 +10,8 @@ class GifLoader {
     }
 
     /**
-     * Load a GIF and extract all frames as canvas-ready images
-     * Uses a robust parsing approach similar to PIL
+     * Load an animated image and extract all frames as canvas-ready images
+     * Supports both GIF and APNG formats
      */
     async loadGif(url) {
         // Check cache first
@@ -19,24 +20,24 @@ class GifLoader {
         }
 
         try {
-            console.log(`Loading GIF from: ${url}`);
+            console.log(`Loading animation from: ${url}`);
             const response = await fetch(url);
             const arrayBuffer = await response.arrayBuffer();
             const data = new Uint8Array(arrayBuffer);
 
             // Check file signature
             const signature = String.fromCharCode(...data.slice(0, 4));
-            console.log(`File signature: ${signature}, size: ${data.length} bytes`);
 
             let result;
 
             if (signature === 'GIF8') {
                 // It's a GIF file
+                console.log('Detected GIF format');
                 result = this.parseGif(data);
-            } else if (data[0] === 0x89 && signature.substring(1) === 'PNG') {
-                // It's a PNG file - treat as single frame
-                console.log('File is PNG format, loading as single frame');
-                result = await this.loadAsSingleFrame(url);
+            } else if (data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4E && data[3] === 0x47) {
+                // It's a PNG file - check if it's animated (APNG)
+                console.log('Detected PNG format, checking for animation...');
+                result = await this.parseApng(data, url);
             } else {
                 // Try to load as image anyway
                 console.log('Unknown format, attempting to load as image');
@@ -46,13 +47,421 @@ class GifLoader {
             this.cache.set(url, result);
             return result;
         } catch (error) {
-            console.error(`Error loading GIF ${url}:`, error);
+            console.error(`Error loading animation ${url}:`, error);
             return { frames: [], delays: [], width: 32, height: 24 };
         }
     }
 
     /**
-     * Load an image file as a single frame (for PNG or failed GIF parsing)
+     * Parse APNG (Animated PNG) file
+     */
+    async parseApng(data, url) {
+        // Read PNG chunks
+        const chunks = this.readPngChunks(data);
+
+        // Find acTL chunk (animation control)
+        const acTL = chunks.find(c => c.type === 'acTL');
+
+        if (!acTL) {
+            // Not animated, load as single frame
+            console.log('No acTL chunk found, loading as single frame PNG');
+            return await this.loadAsSingleFrame(url);
+        }
+
+        // Get animation info from acTL
+        const numFrames = this.readUint32(acTL.data, 0);
+        const numPlays = this.readUint32(acTL.data, 4);
+        console.log(`APNG: ${numFrames} frames, ${numPlays} loops`);
+
+        // Get image dimensions from IHDR
+        const ihdr = chunks.find(c => c.type === 'IHDR');
+        const width = this.readUint32(ihdr.data, 0);
+        const height = this.readUint32(ihdr.data, 4);
+        const bitDepth = ihdr.data[8];
+        const colorType = ihdr.data[9];
+
+        console.log(`APNG dimensions: ${width}x${height}, bitDepth: ${bitDepth}, colorType: ${colorType}`);
+
+        // Get palette if present
+        const plte = chunks.find(c => c.type === 'PLTE');
+        let palette = null;
+        if (plte) {
+            palette = [];
+            for (let i = 0; i < plte.data.length; i += 3) {
+                palette.push([plte.data[i], plte.data[i + 1], plte.data[i + 2]]);
+            }
+        }
+
+        // Get transparency info
+        const trns = chunks.find(c => c.type === 'tRNS');
+        let transparency = null;
+        if (trns) {
+            transparency = Array.from(trns.data);
+        }
+
+        // Collect frame control and data chunks
+        const frameControls = [];
+        const frameDataChunks = [];
+        let currentFrameData = [];
+        let idatData = [];
+
+        for (const chunk of chunks) {
+            if (chunk.type === 'fcTL') {
+                // Frame control chunk
+                const fc = {
+                    sequenceNumber: this.readUint32(chunk.data, 0),
+                    width: this.readUint32(chunk.data, 4),
+                    height: this.readUint32(chunk.data, 8),
+                    xOffset: this.readUint32(chunk.data, 12),
+                    yOffset: this.readUint32(chunk.data, 16),
+                    delayNum: this.readUint16(chunk.data, 20),
+                    delayDen: this.readUint16(chunk.data, 22),
+                    disposeOp: chunk.data[24],
+                    blendOp: chunk.data[25]
+                };
+                frameControls.push(fc);
+
+                // Save previous frame data
+                if (currentFrameData.length > 0) {
+                    frameDataChunks.push(this.concatArrays(currentFrameData));
+                    currentFrameData = [];
+                }
+            } else if (chunk.type === 'IDAT') {
+                idatData.push(chunk.data);
+            } else if (chunk.type === 'fdAT') {
+                // Frame data chunk (skip first 4 bytes - sequence number)
+                currentFrameData.push(chunk.data.slice(4));
+            }
+        }
+
+        // Don't forget the last frame data
+        if (currentFrameData.length > 0) {
+            frameDataChunks.push(this.concatArrays(currentFrameData));
+        }
+
+        // If IDAT data exists and first fcTL references the default image
+        if (idatData.length > 0 && frameControls.length > 0) {
+            const firstFc = frameControls[0];
+            if (firstFc.xOffset === 0 && firstFc.yOffset === 0 &&
+                firstFc.width === width && firstFc.height === height) {
+                // First frame uses IDAT
+                frameDataChunks.unshift(this.concatArrays(idatData));
+            }
+        }
+
+        // Decompress and render each frame
+        const frames = [];
+        const delays = [];
+
+        // Create a canvas for compositing
+        const compositeCanvas = document.createElement('canvas');
+        compositeCanvas.width = width;
+        compositeCanvas.height = height;
+        const compositeCtx = compositeCanvas.getContext('2d');
+
+        for (let i = 0; i < Math.min(frameControls.length, frameDataChunks.length); i++) {
+            const fc = frameControls[i];
+            const compressedData = frameDataChunks[i];
+
+            try {
+                // Decompress the frame data
+                const rawData = await this.inflateData(compressedData);
+
+                // Create frame image data
+                const frameCanvas = document.createElement('canvas');
+                frameCanvas.width = fc.width;
+                frameCanvas.height = fc.height;
+                const frameCtx = frameCanvas.getContext('2d');
+                const imageData = frameCtx.createImageData(fc.width, fc.height);
+
+                // Decode PNG filter and convert to pixels
+                this.decodePngData(rawData, imageData.data, fc.width, fc.height,
+                    colorType, bitDepth, palette, transparency);
+
+                frameCtx.putImageData(imageData, 0, 0);
+
+                // Handle dispose operation for previous frame
+                if (i > 0) {
+                    const prevFc = frameControls[i - 1];
+                    if (prevFc.disposeOp === 1) {
+                        // APNG_DISPOSE_OP_BACKGROUND - clear previous frame region
+                        compositeCtx.clearRect(prevFc.xOffset, prevFc.yOffset, prevFc.width, prevFc.height);
+                    }
+                    // disposeOp 2 (PREVIOUS) would restore to before previous frame - complex, skip for now
+                }
+
+                // Handle blend operation
+                if (fc.blendOp === 0) {
+                    // APNG_BLEND_OP_SOURCE - replace
+                    compositeCtx.clearRect(fc.xOffset, fc.yOffset, fc.width, fc.height);
+                }
+                // blendOp 1 is OVER (alpha composite) which is default canvas behavior
+
+                // Draw frame onto composite
+                compositeCtx.drawImage(frameCanvas, fc.xOffset, fc.yOffset);
+
+                // Create a copy of the current composite for this frame
+                const resultCanvas = document.createElement('canvas');
+                resultCanvas.width = width;
+                resultCanvas.height = height;
+                const resultCtx = resultCanvas.getContext('2d');
+                resultCtx.drawImage(compositeCanvas, 0, 0);
+
+                frames.push(resultCanvas);
+
+                // Calculate delay in milliseconds
+                let delayMs = 100; // Default
+                if (fc.delayDen > 0) {
+                    delayMs = (fc.delayNum / fc.delayDen) * 1000;
+                } else if (fc.delayNum > 0) {
+                    delayMs = fc.delayNum * 10; // Assume 100ths of a second
+                }
+                if (delayMs < 10) delayMs = 100; // Minimum delay
+                delays.push(delayMs);
+
+            } catch (err) {
+                console.error(`Error decoding frame ${i}:`, err);
+            }
+        }
+
+        console.log(`Parsed APNG: ${frames.length} frames, ${width}x${height}`);
+        return { frames, delays, width, height };
+    }
+
+    /**
+     * Read PNG chunks from data
+     */
+    readPngChunks(data) {
+        const chunks = [];
+        let pos = 8; // Skip PNG signature
+
+        while (pos < data.length) {
+            const length = this.readUint32(data, pos);
+            const type = String.fromCharCode(data[pos + 4], data[pos + 5], data[pos + 6], data[pos + 7]);
+            const chunkData = data.slice(pos + 8, pos + 8 + length);
+
+            chunks.push({ type, data: chunkData, length });
+
+            pos += 12 + length; // 4 (length) + 4 (type) + length + 4 (CRC)
+
+            if (type === 'IEND') break;
+        }
+
+        return chunks;
+    }
+
+    /**
+     * Inflate (decompress) zlib data
+     */
+    async inflateData(compressedData) {
+        // Use browser's DecompressionStream API if available
+        if (typeof DecompressionStream !== 'undefined') {
+            try {
+                const ds = new DecompressionStream('deflate-raw');
+
+                // Skip zlib header (first 2 bytes) if present
+                let dataToDecompress = compressedData;
+                if (compressedData[0] === 0x78) {
+                    dataToDecompress = compressedData.slice(2);
+                }
+
+                const writer = ds.writable.getWriter();
+                writer.write(dataToDecompress);
+                writer.close();
+
+                const reader = ds.readable.getReader();
+                const chunks = [];
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    chunks.push(value);
+                }
+
+                return this.concatArrays(chunks);
+            } catch (e) {
+                console.warn('DecompressionStream failed, trying alternative:', e);
+            }
+        }
+
+        // Fallback: use pako if available or implement basic inflate
+        if (typeof pako !== 'undefined') {
+            return pako.inflate(compressedData);
+        }
+
+        // Manual zlib decompression (basic implementation)
+        return this.manualInflate(compressedData);
+    }
+
+    /**
+     * Basic manual inflate implementation for zlib data
+     */
+    manualInflate(data) {
+        // Skip zlib header
+        let pos = 2;
+        if (data[0] !== 0x78) pos = 0;
+
+        const output = [];
+
+        while (pos < data.length - 4) { // -4 for adler32
+            const bfinal = data[pos] & 1;
+            const btype = (data[pos] >> 1) & 3;
+
+            if (btype === 0) {
+                // Stored block
+                pos++;
+                const len = data[pos] | (data[pos + 1] << 8);
+                pos += 4; // Skip len and nlen
+                for (let i = 0; i < len; i++) {
+                    output.push(data[pos++]);
+                }
+            } else {
+                // Compressed blocks are complex - this is a simplified fallback
+                // For proper support, use pako or DecompressionStream
+                throw new Error('Compressed deflate blocks require pako library');
+            }
+
+            if (bfinal) break;
+        }
+
+        return new Uint8Array(output);
+    }
+
+    /**
+     * Decode PNG filtered data to RGBA pixels
+     */
+    decodePngData(rawData, pixels, width, height, colorType, bitDepth, palette, transparency) {
+        let bytesPerPixel;
+        switch (colorType) {
+            case 0: bytesPerPixel = 1; break; // Grayscale
+            case 2: bytesPerPixel = 3; break; // RGB
+            case 3: bytesPerPixel = 1; break; // Indexed
+            case 4: bytesPerPixel = 2; break; // Grayscale + Alpha
+            case 6: bytesPerPixel = 4; break; // RGBA
+            default: bytesPerPixel = 4;
+        }
+
+        const scanlineLength = width * bytesPerPixel + 1; // +1 for filter byte
+        let prevScanline = new Uint8Array(width * bytesPerPixel);
+
+        for (let y = 0; y < height; y++) {
+            const scanlineStart = y * scanlineLength;
+            if (scanlineStart >= rawData.length) break;
+
+            const filterType = rawData[scanlineStart];
+            const scanline = new Uint8Array(width * bytesPerPixel);
+
+            // Apply PNG filter
+            for (let x = 0; x < width * bytesPerPixel; x++) {
+                const raw = rawData[scanlineStart + 1 + x] || 0;
+                const a = x >= bytesPerPixel ? scanline[x - bytesPerPixel] : 0;
+                const b = prevScanline[x];
+                const c = x >= bytesPerPixel ? prevScanline[x - bytesPerPixel] : 0;
+
+                let value;
+                switch (filterType) {
+                    case 0: value = raw; break; // None
+                    case 1: value = (raw + a) & 0xFF; break; // Sub
+                    case 2: value = (raw + b) & 0xFF; break; // Up
+                    case 3: value = (raw + Math.floor((a + b) / 2)) & 0xFF; break; // Average
+                    case 4: value = (raw + this.paethPredictor(a, b, c)) & 0xFF; break; // Paeth
+                    default: value = raw;
+                }
+                scanline[x] = value;
+            }
+
+            // Convert to RGBA
+            for (let x = 0; x < width; x++) {
+                const pixelIndex = (y * width + x) * 4;
+
+                if (colorType === 3 && palette) {
+                    // Indexed color
+                    const colorIndex = scanline[x];
+                    if (palette[colorIndex]) {
+                        pixels[pixelIndex] = palette[colorIndex][0];
+                        pixels[pixelIndex + 1] = palette[colorIndex][1];
+                        pixels[pixelIndex + 2] = palette[colorIndex][2];
+                        pixels[pixelIndex + 3] = transparency && transparency[colorIndex] !== undefined
+                            ? transparency[colorIndex] : 255;
+                    }
+                } else if (colorType === 2) {
+                    // RGB
+                    const srcIndex = x * 3;
+                    pixels[pixelIndex] = scanline[srcIndex];
+                    pixels[pixelIndex + 1] = scanline[srcIndex + 1];
+                    pixels[pixelIndex + 2] = scanline[srcIndex + 2];
+                    pixels[pixelIndex + 3] = 255;
+                } else if (colorType === 6) {
+                    // RGBA
+                    const srcIndex = x * 4;
+                    pixels[pixelIndex] = scanline[srcIndex];
+                    pixels[pixelIndex + 1] = scanline[srcIndex + 1];
+                    pixels[pixelIndex + 2] = scanline[srcIndex + 2];
+                    pixels[pixelIndex + 3] = scanline[srcIndex + 3];
+                } else if (colorType === 0) {
+                    // Grayscale
+                    pixels[pixelIndex] = scanline[x];
+                    pixels[pixelIndex + 1] = scanline[x];
+                    pixels[pixelIndex + 2] = scanline[x];
+                    pixels[pixelIndex + 3] = 255;
+                } else if (colorType === 4) {
+                    // Grayscale + Alpha
+                    const srcIndex = x * 2;
+                    pixels[pixelIndex] = scanline[srcIndex];
+                    pixels[pixelIndex + 1] = scanline[srcIndex];
+                    pixels[pixelIndex + 2] = scanline[srcIndex];
+                    pixels[pixelIndex + 3] = scanline[srcIndex + 1];
+                }
+            }
+
+            prevScanline = scanline;
+        }
+    }
+
+    /**
+     * Paeth predictor for PNG filtering
+     */
+    paethPredictor(a, b, c) {
+        const p = a + b - c;
+        const pa = Math.abs(p - a);
+        const pb = Math.abs(p - b);
+        const pc = Math.abs(p - c);
+        if (pa <= pb && pa <= pc) return a;
+        if (pb <= pc) return b;
+        return c;
+    }
+
+    /**
+     * Read unsigned 32-bit big-endian integer
+     */
+    readUint32(data, offset) {
+        return (data[offset] << 24) | (data[offset + 1] << 16) |
+               (data[offset + 2] << 8) | data[offset + 3];
+    }
+
+    /**
+     * Read unsigned 16-bit big-endian integer
+     */
+    readUint16(data, offset) {
+        return (data[offset] << 8) | data[offset + 1];
+    }
+
+    /**
+     * Concatenate multiple Uint8Arrays
+     */
+    concatArrays(arrays) {
+        const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
+        const result = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const arr of arrays) {
+            result.set(arr, offset);
+            offset += arr.length;
+        }
+        return result;
+    }
+
+    /**
+     * Load an image file as a single frame (fallback)
      */
     async loadAsSingleFrame(url) {
         return new Promise((resolve) => {
