@@ -296,15 +296,25 @@ class Game {
 
     // Debug rendering
     renderDebug() {
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        this.ctx.fillRect(10, 10, 300, 100);
-
-        this.ctx.fillStyle = '#00ff00';
+        // Draw debug text with outline for visibility (no black rectangle)
         this.ctx.font = '14px monospace';
-        this.ctx.fillText(`FPS: ${this.fps}`, 20, 30);
-        this.ctx.fillText(`Entities: ${this.entities.length}`, 20, 50);
-        this.ctx.fillText(this.input.getDebugInfo(), 20, 70);
-        this.ctx.fillText(`Gamepad: ${this.input.hasGamepad() ? 'Connected' : 'None'}`, 20, 90);
+        const debugLines = [
+            `FPS: ${this.fps}`,
+            `Entities: ${this.entities.length}`,
+            this.input.getDebugInfo(),
+            `Gamepad: ${this.input.hasGamepad() ? 'Connected' : 'None'}`
+        ];
+
+        for (let i = 0; i < debugLines.length; i++) {
+            const y = 30 + i * 20;
+            // Draw outline
+            this.ctx.strokeStyle = '#000000';
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeText(debugLines[i], 20, y);
+            // Draw text
+            this.ctx.fillStyle = '#00ff00';
+            this.ctx.fillText(debugLines[i], 20, y);
+        }
     }
 
     updateFPSDisplay() {

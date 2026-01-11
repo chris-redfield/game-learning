@@ -285,6 +285,20 @@ class CharacterScreen {
                 this.selectNext();
                 return true;
             }
+            // Left/right navigation between tab buttons
+            const currentButton = this.buttonOrder[this.selectedIndex];
+            if (input.isKeyJustPressed('left')) {
+                if (currentButton === 'tab_skills') {
+                    this.selectedIndex = this.buttonOrder.indexOf('tab_attributes');
+                    return true;
+                }
+            }
+            if (input.isKeyJustPressed('right')) {
+                if (currentButton === 'tab_attributes') {
+                    this.selectedIndex = this.buttonOrder.indexOf('tab_skills');
+                    return true;
+                }
+            }
             // Activation with E or Space
             if (input.isKeyJustPressed('interact') || input.isKeyJustPressed('attack')) {
                 this.activateSelected();

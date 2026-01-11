@@ -51,7 +51,9 @@ class InputHandler {
             'KeyC': 'debug',
             'Tab': 'inventory',
             'Digit1': 'tabAttributes',
-            'Digit2': 'tabSkills'
+            'Digit2': 'tabSkills',
+            'Equal': 'addXp',           // + key (unshifted)
+            'NumpadAdd': 'addXp'        // Numpad +
         };
 
         // Gamepad button mappings (standard gamepad layout)

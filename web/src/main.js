@@ -79,6 +79,18 @@ function updateGame(dt) {
         return;
     }
 
+    // Toggle character screen (must work even when paused)
+    if (game.input.isKeyJustPressed('character')) {
+        gameState.characterScreen.toggle();
+    }
+
+    // Handle character screen input when visible (before pause check)
+    if (gameState.characterScreen && gameState.characterScreen.isVisible()) {
+        gameState.characterScreen.handleInput(game.input);
+        // Pause game when character screen is open
+        return;
+    }
+
     const player = gameState.player;
     const world = gameState.world;
     const currentTime = performance.now();
@@ -116,8 +128,8 @@ function updateGame(dt) {
         castFirebolt(currentTime);
     }
 
-    // Handle interact
-    if (game.input.isKeyJustPressed('interact')) {
+    // Handle add XP (+ key for testing, matching Python)
+    if (game.input.isKeyJustPressed('addXp')) {
         player.gainXp(5);
         console.log(`XP: ${player.attributes.xp}/${player.attributes.xpNeeded} | Level: ${player.attributes.level}`);
     }
@@ -125,16 +137,6 @@ function updateGame(dt) {
     // Toggle map
     if (game.input.isKeyJustPressed('map')) {
         game.showMap = !game.showMap;
-    }
-
-    // Toggle character screen
-    if (game.input.isKeyJustPressed('character')) {
-        gameState.characterScreen.toggle();
-    }
-
-    // Handle character screen input when visible
-    if (gameState.characterScreen.isVisible()) {
-        gameState.characterScreen.handleInput(game.input);
     }
 
     // Update player
@@ -408,7 +410,7 @@ function showControlsInfo() {
 WASD / Arrow Keys - Move
 Space - Attack (Sword Swing)
 F - Firebolt (magic projectile)
-E - Interact (+5 XP for testing)
++ - Add XP (+5 for testing)
 Shift - Dash (speed boost)
 B - Blink (teleport forward)
 M - Map (shows visited blocks)
