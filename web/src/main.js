@@ -245,6 +245,11 @@ function renderGame(ctx) {
         return ay - by;
     });
 
+    // Render stuck blood FIRST (under entities, like ground stains)
+    if (window.particleSystem) {
+        window.particleSystem.renderStuckBlood(ctx);
+    }
+
     // Render all entities
     for (const entity of allRenderables) {
         if (entity.render) {
@@ -252,9 +257,9 @@ function renderGame(ctx) {
         }
     }
 
-    // Render particles (blood, fire trail, explosions)
+    // Render active particles AFTER entities (fire trail, explosions, flying blood)
     if (window.particleSystem) {
-        window.particleSystem.render(ctx);
+        window.particleSystem.renderActiveParticles(ctx);
     }
 
     // Render projectiles

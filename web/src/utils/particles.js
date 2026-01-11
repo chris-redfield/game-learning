@@ -296,10 +296,9 @@ class ParticleSystem {
     }
 
     /**
-     * Render all particles
+     * Render stuck blood particles (call BEFORE entities - appears under player)
      */
-    render(ctx) {
-        // Draw stuck blood particles for current block (render first, behind active particles)
+    renderStuckBlood(ctx) {
         const blockKey = this.getBlockKey();
         if (this.stuckParticles[blockKey]) {
             for (const p of this.stuckParticles[blockKey]) {
@@ -311,7 +310,13 @@ class ParticleSystem {
                 ctx.fill();
             }
         }
+        ctx.globalAlpha = 1;
+    }
 
+    /**
+     * Render active particles (call AFTER entities - appears on top)
+     */
+    renderActiveParticles(ctx) {
         // Draw fire/effect particles
         for (const p of this.particles) {
             const alpha = Math.min(1, p.life / p.maxLife);
@@ -322,7 +327,7 @@ class ParticleSystem {
             ctx.fill();
         }
 
-        // Draw active blood particles
+        // Draw active (flying) blood particles
         for (const p of this.bloodParticles) {
             const fadeStart = p.maxLife / 2;
             let alpha = 1;
@@ -337,6 +342,14 @@ class ParticleSystem {
         }
 
         ctx.globalAlpha = 1;
+    }
+
+    /**
+     * Render all particles (legacy method - calls both in order)
+     */
+    render(ctx) {
+        this.renderStuckBlood(ctx);
+        this.renderActiveParticles(ctx);
     }
 
     /**
