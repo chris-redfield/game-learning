@@ -9,6 +9,9 @@ class Bonfire {
         this.width = 48;
         this.height = 48;
 
+        // Bonfire is an obstacle - player cannot walk through it
+        this.isObstacle = true;
+
         // Animation
         this.frameIndex = 0;
         this.animationTimer = 0;

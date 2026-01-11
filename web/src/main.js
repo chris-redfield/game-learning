@@ -13,6 +13,8 @@ const gameState = {
     hud: null, // HUD instance
     characterScreen: null, // Character screen instance
     bonfireMenu: null, // Bonfire save/load menu
+    saveDialog: null, // Save file dialog
+    loadDialog: null, // Load file dialog
     saveLoadManager: null, // Save/Load manager
     souls: [], // XP orbs dropped by enemies
     projectiles: [], // Active projectiles (firebolt, etc.)
@@ -55,24 +57,33 @@ async function init() {
     // Create Character Screen
     gameState.characterScreen = new CharacterScreen(gameState.player, game.width, game.height);
 
-    // Create Bonfire Menu and Save/Load Manager
-    gameState.bonfireMenu = new BonfireMenu();
-    gameState.saveLoadManager = new SaveLoadManager();
+    // Create Save/Load Manager
+    gameState.saveLoadManager = new SaveLoadManager(gameState.player, gameState.world);
 
-    // Set bonfire menu callbacks
-    gameState.bonfireMenu.onSave = () => {
-        // For now, save to slot 1
-        gameState.saveLoadManager.saveGame(1, gameState.player, gameState.world);
-        console.log('Game saved!');
-    };
-    gameState.bonfireMenu.onLoad = () => {
-        // For now, load from slot 1
-        if (gameState.saveLoadManager.loadGame(1, gameState.player, gameState.world)) {
-            console.log('Game loaded!');
+    // Create Save and Load file dialogs
+    gameState.saveDialog = new SaveOverwriteDialog(gameState.saveLoadManager, (filename) => {
+        console.log(`Game saved to ${filename}`);
+    });
+    gameState.loadDialog = new LoadFileDialog(gameState.saveLoadManager, (filename, success) => {
+        if (success) {
+            console.log(`Game loaded from ${filename}`);
         } else {
-            console.log('No save data found');
+            console.log('Failed to load game');
         }
-    };
+    });
+
+    // Create Bonfire Menu (shows Save/Load/Cancel options)
+    gameState.bonfireMenu = new BonfireMenu(
+        () => gameState.saveDialog.show(),  // On Save
+        () => gameState.loadDialog.show()   // On Load
+    );
+
+    // Add keyboard listener for filename entry in save dialog
+    document.addEventListener('keydown', (event) => {
+        if (gameState.saveDialog && gameState.saveDialog.handleKeyDown(event)) {
+            event.preventDefault();
+        }
+    });
 
     // Set bonfire callback for origin bonfire
     setBonfireCallback();
@@ -103,7 +114,21 @@ function updateGame(dt) {
         return;
     }
 
-    // Handle bonfire menu input when visible (highest priority)
+    // Handle save dialog input when visible (highest priority)
+    if (gameState.saveDialog && gameState.saveDialog.isVisible()) {
+        if (!gameState.saveDialog.editingName) {
+            gameState.saveDialog.handleInput(game.input);
+        }
+        return;
+    }
+
+    // Handle load dialog input when visible
+    if (gameState.loadDialog && gameState.loadDialog.isVisible()) {
+        gameState.loadDialog.handleInput(game.input);
+        return;
+    }
+
+    // Handle bonfire menu input when visible
     if (gameState.bonfireMenu && gameState.bonfireMenu.isVisible()) {
         gameState.bonfireMenu.handleInput(game.input);
         return;
@@ -385,6 +410,16 @@ function renderGame(ctx) {
     // Draw bonfire menu on top
     if (gameState.bonfireMenu && gameState.bonfireMenu.isVisible()) {
         gameState.bonfireMenu.render(ctx, game.width, game.height);
+    }
+
+    // Draw save dialog on top of bonfire menu
+    if (gameState.saveDialog && gameState.saveDialog.isVisible()) {
+        gameState.saveDialog.render(ctx, game.width, game.height);
+    }
+
+    // Draw load dialog on top of everything
+    if (gameState.loadDialog && gameState.loadDialog.isVisible()) {
+        gameState.loadDialog.render(ctx, game.width, game.height);
     }
 }
 

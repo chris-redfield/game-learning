@@ -1,17 +1,16 @@
 /**
- * BonfireMenu - Dialog menu for bonfire interaction (Save/Load/Cancel)
+ * Dialog system for bonfire save/load functionality
  * Exactly like it was implemented at the python code (dialog.py)
  */
-class BonfireMenu {
-    constructor() {
+
+// Base Dialog class
+class Dialog {
+    constructor(title, options = [], callback = null) {
+        this.title = title;
+        this.options = options;
+        this.callback = callback;
         this.visible = false;
         this.selectedOption = 0;
-        this.options = ['Save Game', 'Load Game', 'Cancel'];
-        this.title = 'Bonfire';
-
-        // Callbacks
-        this.onSave = null;
-        this.onLoad = null;
 
         // Colors matching Python
         this.colors = {
@@ -24,7 +23,7 @@ class BonfireMenu {
         };
 
         // Dialog dimensions
-        this.width = 300;
+        this.width = 500;
         this.optionHeight = 30;
         this.padding = 20;
     }
@@ -43,29 +42,26 @@ class BonfireMenu {
     }
 
     selectNext() {
-        this.selectedOption = (this.selectedOption + 1) % this.options.length;
+        if (this.options.length > 0) {
+            this.selectedOption = (this.selectedOption + 1) % this.options.length;
+        }
     }
 
     selectPrev() {
-        this.selectedOption = (this.selectedOption - 1 + this.options.length) % this.options.length;
+        if (this.options.length > 0) {
+            this.selectedOption = (this.selectedOption - 1 + this.options.length) % this.options.length;
+        }
     }
 
     selectOption() {
-        const selected = this.options[this.selectedOption];
-
-        if (selected === 'Save Game' && this.onSave) {
-            this.onSave();
-        } else if (selected === 'Load Game' && this.onLoad) {
-            this.onLoad();
+        if (this.callback && this.options.length > 0) {
+            this.callback(this.selectedOption);
         }
-
-        this.hide();
     }
 
     handleInput(input) {
         if (!this.visible) return false;
 
-        // Check for up/down navigation
         if (input.isKeyJustPressed('up')) {
             this.selectPrev();
             return true;
@@ -74,29 +70,22 @@ class BonfireMenu {
             this.selectNext();
             return true;
         }
-
-        // Check for selection
         if (input.isKeyJustPressed('confirm') || input.isKeyJustPressed('interact')) {
             this.selectOption();
             return true;
         }
-
-        // Check for cancel
         if (input.isKeyJustPressed('escape') || input.isKeyJustPressed('back')) {
             this.hide();
             return true;
         }
 
-        return true; // Block other input while menu is visible
+        return true; // Block other input
     }
 
     render(ctx, screenWidth, screenHeight) {
         if (!this.visible) return;
 
-        // Calculate dialog height based on options
-        const height = 80 + this.options.length * this.optionHeight;
-
-        // Center dialog on screen
+        const height = 100 + this.options.length * this.optionHeight;
         const x = (screenWidth - this.width) / 2;
         const y = (screenHeight - height) / 2;
 
@@ -110,19 +99,18 @@ class BonfireMenu {
         ctx.strokeRect(x, y, this.width, height);
 
         // Draw title
-        ctx.font = 'bold 20px Arial';
+        ctx.font = 'bold 24px Arial';
         ctx.fillStyle = this.colors.title;
         ctx.textAlign = 'center';
-        ctx.fillText(this.title, x + this.width / 2, y + this.padding + 15);
+        ctx.fillText(this.title, x + this.width / 2, y + this.padding + 20);
 
         // Draw options
-        ctx.font = '16px Arial';
+        ctx.font = '20px Arial';
         for (let i = 0; i < this.options.length; i++) {
-            const optionY = y + this.padding + 50 + i * this.optionHeight;
+            const optionY = y + this.padding + 60 + i * this.optionHeight;
 
             if (i === this.selectedOption) {
                 ctx.fillStyle = this.colors.selected;
-                // Draw cursor
                 ctx.textAlign = 'left';
                 ctx.fillText('>', x + this.padding, optionY);
             } else {
@@ -133,87 +121,322 @@ class BonfireMenu {
             ctx.fillText(this.options[i], x + this.padding + 20, optionY);
         }
 
-        // Reset text align
         ctx.textAlign = 'left';
     }
 }
 
-/**
- * SaveLoadManager - Handles saving and loading game state to localStorage
- * Exactly like it was implemented at the python code (save_manager.py)
- */
-class SaveLoadManager {
-    constructor() {
-        this.saveKey = 'dark_garden_save';
-        this.maxSlots = 3;
+// BonfireMenu - Main menu with Save/Load/Cancel
+class BonfireMenu extends Dialog {
+    constructor(onSaveCallback, onLoadCallback) {
+        super('Bonfire', ['Save Game', 'Load Game', 'Cancel'], null);
+        this.onSaveCallback = onSaveCallback;
+        this.onLoadCallback = onLoadCallback;
+        this.width = 300;
     }
 
-    getSaveSlots() {
-        const slots = [];
-        for (let i = 1; i <= this.maxSlots; i++) {
-            const key = `${this.saveKey}_${i}`;
-            const data = localStorage.getItem(key);
-            if (data) {
-                try {
-                    const parsed = JSON.parse(data);
-                    slots.push({
-                        slot: i,
-                        exists: true,
-                        timestamp: parsed.timestamp || 'Unknown',
-                        level: parsed.level || 1
-                    });
-                } catch (e) {
-                    slots.push({ slot: i, exists: false });
-                }
+    selectOption() {
+        const selected = this.options[this.selectedOption];
+        this.hide();
+
+        if (selected === 'Save Game' && this.onSaveCallback) {
+            this.onSaveCallback();
+        } else if (selected === 'Load Game' && this.onLoadCallback) {
+            this.onLoadCallback();
+        }
+    }
+}
+
+// FileDialog - Base for save/load file selection
+class FileDialog extends Dialog {
+    constructor(title, message = '', callback = null) {
+        super(title, [], callback);
+        this.message = message;
+        this.files = [];
+    }
+
+    setFiles(files) {
+        this.files = files;
+        this.options = [...files];
+        this.selectedOption = 0;
+    }
+
+    render(ctx, screenWidth, screenHeight) {
+        if (!this.visible) return;
+
+        const messageHeight = this.message ? 30 : 0;
+        const height = 100 + messageHeight + this.options.length * this.optionHeight;
+        const x = (screenWidth - this.width) / 2;
+        const y = (screenHeight - height) / 2;
+
+        // Draw background
+        ctx.fillStyle = this.colors.background;
+        ctx.fillRect(x, y, this.width, height);
+
+        // Draw border
+        ctx.strokeStyle = this.colors.border;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, this.width, height);
+
+        // Draw title
+        ctx.font = 'bold 24px Arial';
+        ctx.fillStyle = this.colors.title;
+        ctx.textAlign = 'center';
+        ctx.fillText(this.title, x + this.width / 2, y + this.padding + 20);
+
+        // Draw message
+        let currentY = y + this.padding + 50;
+        if (this.message) {
+            ctx.font = '16px Arial';
+            ctx.fillStyle = this.colors.text;
+            ctx.textAlign = 'left';
+            ctx.fillText(this.message, x + this.padding, currentY);
+            currentY += 30;
+        }
+
+        // Draw options
+        ctx.font = '20px Arial';
+        for (let i = 0; i < this.options.length; i++) {
+            const optionY = currentY + i * this.optionHeight;
+
+            if (i === this.selectedOption) {
+                ctx.fillStyle = this.colors.selected;
+                ctx.textAlign = 'left';
+                ctx.fillText('>', x + this.padding, optionY);
             } else {
-                slots.push({ slot: i, exists: false });
+                ctx.fillStyle = this.colors.option;
+            }
+
+            ctx.textAlign = 'left';
+            ctx.fillText(this.options[i], x + this.padding + 20, optionY);
+        }
+
+        ctx.textAlign = 'left';
+    }
+}
+
+// SaveOverwriteDialog - For save game with file creation
+class SaveOverwriteDialog extends FileDialog {
+    constructor(saveManager, onSaveComplete) {
+        super('Save Game', 'Choose a save file to overwrite, or create a new one:');
+        this.saveManager = saveManager;
+        this.onSaveComplete = onSaveComplete;
+        this.editingName = false;
+        this.enteredName = '';
+        this.defaultName = this.generateDefaultName();
+    }
+
+    generateDefaultName() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hour = String(now.getHours()).padStart(2, '0');
+        const minute = String(now.getMinutes()).padStart(2, '0');
+        const second = String(now.getSeconds()).padStart(2, '0');
+        return `${year}${month}${day}_${hour}${minute}${second}.sav`;
+    }
+
+    show() {
+        super.show();
+        this.editingName = false;
+        this.enteredName = '';
+        this.defaultName = this.generateDefaultName();
+        this.refreshFiles();
+    }
+
+    refreshFiles() {
+        const files = this.saveManager.getSaveFiles();
+        this.setFiles([...files, '<Create New Save>']);
+    }
+
+    selectOption() {
+        const selected = this.options[this.selectedOption];
+
+        if (selected === '<Create New Save>') {
+            this.editingName = true;
+            this.enteredName = '';
+        } else {
+            // Overwrite existing file
+            this.saveToFile(selected);
+        }
+    }
+
+    saveToFile(filename) {
+        this.saveManager.saveGameToFile(filename);
+        this.hide();
+        if (this.onSaveComplete) {
+            this.onSaveComplete(filename);
+        }
+    }
+
+    handleInput(input) {
+        if (!this.visible) return false;
+
+        if (this.editingName) {
+            // Handle text input for filename
+            return true; // Let keyboard events pass through
+        }
+
+        return super.handleInput(input);
+    }
+
+    handleKeyDown(event) {
+        if (!this.visible || !this.editingName) return false;
+
+        if (event.key === 'Enter') {
+            let finalName = this.enteredName || this.defaultName;
+            if (!finalName.endsWith('.sav')) {
+                finalName += '.sav';
+            }
+            this.saveToFile(finalName);
+            return true;
+        } else if (event.key === 'Escape') {
+            this.editingName = false;
+            return true;
+        } else if (event.key === 'Backspace') {
+            this.enteredName = this.enteredName.slice(0, -1);
+            return true;
+        } else if (event.key.length === 1 && !event.ctrlKey && !event.altKey) {
+            // Only add printable characters
+            this.enteredName += event.key;
+            return true;
+        }
+
+        return false;
+    }
+
+    render(ctx, screenWidth, screenHeight) {
+        super.render(ctx, screenWidth, screenHeight);
+
+        if (this.editingName && this.visible) {
+            // Draw filename entry prompt
+            const text = `Enter filename: ${this.enteredName || this.defaultName}`;
+            ctx.font = '18px Arial';
+            ctx.fillStyle = this.colors.text;
+            ctx.textAlign = 'center';
+            ctx.fillText(text, screenWidth / 2, screenHeight / 2 + 150);
+            ctx.textAlign = 'left';
+        }
+    }
+}
+
+// LoadFileDialog - For load game file selection
+class LoadFileDialog extends FileDialog {
+    constructor(saveManager, onLoadComplete) {
+        super('Load Game', 'Select a save file to load:');
+        this.saveManager = saveManager;
+        this.onLoadComplete = onLoadComplete;
+    }
+
+    show() {
+        super.show();
+        this.refreshFiles();
+    }
+
+    refreshFiles() {
+        const files = this.saveManager.getSaveFiles();
+        if (files.length === 0) {
+            this.setFiles(['No save files found']);
+        } else {
+            this.setFiles(files);
+        }
+    }
+
+    selectOption() {
+        const selected = this.options[this.selectedOption];
+        if (selected === 'No save files found') {
+            this.hide();
+            return;
+        }
+
+        const success = this.saveManager.loadGameFromFile(selected);
+        this.hide();
+
+        if (this.onLoadComplete) {
+            this.onLoadComplete(selected, success);
+        }
+    }
+}
+
+// SaveLoadManager - Handles saving and loading game state
+class SaveLoadManager {
+    constructor(player, world) {
+        this.player = player;
+        this.world = world;
+        this.saveKeyPrefix = 'dark_garden_';
+    }
+
+    setGameState(player, world) {
+        this.player = player;
+        this.world = world;
+    }
+
+    getSaveFiles() {
+        const files = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(this.saveKeyPrefix)) {
+                const filename = key.replace(this.saveKeyPrefix, '');
+                files.push(filename);
             }
         }
-        return slots;
+        // Sort by filename (which includes timestamp)
+        files.sort().reverse();
+        return files;
     }
 
-    saveGame(slot, player, world) {
+    saveGameToFile(filename) {
+        if (!this.player || !this.world) {
+            console.error('SaveLoadManager: player or world not set');
+            return false;
+        }
+
         const saveData = {
             timestamp: new Date().toISOString(),
             // Player position
-            playerX: player.x,
-            playerY: player.y,
+            playerX: this.player.x,
+            playerY: this.player.y,
             // Block position
-            blockX: world.currentBlockCoords.x,
-            blockY: world.currentBlockCoords.y,
+            blockX: this.world.currentBlockCoords.x,
+            blockY: this.world.currentBlockCoords.y,
             // Player attributes
-            level: player.attributes.level,
-            xp: player.attributes.xp,
-            currentHealth: player.attributes.currentHealth,
-            maxHealth: player.attributes.maxHealth,
-            currentMana: player.attributes.currentMana,
-            maxMana: player.attributes.maxMana,
+            level: this.player.attributes.level,
+            xp: this.player.attributes.xp,
+            currentHealth: this.player.attributes.currentHealth,
+            maxHealth: this.player.attributes.maxHealth,
+            currentMana: this.player.attributes.currentMana,
+            maxMana: this.player.attributes.maxMana,
             // Stats
-            str: player.attributes.str,
-            con: player.attributes.con,
-            dex: player.attributes.dex,
-            int: player.attributes.int,
-            statPoints: player.attributes.statPoints,
-            skillPoints: player.attributes.skillPoints,
+            str: this.player.attributes.str,
+            con: this.player.attributes.con,
+            dex: this.player.attributes.dex,
+            int: this.player.attributes.int,
+            statPoints: this.player.attributes.statPoints,
+            skillPoints: this.player.attributes.skillPoints,
             // Progression items
-            foundAncientScroll: player.attributes.foundAncientScroll,
-            foundDragonHeart: player.attributes.foundDragonHeart,
+            foundAncientScroll: this.player.attributes.foundAncientScroll,
+            foundDragonHeart: this.player.attributes.foundDragonHeart,
             // Skills
-            unlockedSkills: this.getUnlockedSkills(player)
+            unlockedSkills: this.getUnlockedSkills()
         };
 
-        const key = `${this.saveKey}_${slot}`;
+        const key = this.saveKeyPrefix + filename;
         localStorage.setItem(key, JSON.stringify(saveData));
-        console.log(`Game saved to slot ${slot}`);
+        console.log(`Game saved to ${filename}`);
         return true;
     }
 
-    loadGame(slot, player, world) {
-        const key = `${this.saveKey}_${slot}`;
+    loadGameFromFile(filename) {
+        if (!this.player || !this.world) {
+            console.error('SaveLoadManager: player or world not set');
+            return false;
+        }
+
+        const key = this.saveKeyPrefix + filename;
         const data = localStorage.getItem(key);
 
         if (!data) {
-            console.log(`No save data in slot ${slot}`);
+            console.log(`No save data for ${filename}`);
             return false;
         }
 
@@ -221,45 +444,45 @@ class SaveLoadManager {
             const saveData = JSON.parse(data);
 
             // Restore player position
-            player.x = saveData.playerX;
-            player.y = saveData.playerY;
+            this.player.x = saveData.playerX;
+            this.player.y = saveData.playerY;
 
             // Restore block position
-            world.currentBlockCoords.x = saveData.blockX;
-            world.currentBlockCoords.y = saveData.blockY;
+            this.world.currentBlockCoords.x = saveData.blockX;
+            this.world.currentBlockCoords.y = saveData.blockY;
 
             // Ensure the block is generated
-            world.getBlockAt(saveData.blockX, saveData.blockY);
+            this.world.getBlockAt(saveData.blockX, saveData.blockY);
 
             // Restore attributes
-            player.attributes.level = saveData.level;
-            player.attributes.xp = saveData.xp;
-            player.attributes.currentHealth = saveData.currentHealth;
-            player.attributes.maxHealth = saveData.maxHealth;
-            player.attributes.currentMana = saveData.currentMana;
-            player.attributes.maxMana = saveData.maxMana;
+            this.player.attributes.level = saveData.level;
+            this.player.attributes.xp = saveData.xp;
+            this.player.attributes.currentHealth = saveData.currentHealth;
+            this.player.attributes.maxHealth = saveData.maxHealth;
+            this.player.attributes.currentMana = saveData.currentMana;
+            this.player.attributes.maxMana = saveData.maxMana;
 
             // Restore stats
-            player.attributes.str = saveData.str;
-            player.attributes.con = saveData.con;
-            player.attributes.dex = saveData.dex;
-            player.attributes.int = saveData.int;
-            player.attributes.statPoints = saveData.statPoints;
-            player.attributes.skillPoints = saveData.skillPoints;
+            this.player.attributes.str = saveData.str;
+            this.player.attributes.con = saveData.con;
+            this.player.attributes.dex = saveData.dex;
+            this.player.attributes.int = saveData.int;
+            this.player.attributes.statPoints = saveData.statPoints;
+            this.player.attributes.skillPoints = saveData.skillPoints;
 
             // Restore progression items
-            player.attributes.foundAncientScroll = saveData.foundAncientScroll || false;
-            player.attributes.foundDragonHeart = saveData.foundDragonHeart || false;
+            this.player.attributes.foundAncientScroll = saveData.foundAncientScroll || false;
+            this.player.attributes.foundDragonHeart = saveData.foundDragonHeart || false;
 
             // Restore skills
             if (saveData.unlockedSkills) {
-                this.restoreUnlockedSkills(player, saveData.unlockedSkills);
+                this.restoreUnlockedSkills(saveData.unlockedSkills);
             }
 
             // Recalculate XP needed
-            player.attributes.xpNeeded = player.attributes.getXpNeeded();
+            this.player.attributes.xpNeeded = this.player.attributes.getXpNeeded();
 
-            console.log(`Game loaded from slot ${slot}`);
+            console.log(`Game loaded from ${filename}`);
             return true;
         } catch (e) {
             console.error('Error loading save:', e);
@@ -267,9 +490,9 @@ class SaveLoadManager {
         }
     }
 
-    getUnlockedSkills(player) {
+    getUnlockedSkills() {
         const unlocked = [];
-        for (const [skillId, skill] of Object.entries(player.skillTree.skills)) {
+        for (const [skillId, skill] of Object.entries(this.player.skillTree.skills)) {
             if (skill.unlocked) {
                 unlocked.push(skillId);
             }
@@ -277,36 +500,40 @@ class SaveLoadManager {
         return unlocked;
     }
 
-    restoreUnlockedSkills(player, unlockedSkills) {
+    restoreUnlockedSkills(unlockedSkills) {
         // Reset all skills first
-        for (const skill of Object.values(player.skillTree.skills)) {
+        for (const skill of Object.values(this.player.skillTree.skills)) {
             skill.unlocked = false;
         }
 
         // Unlock saved skills
         for (const skillId of unlockedSkills) {
-            if (player.skillTree.skills[skillId]) {
-                player.skillTree.skills[skillId].unlocked = true;
+            if (this.player.skillTree.skills[skillId]) {
+                this.player.skillTree.skills[skillId].unlocked = true;
 
                 // Apply skill effects
                 if (skillId === 'dash') {
-                    player.attributes.canDash = true;
+                    this.player.attributes.canDash = true;
                 } else if (skillId === 'extended_sword') {
-                    player.attributes.swordLength = Math.floor(player.attributes.baseSwordLength * 1.5);
+                    this.player.attributes.swordLength = Math.floor(this.player.attributes.baseSwordLength * 1.5);
                 } else if (skillId === 'blink') {
-                    player.attributes.canBlink = true;
+                    this.player.attributes.canBlink = true;
                 }
             }
         }
     }
 
-    deleteSave(slot) {
-        const key = `${this.saveKey}_${slot}`;
+    deleteSave(filename) {
+        const key = this.saveKeyPrefix + filename;
         localStorage.removeItem(key);
-        console.log(`Save slot ${slot} deleted`);
+        console.log(`Save ${filename} deleted`);
     }
 }
 
 // Export
+window.Dialog = Dialog;
 window.BonfireMenu = BonfireMenu;
+window.FileDialog = FileDialog;
+window.SaveOverwriteDialog = SaveOverwriteDialog;
+window.LoadFileDialog = LoadFileDialog;
 window.SaveLoadManager = SaveLoadManager;
