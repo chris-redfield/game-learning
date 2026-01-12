@@ -553,19 +553,26 @@ class Enemy {
 
     renderDebugInfo(ctx, x, y) {
         if (this.attributes) {
-            // Get state text
-            let stateText = `State: ${this.state}`;
-            if (this.isRecovering) {
-                stateText += ' (recovering)';
-            } else if (this.isBeingKnockedBack) {
-                stateText += ' (knockback)';
+            const attr = this.attributes;
+
+            // Line 1: Level and base stats
+            let line1 = `Lvl ${attr.level} ${attr.enemyType}: STR ${attr.str}, CON ${attr.con}, DEX ${attr.dex}`;
+            if (attr.int > 0) {
+                line1 += `, INT ${attr.int}`;
             }
 
-            const infoText = this.attributes.getInfoText() + ' | ' + stateText;
+            // Line 2: HP, ATK, DEF and State
+            let line2 = `HP: ${attr.currentHealth}/${attr.maxHealth} | ATK: ${attr.attackPower}, DEF: ${attr.defense.toFixed(1)} | State: ${this.state}`;
+            if (this.isRecovering) {
+                line2 += ' (recovering)';
+            } else if (this.isBeingKnockedBack) {
+                line2 += ' (knockback)';
+            }
 
             ctx.font = '10px monospace';
             ctx.fillStyle = this.enemyType === 'fast' ? '#00b400' : '#dcdcdc';
-            ctx.fillText(infoText, x, y);
+            ctx.fillText(line1, x, y);
+            ctx.fillText(line2, x, y + 12);
         }
     }
 }

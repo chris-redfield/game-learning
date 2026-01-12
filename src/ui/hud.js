@@ -186,26 +186,30 @@ class HUD {
     /**
      * Display game controls
      */
-    displayControls(ctx) {
-        const controlsY = this.screenHeight - 165;
-        const controls = [
-            'Controls:',
-            'WASD or Arrow Keys: Move',
-            'SPACE: Swing Sword',
-            'F: Firebolt',
-            'E: Interact',
-            'SHIFT: Dash (if unlocked)',
-            'B: Blink (if unlocked)',
-            'C: Show Collision Boxes',
-            'M: Toggle Map',
-            'ENTER: Character Screen'
-        ];
-
+    displayControls(ctx, showDebug = false) {
         ctx.font = this.font;
         ctx.fillStyle = this.colors.text;
 
-        for (let i = 0; i < controls.length; i++) {
-            ctx.fillText(controls[i], 10, controlsY + i * 15);
+        if (showDebug) {
+            const controlsY = this.screenHeight - 165;
+            const controls = [
+                'Controls:',
+                'WASD or Arrow Keys: Move',
+                'SPACE: Swing Sword',
+                'F: Firebolt',
+                'E: Interact',
+                'SHIFT: Dash (if unlocked)',
+                'B: Blink (if unlocked)',
+                'C: Show Collision Boxes',
+                'M: Toggle Map',
+                'ENTER: Character Screen'
+            ];
+
+            for (let i = 0; i < controls.length; i++) {
+                ctx.fillText(controls[i], 10, controlsY + i * 15);
+            }
+        } else {
+            ctx.fillText('Hold C for debug and control keys', 10, this.screenHeight - 20);
         }
     }
 
@@ -304,12 +308,9 @@ class HUD {
         }
 
         // Display controls
-        this.displayControls(ctx);
+        this.displayControls(ctx, showEnemyDebug);
 
-        // Draw enemy debug info if enabled
-        if (showEnemyDebug && entities.length > 0) {
-            this.displayEnemyDebug(ctx, entities);
-        }
+        // Enemy debug info in upper right removed - info now shown above each enemy
 
         // Draw transition effect if in progress
         if (transitionInProgress && fadeAlpha > 0) {
