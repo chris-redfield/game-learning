@@ -204,13 +204,22 @@ class Game {
         // Fixed timestep for physics/logic
         const updateStart = performance.now();
         this.accumulator += this.deltaTime;
+        let didUpdate = false;
         while (this.accumulator >= this.frameTime) {
             if (!this.paused) {
                 this.update(this.frameTime / 1000); // Convert to seconds
             }
             this.accumulator -= this.frameTime;
+            didUpdate = true;
         }
         this.perfMetrics.updateTime = performance.now() - updateStart;
+
+        // Clear per-frame input state only after an update ran
+        // This prevents input loss on high refresh rate displays (120Hz+)
+        // where render frames can occur faster than the fixed timestep
+        if (didUpdate) {
+            this.input.clearFrameState();
+        }
 
         // Render
         const renderStart = performance.now();
@@ -219,9 +228,6 @@ class Game {
 
         // Update performance metrics
         this.updatePerfMetrics();
-
-        // Clear per-frame input state
-        this.input.clearFrameState();
 
         // Next frame
         requestAnimationFrame((time) => this.gameLoop(time));
