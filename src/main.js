@@ -263,8 +263,17 @@ function updateGame(dt) {
 
     // Handle movement
     const movement = game.input.getMovementVector();
-    const dx = movement.x * player.speed;
-    const dy = movement.y * player.speed;
+    let dx, dy;
+
+    // Apply dash movement if dashing (overrides normal movement)
+    if (player.dashing) {
+        const dashVelocity = player.baseSpeed * player.attributes.dashSpeed;
+        dx = player.dashDirection.x * dashVelocity;
+        dy = player.dashDirection.y * dashVelocity;
+    } else {
+        dx = movement.x * player.speed;
+        dy = movement.y * player.speed;
+    }
     player.move(dx, dy, obstacles);
 
     // Handle attack
@@ -276,6 +285,20 @@ function updateGame(dt) {
     if (game.input.isKeyJustPressed('sprint') && player.skillTree.isSkillUnlocked('sprint')) {
         if (player.sprint(currentTime)) {
             console.log('Sprint activated!');
+        }
+    }
+
+    // Handle dash (only if unlocked)
+    if (game.input.isKeyJustPressed('dash') && player.skillTree.isSkillUnlocked('dash')) {
+        // Get current input direction for 8-directional dash
+        let inputX = 0, inputY = 0;
+        if (game.input.isKeyDown('left')) inputX = -1;
+        if (game.input.isKeyDown('right')) inputX = 1;
+        if (game.input.isKeyDown('up')) inputY = -1;
+        if (game.input.isKeyDown('down')) inputY = 1;
+
+        if (player.dash(currentTime, inputX, inputY)) {
+            console.log('Dash!');
         }
     }
 
@@ -737,6 +760,7 @@ E - Interact (bonfires, NPCs)
 F - Firebolt (magic projectile)
 + - Add XP (+5 for testing)
 Shift - Sprint (speed boost)
+Ctrl - Dash (quick burst)
 B - Blink (teleport forward)
 M - Map (shows visited blocks)
 Enter - Character Screen

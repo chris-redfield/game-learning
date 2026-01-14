@@ -1171,6 +1171,7 @@ class CharacterScreen:
         abilities = [
             {"id": "basic_sword", "name": "Sword Attack", "desc": "Basic sword attack (SPACE/Button 2)"},
             {"id": "sprint", "name": "Sprint", "desc": "Temporary speed boost (SHIFT/Button 4)"},
+            {"id": "dash", "name": "Dash", "desc": "Quick directional burst (CTRL)"},
             {"id": "extended_sword", "name": "Extended Sword", "desc": "Increased sword reach"},
             {"id": "blink", "name": "Blink", "desc": "Short-range teleport (B/Button 1)"}
         ]

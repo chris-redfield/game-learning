@@ -200,6 +200,12 @@ class SaveManager:
                     skill = self.player.skill_tree.skills[skill_id]
                     if skill_id == "sprint":
                         self.player.attributes.can_sprint = True
+                    elif skill_id == "dash":
+                        self.player.attributes.can_dash = True
+                    elif skill_id == "dash_cooldown1":
+                        self.player.attributes.dash_cooldown = 1800
+                    elif skill_id == "dash_cooldown2":
+                        self.player.attributes.dash_cooldown = 900
                     elif skill_id == "extended_sword":
                         self.player.attributes.sword_length = int(self.player.attributes.base_sword_length * 1.5)
                     elif skill_id == "blink":

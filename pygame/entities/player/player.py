@@ -196,7 +196,16 @@ class Player:
             # Clear sprint cooldown
             if self.attributes.sprint_timer > 0 and current_time > self.attributes.sprint_timer:
                 self.attributes.sprint_timer = 0
-                
+
+            # Update dash status
+            if self.attributes.dashing and current_time > self.attributes.dash_end_time:
+                self.attributes.dashing = False
+                self.attributes.dash_direction = (0, 0)
+
+            # Clear dash cooldown
+            if self.attributes.dash_timer > 0 and current_time > self.attributes.dash_timer:
+                self.attributes.dash_timer = 0
+
             # Clear blink cooldown
             if self.attributes.blink_timer > 0 and current_time > self.attributes.blink_timer:
                 self.attributes.blink_timer = 0
@@ -346,7 +355,40 @@ class Player:
 
         print("Sprint activated! Speed increased by 50% for 1 second")
         return True
-        
+
+    def dash(self, current_time, input_x, input_y):
+        """Activate a quick directional burst movement"""
+        if self.attributes.dashing or current_time < self.attributes.dash_timer:
+            return False
+
+        # Determine direction: use input if available, else facing
+        dx = input_x
+        dy = input_y
+        if dx == 0 and dy == 0:
+            # Fall back to facing direction
+            if self.facing == 'right':
+                dx = 1
+            elif self.facing == 'left':
+                dx = -1
+            elif self.facing == 'down':
+                dy = 1
+            elif self.facing == 'up':
+                dy = -1
+
+        # Normalize diagonal movement
+        if dx != 0 and dy != 0:
+            length = (dx * dx + dy * dy) ** 0.5
+            dx /= length
+            dy /= length
+
+        self.attributes.dashing = True
+        self.attributes.dash_direction = (dx, dy)
+        self.attributes.dash_end_time = current_time + self.attributes.dash_duration
+        self.attributes.dash_timer = current_time + self.attributes.dash_cooldown + self.attributes.dash_duration
+
+        print("Dash!")
+        return True
+
     def blink(self, obstacles, current_time):
         """Teleport in the current facing direction"""
         # Check if blink is unlocked in skill tree

@@ -54,6 +54,16 @@ class PlayerAttributes:
         self.sprint_end_time = 0  # For duration tracking
         self.sprinting = False
 
+        # Level 3: Dash (quick burst movement)
+        self.can_dash = False  # Unlocked at level 3
+        self.dash_duration = 150  # 150ms burst
+        self.dash_cooldown = 2700  # 2.7s cooldown (can be reduced by skills)
+        self.dash_speed = 5  # Multiplier for base speed
+        self.dash_timer = 0  # For cooldown tracking
+        self.dash_end_time = 0  # For duration tracking
+        self.dashing = False
+        self.dash_direction = (0, 0)
+
         # Level 4: Blink (teleport)
         self.can_blink = False  # Unlocked at level 4
         self.blink_distance = 80
@@ -287,7 +297,23 @@ class PlayerAttributes:
             sprint_text = font.render(f"Sprint: {sprint_status}", True, color)
             surface.blit(sprint_text, (x, abilities_y))
             abilities_y += 25
-        
+
+        # Dash ability
+        if self.player.skill_tree.is_skill_unlocked("dash"):
+            if self.dashing:
+                dash_status = "ACTIVE"
+                color = (0, 255, 255)  # Cyan when active
+            elif self.dash_timer == 0:
+                dash_status = "Ready"
+                color = (255, 255, 255)  # White when ready
+            else:
+                dash_status = "Cooling Down"
+                color = (255, 165, 0)  # Orange when on cooldown
+
+            dash_text = font.render(f"Dash: {dash_status}", True, color)
+            surface.blit(dash_text, (x, abilities_y))
+            abilities_y += 25
+
         # Extended Sword ability
         if self.player.skill_tree.is_skill_unlocked("extended_sword"):
             sword_text = font.render(f"Extended Sword: Active", True, (255, 255, 255))

@@ -150,6 +150,26 @@ class HUD {
             y += 25;
         }
 
+        // Dash ability (check player.dashing and player.dashTimer)
+        if (player.skillTree && player.skillTree.isSkillUnlocked('dash')) {
+            let dashStatus, color;
+
+            if (player.dashing) {
+                dashStatus = 'ACTIVE';
+                color = 'rgb(0, 255, 255)'; // Cyan when active
+            } else if (player.dashTimer === 0) {
+                dashStatus = 'Ready';
+                color = 'rgb(255, 255, 255)'; // White when ready
+            } else {
+                dashStatus = 'Cooling Down';
+                color = 'rgb(255, 165, 0)'; // Orange when on cooldown
+            }
+
+            ctx.fillStyle = color;
+            ctx.fillText(`Dash: ${dashStatus}`, x, y);
+            y += 25;
+        }
+
         // Extended Sword ability
         if (player.skillTree && player.skillTree.isSkillUnlocked('extended_sword')) {
             ctx.fillStyle = this.colors.text;
@@ -199,6 +219,7 @@ class HUD {
                 'F: Firebolt',
                 'E: Interact',
                 'SHIFT: Sprint (if unlocked)',
+                'CTRL: Dash (if unlocked)',
                 'B: Blink (if unlocked)',
                 'C: Show Collision Boxes',
                 'M: Toggle Map',

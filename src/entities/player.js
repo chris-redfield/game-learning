@@ -56,6 +56,10 @@ class Player {
         this.sprintTimer = 0;
         this.sprinting = false;
         this.blinkTimer = 0;
+        this.dashEndTime = 0;
+        this.dashTimer = 0;
+        this.dashing = false;
+        this.dashDirection = { x: 0, y: 0 };
 
         // Skill tree for ability tracking
         this.skillTree = new SkillTree(this);
@@ -124,6 +128,17 @@ class Player {
         // Clear sprint cooldown
         if (this.sprintTimer > 0 && currentTime > this.sprintTimer) {
             this.sprintTimer = 0;
+        }
+
+        // Update dash status
+        if (this.dashing && currentTime > this.dashEndTime) {
+            this.dashing = false;
+            this.dashDirection = { x: 0, y: 0 };
+        }
+
+        // Clear dash cooldown
+        if (this.dashTimer > 0 && currentTime > this.dashTimer) {
+            this.dashTimer = 0;
         }
 
         // Clear blink cooldown
@@ -322,6 +337,39 @@ class Player {
 
         this.sprintEndTime = currentTime + this.attributes.sprintDuration;
         this.sprintTimer = currentTime + this.attributes.sprintCooldown + this.attributes.sprintDuration;
+
+        return true;
+    }
+
+    dash(currentTime, inputX, inputY) {
+        if (this.dashing || currentTime < this.dashTimer) {
+            return false;
+        }
+
+        // Determine direction: use input if available, else facing
+        let dx = inputX;
+        let dy = inputY;
+        if (dx === 0 && dy === 0) {
+            // Fall back to facing direction
+            switch (this.facing) {
+                case 'right': dx = 1; break;
+                case 'left': dx = -1; break;
+                case 'down': dy = 1; break;
+                case 'up': dy = -1; break;
+            }
+        }
+
+        // Normalize diagonal movement
+        if (dx !== 0 && dy !== 0) {
+            const len = Math.sqrt(dx * dx + dy * dy);
+            dx /= len;
+            dy /= len;
+        }
+
+        this.dashing = true;
+        this.dashDirection = { x: dx, y: dy };
+        this.dashEndTime = currentTime + this.attributes.dashDuration;
+        this.dashTimer = currentTime + this.attributes.dashCooldown + this.attributes.dashDuration;
 
         return true;
     }
@@ -626,6 +674,12 @@ class PlayerAttributes {
         this.sprintDuration = 1500;
         this.sprintCooldown = 3000;
 
+        // Dash ability
+        this.canDash = false;  // Must be unlocked via skill tree
+        this.dashDuration = 150;   // 150ms burst
+        this.dashCooldown = 2700;  // 2.7s cooldown (can be reduced by skills)
+        this.dashSpeed = 5;        // Multiplier for base speed
+
         // Blink ability
         this.canBlink = false;  // Must be unlocked via skill tree
         this.blinkDistance = 80;
@@ -810,6 +864,12 @@ class Skill {
         // Apply skill effects
         if (this.id === 'sprint') {
             player.attributes.canSprint = true;
+        } else if (this.id === 'dash') {
+            player.attributes.canDash = true;
+        } else if (this.id === 'dash_cooldown1') {
+            player.attributes.dashCooldown = 1800;  // 1.8s
+        } else if (this.id === 'dash_cooldown2') {
+            player.attributes.dashCooldown = 900;   // 0.9s
         } else if (this.id === 'extended_sword') {
             player.attributes.swordLength = Math.floor(player.attributes.baseSwordLength * 1.5);
         } else if (this.id === 'blink') {
@@ -841,7 +901,10 @@ class SkillTree {
 
         // Body branch
         this.skills['sprint'] = new Skill('sprint', 'Sprint', 'Temporary speed boost (SHIFT)', 2, null, true);
+        this.skills['dash'] = new Skill('dash', 'Dash', 'Quick directional burst (CTRL)', 3, null, true);
         this.skills['blink'] = new Skill('blink', 'Blink', 'Short-range teleport (B)', 4, null, true);
+        this.skills['dash_cooldown1'] = new Skill('dash_cooldown1', 'Improved Dash', 'Reduces dash cooldown to 1.8s', 6, 'dash', true);
+        this.skills['dash_cooldown2'] = new Skill('dash_cooldown2', 'Improved Dash II', 'Reduces dash cooldown to 0.9s', 9, 'dash_cooldown1', true);
         this.skills['sprint_speed'] = new Skill('sprint_speed', 'Increased Sprint Speed', 'Sprint moves faster', 7, 'sprint', false);
         this.skills['sprint_cooldown'] = new Skill('sprint_cooldown', 'Reduced Sprint Cooldown', 'Use sprint more often', 10, 'sprint_speed', false);
         this.skills['blink_extend1'] = new Skill('blink_extend1', 'Extended Blink', 'Blink farther', 7, 'blink', false);
@@ -905,7 +968,7 @@ class SkillTree {
         for (const [skillId, skill] of Object.entries(this.skills)) {
             if (['heal', 'firebolt', 'bless', 'fireball'].includes(skillId)) {
                 branches.mind.push(skill);
-            } else if (['sprint', 'blink', 'sprint_speed', 'sprint_cooldown', 'blink_extend1', 'blink_extend2', 'ghost_blink'].includes(skillId)) {
+            } else if (['sprint', 'dash', 'blink', 'dash_cooldown1', 'dash_cooldown2', 'sprint_speed', 'sprint_cooldown', 'blink_extend1', 'blink_extend2', 'ghost_blink'].includes(skillId)) {
                 branches.body.push(skill);
             } else {
                 branches.magic_sword.push(skill);

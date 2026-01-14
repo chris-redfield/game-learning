@@ -532,6 +532,12 @@ class SaveLoadManager {
                 // Apply skill effects
                 if (skillId === 'sprint') {
                     this.player.attributes.canSprint = true;
+                } else if (skillId === 'dash') {
+                    this.player.attributes.canDash = true;
+                } else if (skillId === 'dash_cooldown1') {
+                    this.player.attributes.dashCooldown = 1800;
+                } else if (skillId === 'dash_cooldown2') {
+                    this.player.attributes.dashCooldown = 900;
                 } else if (skillId === 'extended_sword') {
                     this.player.attributes.swordLength = Math.floor(this.player.attributes.baseSwordLength * 1.5);
                 } else if (skillId === 'blink') {

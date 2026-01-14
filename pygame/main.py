@@ -460,7 +460,21 @@ while running:
         # Sprint ability (keyboard)
         if (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) and player.skill_tree.is_skill_unlocked("sprint"):
             player.sprint(current_time)
-            
+
+        # Dash ability (keyboard)
+        if (keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]) and player.skill_tree.is_skill_unlocked("dash"):
+            # Get input direction for 8-directional dash
+            input_x, input_y = 0, 0
+            if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+                input_x = -1
+            if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+                input_x = 1
+            if keys[pygame.K_UP] or keys[pygame.K_w]:
+                input_y = -1
+            if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+                input_y = 1
+            player.dash(current_time, input_x, input_y)
+
         # Blink ability
         if keys[pygame.K_b] and player.skill_tree.is_skill_unlocked("blink"):
             obstacles = game_world.get_current_entities()
@@ -519,6 +533,12 @@ while running:
         
         # Get current entities from world
         current_entities = game_world.get_current_entities()
+
+        # Apply dash movement if dashing (overrides normal movement)
+        if player.attributes.dashing:
+            dash_velocity = player.base_speed * player.attributes.dash_speed
+            dx = player.attributes.dash_direction[0] * dash_velocity
+            dy = player.attributes.dash_direction[1] * dash_velocity
 
         # Move player
         player.move(dx, dy, current_entities)

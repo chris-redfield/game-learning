@@ -35,6 +35,12 @@ class Skill:
         # Apply skill effects
         if self.id == "sprint":
             player.attributes.can_sprint = True
+        elif self.id == "dash":
+            player.attributes.can_dash = True
+        elif self.id == "dash_cooldown1":
+            player.attributes.dash_cooldown = 1800  # 1.8s
+        elif self.id == "dash_cooldown2":
+            player.attributes.dash_cooldown = 900   # 0.9s
         elif self.id == "extended_sword":
             player.attributes.sword_length = int(player.attributes.base_sword_length * 1.5)
         elif self.id == "blink":
@@ -62,7 +68,10 @@ class SkillTree:
         
         # Body branch
         self.skills["sprint"] = Skill("sprint", "Sprint", "Temporary speed boost (SHIFT/Button 4)", level_required=2, implemented=True)
+        self.skills["dash"] = Skill("dash", "Dash", "Quick directional burst (CTRL)", level_required=3, implemented=True)
         self.skills["blink"] = Skill("blink", "Blink", "Short-range teleport (B/Button 1)", level_required=4, implemented=True)
+        self.skills["dash_cooldown1"] = Skill("dash_cooldown1", "Improved Dash", "Reduces dash cooldown to 1.8s", level_required=6, parent="dash", implemented=True)
+        self.skills["dash_cooldown2"] = Skill("dash_cooldown2", "Improved Dash II", "Reduces dash cooldown to 0.9s", level_required=9, parent="dash_cooldown1", implemented=True)
         self.skills["sprint_speed"] = Skill("sprint_speed", "Increased Sprint Speed", "Sprint moves faster", level_required=7, parent="sprint", implemented=False)
         self.skills["sprint_cooldown"] = Skill("sprint_cooldown", "Reduced Sprint Cooldown", "Use sprint more often", level_required=10, parent="sprint_speed", implemented=False)
         self.skills["blink_extend1"] = Skill("blink_extend1", "Extended Blink", "Blink farther", level_required=7, parent="blink", implemented=False)
@@ -133,7 +142,7 @@ class SkillTree:
         for skill_id, skill in self.skills.items():
             if skill_id in ["heal", "firebolt", "bless", "fireball"]:
                 branches["mind"].append(skill)
-            elif skill_id in ["sprint", "blink", "sprint_speed", "sprint_cooldown", "blink_extend1", "blink_extend2", "ghost_blink"]:
+            elif skill_id in ["sprint", "dash", "blink", "dash_cooldown1", "dash_cooldown2", "sprint_speed", "sprint_cooldown", "blink_extend1", "blink_extend2", "ghost_blink"]:
                 branches["body"].append(skill)
             else:
                 branches["magic_sword"].append(skill)

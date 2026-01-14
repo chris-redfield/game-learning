@@ -43,6 +43,8 @@ class InputHandler {
             'KeyB': 'blink',
             'ShiftLeft': 'sprint',
             'ShiftRight': 'sprint',
+            'ControlLeft': 'dash',
+            'ControlRight': 'dash',
 
             // UI
             'KeyM': 'map',
