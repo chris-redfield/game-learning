@@ -33,8 +33,8 @@ class Skill:
         self.unlocked = True
         
         # Apply skill effects
-        if self.id == "dash":
-            player.attributes.can_dash = True
+        if self.id == "sprint":
+            player.attributes.can_sprint = True
         elif self.id == "extended_sword":
             player.attributes.sword_length = int(player.attributes.base_sword_length * 1.5)
         elif self.id == "blink":
@@ -61,10 +61,10 @@ class SkillTree:
         self.skills["fireball"] = Skill("fireball", "Fireball", "More powerful fireball", level_required=7, parent="firebolt", implemented=False)
         
         # Body branch
-        self.skills["dash"] = Skill("dash", "Dash", "Temporary speed boost (SHIFT/Button 4)", level_required=2, implemented=True)
+        self.skills["sprint"] = Skill("sprint", "Sprint", "Temporary speed boost (SHIFT/Button 4)", level_required=2, implemented=True)
         self.skills["blink"] = Skill("blink", "Blink", "Short-range teleport (B/Button 1)", level_required=4, implemented=True)
-        self.skills["dash_speed"] = Skill("dash_speed", "Increased Dash Speed", "Dash moves faster", level_required=7, parent="dash", implemented=False)
-        self.skills["dash_cooldown"] = Skill("dash_cooldown", "Reduced Dash Cooldown", "Use dash more often", level_required=10, parent="dash_speed", implemented=False)
+        self.skills["sprint_speed"] = Skill("sprint_speed", "Increased Sprint Speed", "Sprint moves faster", level_required=7, parent="sprint", implemented=False)
+        self.skills["sprint_cooldown"] = Skill("sprint_cooldown", "Reduced Sprint Cooldown", "Use sprint more often", level_required=10, parent="sprint_speed", implemented=False)
         self.skills["blink_extend1"] = Skill("blink_extend1", "Extended Blink", "Blink farther", level_required=7, parent="blink", implemented=False)
         self.skills["blink_extend2"] = Skill("blink_extend2", "Extended Blink II", "Blink even farther", level_required=10, parent="blink_extend1", implemented=False)
         self.skills["ghost_blink"] = Skill("ghost_blink", "Ghost Blink", "Blink through obstacles", level_required=13, parent="blink_extend2", implemented=False)
@@ -82,8 +82,8 @@ class SkillTree:
         
         # Check if any skills should be unlocked based on current level/state
         # This ensures existing save games maintain their abilities
-        if self.player.attributes.can_dash:
-            self.skills["dash"].unlocked = True
+        if self.player.attributes.can_sprint:
+            self.skills["sprint"].unlocked = True
         
         if self.player.attributes.sword_length > self.player.attributes.base_sword_length:
             self.skills["extended_sword"].unlocked = True
@@ -133,7 +133,7 @@ class SkillTree:
         for skill_id, skill in self.skills.items():
             if skill_id in ["heal", "firebolt", "bless", "fireball"]:
                 branches["mind"].append(skill)
-            elif skill_id in ["dash", "blink", "dash_speed", "dash_cooldown", "blink_extend1", "blink_extend2", "ghost_blink"]:
+            elif skill_id in ["sprint", "blink", "sprint_speed", "sprint_cooldown", "blink_extend1", "blink_extend2", "ghost_blink"]:
                 branches["body"].append(skill)
             else:
                 branches["magic_sword"].append(skill)

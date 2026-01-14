@@ -11,7 +11,7 @@ A 2D action-adventure game with procedural world generation, RPG-inspired charac
 - **Attribute System**: Level up to increase STR, CON, DEX, and INT stats that affect combat and movement
 - **Ability Progression**:
   - **Level 1**: Basic movement and sword attack
-  - **Level 2**: Dash ability (temporary speed boost)
+  - **Level 2**: Sprint ability (temporary speed boost)
   - **Level 3**: Extended sword reach
   - **Level 4**: Blink ability (short-range teleportation)
 - **Character Screen**: View and upgrade character attributes
@@ -56,7 +56,7 @@ A 2D action-adventure game with procedural world generation, RPG-inspired charac
 - **Damage Calculation**: Based on attacker's strength and defender's constitution
 - **Recovery System**: Enemies temporarily recover after taking damage
 - **Invulnerability Frames**: Brief invulnerability after taking damage
-- **Special Abilities**: Dash and blink abilities to enhance combat options
+- **Special Abilities**: Sprint and blink abilities to enhance combat options
 <br>
 
 ### Collision System
@@ -85,7 +85,7 @@ A 2D action-adventure game with procedural world generation, RPG-inspired charac
 - **Movement**: WASD or Arrow Keys
 - **Attack**: SPACE
 - **Interact**: E
-- **Dash**: SHIFT (Level 2+)
+- **Sprint**: SHIFT (Level 2+)
 - **Blink**: B (Level 4+)
 - **Character Screen**: ENTER
 - **Map Toggle**: M

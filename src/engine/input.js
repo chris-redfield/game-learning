@@ -41,8 +41,8 @@ class InputHandler {
             'KeyE': 'interact',
             'KeyF': 'firebolt',
             'KeyB': 'blink',
-            'ShiftLeft': 'dash',
-            'ShiftRight': 'dash',
+            'ShiftLeft': 'sprint',
+            'ShiftRight': 'sprint',
 
             // UI
             'KeyM': 'map',
@@ -69,8 +69,8 @@ class InputHandler {
             1: 'blink',       // B button
             2: 'firebolt',    // X button
             3: 'interact',    // Y button
-            4: 'dash',        // Left bumper
-            5: 'dash',        // Right bumper
+            4: 'sprint',      // Left bumper
+            5: 'sprint',      // Right bumper
             8: 'pause',       // Select
             9: 'character',   // Start
             12: 'up',         // D-pad up

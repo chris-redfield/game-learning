@@ -198,8 +198,8 @@ class SaveManager:
 
                 if skill_info.get("unlocked", False):
                     skill = self.player.skill_tree.skills[skill_id]
-                    if skill_id == "dash":
-                        self.player.attributes.can_dash = True
+                    if skill_id == "sprint":
+                        self.player.attributes.can_sprint = True
                     elif skill_id == "extended_sword":
                         self.player.attributes.sword_length = int(self.player.attributes.base_sword_length * 1.5)
                     elif skill_id == "blink":

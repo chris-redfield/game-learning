@@ -272,10 +272,10 @@ function updateGame(dt) {
         player.startSwing();
     }
 
-    // Handle dash (only if unlocked)
-    if (game.input.isKeyJustPressed('dash') && player.skillTree.isSkillUnlocked('dash')) {
-        if (player.dash(currentTime)) {
-            console.log('Dash activated!');
+    // Handle sprint (only if unlocked)
+    if (game.input.isKeyJustPressed('sprint') && player.skillTree.isSkillUnlocked('sprint')) {
+        if (player.sprint(currentTime)) {
+            console.log('Sprint activated!');
         }
     }
 
@@ -736,7 +736,7 @@ Space - Attack (Sword Swing)
 E - Interact (bonfires, NPCs)
 F - Firebolt (magic projectile)
 + - Add XP (+5 for testing)
-Shift - Dash (speed boost)
+Shift - Sprint (speed boost)
 B - Blink (teleport forward)
 M - Map (shows visited blocks)
 Enter - Character Screen
@@ -750,7 +750,7 @@ A - Attack
 B - Blink
 X - Firebolt
 Y - Interact
-LB/RB - Dash
+LB/RB - Sprint
 Start - Character Screen
 ===================================
     `);

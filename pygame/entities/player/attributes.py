@@ -46,13 +46,13 @@ class PlayerAttributes:
         self.found_dragon_heart = False   # When found, enable 1.2 progression
         self.xp_needed = self.get_xp_needed()  # Get XP needed for next level
 
-        # Level 2: Dash (temporary speed boost)
-        self.can_dash = False  # Unlocked at level 2
-        self.dash_duration = 1500  # 1.5 seconds in milliseconds
-        self.dash_cooldown = 3000  # 3 seconds in milliseconds
-        self.dash_timer = 0  # For cooldown tracking
-        self.dash_end_time = 0  # For duration tracking
-        self.dashing = False
+        # Level 2: Sprint (temporary speed boost)
+        self.can_sprint = False  # Unlocked at level 2
+        self.sprint_duration = 1500  # 1.5 seconds in milliseconds
+        self.sprint_cooldown = 3000  # 3 seconds in milliseconds
+        self.sprint_timer = 0  # For cooldown tracking
+        self.sprint_end_time = 0  # For duration tracking
+        self.sprinting = False
 
         # Level 4: Blink (teleport)
         self.can_blink = False  # Unlocked at level 4
@@ -272,20 +272,20 @@ class PlayerAttributes:
             abilities_y = y + 105
         
         # Display ability info based on skill tree unlocks
-        # Dash ability
-        if self.player.skill_tree.is_skill_unlocked("dash"):
-            if self.dashing:
-                dash_status = "ACTIVE"
+        # Sprint ability
+        if self.player.skill_tree.is_skill_unlocked("sprint"):
+            if self.sprinting:
+                sprint_status = "ACTIVE"
                 color = (0, 255, 0)  # Green when active
-            elif self.dash_timer == 0:
-                dash_status = "Ready"
+            elif self.sprint_timer == 0:
+                sprint_status = "Ready"
                 color = (255, 255, 255)  # White when ready
             else:
-                dash_status = "Cooling Down"
+                sprint_status = "Cooling Down"
                 color = (255, 165, 0)  # Orange when on cooldown
-                
-            dash_text = font.render(f"Dash: {dash_status}", True, color)
-            surface.blit(dash_text, (x, abilities_y))
+
+            sprint_text = font.render(f"Sprint: {sprint_status}", True, color)
+            surface.blit(sprint_text, (x, abilities_y))
             abilities_y += 25
         
         # Extended Sword ability

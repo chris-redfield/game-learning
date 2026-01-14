@@ -437,9 +437,9 @@ while running:
                     else:
                         player.facing = "up"
             
-            # Dash ability (controller)
-            if joystick.get_button(4) and player.skill_tree.is_skill_unlocked("dash"):
-                player.dash(current_time)
+            # Sprint ability (controller)
+            if joystick.get_button(4) and player.skill_tree.is_skill_unlocked("sprint"):
+                player.sprint(current_time)
         
         # Handle keyboard movement
         keys = pygame.key.get_pressed()
@@ -457,9 +457,9 @@ while running:
             if keys[pygame.K_DOWN] or keys[pygame.K_s]:
                 dy = player.speed
         
-        # Dash ability (keyboard)
-        if (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) and player.skill_tree.is_skill_unlocked("dash"):
-            player.dash(current_time)
+        # Sprint ability (keyboard)
+        if (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) and player.skill_tree.is_skill_unlocked("sprint"):
+            player.sprint(current_time)
             
         # Blink ability
         if keys[pygame.K_b] and player.skill_tree.is_skill_unlocked("blink"):

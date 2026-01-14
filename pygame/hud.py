@@ -94,20 +94,20 @@ class HUD:
         y = 85  # Increased to make room for XP text under the icon
         
         # Display ability info based on skill tree unlocks
-        # Dash ability
-        if self.player.skill_tree.is_skill_unlocked("dash"):
-            if self.player.attributes.dashing:
-                dash_status = "ACTIVE"
+        # Sprint ability
+        if self.player.skill_tree.is_skill_unlocked("sprint"):
+            if self.player.attributes.sprinting:
+                sprint_status = "ACTIVE"
                 color = (0, 255, 0)  # Green when active
-            elif self.player.attributes.dash_timer == 0:
-                dash_status = "Ready"
+            elif self.player.attributes.sprint_timer == 0:
+                sprint_status = "Ready"
                 color = (255, 255, 255)  # White when ready
             else:
-                dash_status = "Cooling Down"
+                sprint_status = "Cooling Down"
                 color = (255, 165, 0)  # Orange when on cooldown
-                
-            dash_text = self.font.render(f"Dash: {dash_status}", True, color)
-            surface.blit(dash_text, (x, y))
+
+            sprint_text = self.font.render(f"Sprint: {sprint_status}", True, color)
+            surface.blit(sprint_text, (x, y))
             y += 25
         
         # Extended Sword ability  
@@ -136,7 +136,7 @@ class HUD:
             "WASD or Arrow Keys: Move",
             "SPACE: Swing Sword",
             "E: Interact",
-            "SHIFT: Dash (if unlocked)",
+            "SHIFT: Sprint (if unlocked)",
             "B: Blink (if unlocked)",
             "+: Level Up",
             "C: Show Collision Boxes",

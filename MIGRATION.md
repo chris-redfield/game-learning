@@ -49,7 +49,7 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 - Player movement with collision detection
 - Sprite animation (4 directions)
 - Sword swing attack
-- Dash ability (SHIFT key)
+- Sprint ability (SHIFT key)
 - Blink teleport (B key)
 - Player attributes system
 
@@ -104,7 +104,7 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 - Health bar (red)
 - Mana bar (blue)
 - XP display
-- Ability status (Dash/Blink ready)
+- Ability status (Sprint/Blink ready)
 - Controls list
 - Current block info
 - FPS counter
@@ -134,7 +134,7 @@ This document tracks the migration of "The Dark Garden of Z" from Python/Pygame 
 
 **Skills Implemented:**
 - Mind: Heal*, Firebolt, Bless*, Fireball*
-- Body: Dash, Blink, Increased Dash Speed*, Reduced Dash Cooldown*, Extended Blink*, Extended Blink II*, Ghost Blink*
+- Body: Sprint, Blink, Increased Sprint Speed*, Reduced Sprint Cooldown*, Extended Blink*, Extended Blink II*, Ghost Blink*
 - Magic Sword: Basic Sword, Throw Sword*, Extended Sword, Extended Sword II*, Extended Sword III*, Teleport Sword*
 
 (*) = Not yet implemented in gameplay

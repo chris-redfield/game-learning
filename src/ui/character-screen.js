@@ -976,7 +976,7 @@ class CharacterScreen {
 
         const abilities = [
             { id: 'basic_sword', name: 'Sword Attack', desc: 'SPACE' },
-            { id: 'dash', name: 'Dash', desc: 'SHIFT' },
+            { id: 'sprint', name: 'Sprint', desc: 'SHIFT' },
             { id: 'extended_sword', name: 'Extended Sword', desc: 'Increased reach' },
             { id: 'blink', name: 'Blink', desc: 'B key' },
             { id: 'firebolt', name: 'Firebolt', desc: 'F key' }

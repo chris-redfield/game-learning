@@ -530,8 +530,8 @@ class SaveLoadManager {
                 this.player.skillTree.skills[skillId].unlocked = true;
 
                 // Apply skill effects
-                if (skillId === 'dash') {
-                    this.player.attributes.canDash = true;
+                if (skillId === 'sprint') {
+                    this.player.attributes.canSprint = true;
                 } else if (skillId === 'extended_sword') {
                     this.player.attributes.swordLength = Math.floor(this.player.attributes.baseSwordLength * 1.5);
                 } else if (skillId === 'blink') {

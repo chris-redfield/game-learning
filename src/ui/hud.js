@@ -130,23 +130,23 @@ class HUD {
 
         ctx.font = this.font;
 
-        // Dash ability (check player.dashing and player.dashTimer)
-        if (player.skillTree && player.skillTree.isSkillUnlocked('dash')) {
-            let dashStatus, color;
+        // Sprint ability (check player.sprinting and player.sprintTimer)
+        if (player.skillTree && player.skillTree.isSkillUnlocked('sprint')) {
+            let sprintStatus, color;
 
-            if (player.dashing) {
-                dashStatus = 'ACTIVE';
+            if (player.sprinting) {
+                sprintStatus = 'ACTIVE';
                 color = 'rgb(0, 255, 0)'; // Green when active
-            } else if (player.dashTimer === 0) {
-                dashStatus = 'Ready';
+            } else if (player.sprintTimer === 0) {
+                sprintStatus = 'Ready';
                 color = 'rgb(255, 255, 255)'; // White when ready
             } else {
-                dashStatus = 'Cooling Down';
+                sprintStatus = 'Cooling Down';
                 color = 'rgb(255, 165, 0)'; // Orange when on cooldown
             }
 
             ctx.fillStyle = color;
-            ctx.fillText(`Dash: ${dashStatus}`, x, y);
+            ctx.fillText(`Sprint: ${sprintStatus}`, x, y);
             y += 25;
         }
 
@@ -198,7 +198,7 @@ class HUD {
                 'SPACE: Swing Sword',
                 'F: Firebolt',
                 'E: Interact',
-                'SHIFT: Dash (if unlocked)',
+                'SHIFT: Sprint (if unlocked)',
                 'B: Blink (if unlocked)',
                 'C: Show Collision Boxes',
                 'M: Toggle Map',

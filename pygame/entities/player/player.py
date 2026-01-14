@@ -186,16 +186,16 @@ class Player:
             # Track time delta for animations
             time_delta = current_time - (getattr(self, 'last_update_time', current_time))
             
-            # Update dash status
-            if self.attributes.dashing and current_time > self.attributes.dash_end_time:
-                # End the dash effect
-                self.attributes.dashing = False
+            # Update sprint status
+            if self.attributes.sprinting and current_time > self.attributes.sprint_end_time:
+                # End the sprint effect
+                self.attributes.sprinting = False
                 self.speed = self.base_speed
-                print("Dash ended")
-                
-            # Clear dash cooldown
-            if self.attributes.dash_timer > 0 and current_time > self.attributes.dash_timer:
-                self.attributes.dash_timer = 0
+                print("Sprint ended")
+
+            # Clear sprint cooldown
+            if self.attributes.sprint_timer > 0 and current_time > self.attributes.sprint_timer:
+                self.attributes.sprint_timer = 0
                 
             # Clear blink cooldown
             if self.attributes.blink_timer > 0 and current_time > self.attributes.blink_timer:
@@ -328,23 +328,23 @@ class Player:
         else:
             self.moving = False
 
-    def dash(self, current_time):
+    def sprint(self, current_time):
         """Activate a temporary speed boost"""
-        # Check if dash is unlocked in skill tree
-        if (not self.skill_tree.is_skill_unlocked("dash") or 
-            self.attributes.dashing or 
-            current_time < self.attributes.dash_timer):
+        # Check if sprint is unlocked in skill tree
+        if (not self.skill_tree.is_skill_unlocked("sprint") or
+            self.attributes.sprinting or
+            current_time < self.attributes.sprint_timer):
             return False
-        
-        # Activate dash (speed boost)
-        self.attributes.dashing = True
+
+        # Activate sprint (speed boost)
+        self.attributes.sprinting = True
         self.speed = self.base_speed * 1.5  # 50% speed increase
-        
+
         # Set timers
-        self.attributes.dash_end_time = current_time + self.attributes.dash_duration
-        self.attributes.dash_timer = current_time + self.attributes.dash_cooldown + self.attributes.dash_duration
-        
-        print("Dash activated! Speed increased by 50% for 1 second")
+        self.attributes.sprint_end_time = current_time + self.attributes.sprint_duration
+        self.attributes.sprint_timer = current_time + self.attributes.sprint_cooldown + self.attributes.sprint_duration
+
+        print("Sprint activated! Speed increased by 50% for 1 second")
         return True
         
     def blink(self, obstacles, current_time):

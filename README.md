@@ -19,7 +19,7 @@ A 2D action-adventure game with procedural world generation, RPG-inspired charac
 - **Attribute System**: Level up to increase STR, CON, DEX, and INT stats that affect combat and movement
 - **Skill Tree**: Three branches (Mind, Body, Magic Sword) with unlockable abilities
 - **Abilities**:
-  - **Dash**: Temporary speed boost (SHIFT)
+  - **Sprint**: Temporary speed boost (SHIFT)
   - **Blink**: Short-range teleportation (B)
   - **Firebolt**: Ranged magic attack (F)
   - **Extended Sword**: Increased attack reach
@@ -81,7 +81,7 @@ A 2D action-adventure game with procedural world generation, RPG-inspired charac
 | Movement | WASD / Arrow Keys | Left Stick / D-Pad |
 | Attack | SPACE | A / X |
 | Interact | E | B / Circle |
-| Dash | SHIFT | LB / L1 |
+| Sprint | SHIFT | LB / L1 |
 | Blink | B | RB / R1 |
 | Firebolt | F | Y / Triangle |
 | Character Screen | ENTER | Start |
