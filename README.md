@@ -104,3 +104,49 @@ A 2D action-adventure game with procedural world generation, RPG-inspired charac
 ```bash
 python -m http.server 8000
 # Or: npx serve .
+```
+
+Then open `http://localhost:8000` in your browser.
+
+### Python/Pygame Version (Desktop)
+
+#### Prerequisites
+- Python 3.8+
+- Pygame
+
+#### Install & Run
+```bash
+cd pygame
+pip install -r requirements.txt
+python main.py
+```
+
+---
+
+## Performance Optimizations (JavaScript)
+
+### Implemented
+
+| Optimization | Description | Impact |
+|--------------|-------------|--------|
+| Frame Query Caching | Entity queries (getEnemies, getObstacles, etc.) are cached per frame | Reduces redundant array filtering |
+| Insertion Sort for Depth | Uses insertion sort instead of Array.sort() for nearly-sorted render order | O(n) vs O(n log n) for mostly sorted data |
+| Entity Type Flags | Uses `entityType` string property instead of `instanceof` checks | Faster type filtering |
+| Cached getRect() | Reuses a single rect object per entity instead of allocating new objects | Reduces GC pressure |
+
+### Potential Future Optimizations
+
+| Optimization | Description | Complexity |
+|--------------|-------------|------------|
+| Spatial Partitioning | Grid-based collision detection to reduce entity pair checks | Medium |
+| Object Pooling | Reuse particle and projectile objects instead of creating/destroying | Medium |
+| Dirty Flag Rendering | Only redraw changed portions of the screen | High |
+| Offscreen Canvas | Pre-render static elements to offscreen buffers | Low |
+| Web Workers | Move pathfinding or heavy computations off main thread | High |
+| requestIdleCallback | Defer non-critical updates to idle periods | Low |
+
+---
+
+## License
+
+MIT License - see pygame/LICENSE for details
