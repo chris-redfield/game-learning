@@ -51,6 +51,50 @@ class World {
         // Screen dimensions from game
         this.screenWidth = game.width;
         this.screenHeight = game.height;
+
+        // Frame cache for entity queries (cleared each frame)
+        this._frameCache = {
+            obstacles: null,
+            enemies: null,
+            items: null,
+            bonfires: null,
+            npcs: null,
+            frameId: -1
+        };
+        this._currentFrameId = 0;
+    }
+
+    /**
+     * Call at start of each frame to invalidate cache
+     */
+    beginFrame() {
+        this._currentFrameId++;
+    }
+
+    /**
+     * Check if cache is valid for current frame
+     */
+    _isCacheValid() {
+        return this._frameCache.frameId === this._currentFrameId;
+    }
+
+    /**
+     * Mark cache as valid for current frame
+     */
+    _validateCache() {
+        this._frameCache.frameId = this._currentFrameId;
+    }
+
+    /**
+     * Invalidate the cache (call when block changes)
+     */
+    invalidateCache() {
+        this._frameCache.obstacles = null;
+        this._frameCache.enemies = null;
+        this._frameCache.items = null;
+        this._frameCache.bonfires = null;
+        this._frameCache.npcs = null;
+        this._frameCache.frameId = -1;
     }
 
     /**
@@ -553,6 +597,9 @@ class World {
             // Update current block coordinates
             this.currentBlockCoords = { x: newX, y: newY };
 
+            // Invalidate entity cache since we changed blocks
+            this.invalidateCache();
+
             console.log(`Moved to block (${newX}, ${newY}) - Difficulty: ${this.getDifficultyLevel(newX, newY)}`);
 
             return {
@@ -669,43 +716,68 @@ class World {
     }
 
     /**
-     * Get obstacles for collision detection
+     * Get obstacles for collision detection (cached per frame)
      */
     getObstacles() {
+        if (this._isCacheValid() && this._frameCache.obstacles !== null) {
+            return this._frameCache.obstacles;
+        }
         const entities = this.getCurrentEntities();
-        return entities.filter(e => e.isObstacle);
+        this._frameCache.obstacles = entities.filter(e => e.isObstacle);
+        this._validateCache();
+        return this._frameCache.obstacles;
     }
 
     /**
-     * Get all enemies in current block
+     * Get all enemies in current block (cached per frame)
      */
     getEnemies() {
+        if (this._isCacheValid() && this._frameCache.enemies !== null) {
+            return this._frameCache.enemies;
+        }
         const entities = this.getCurrentEntities();
-        return entities.filter(e => e instanceof Enemy || e instanceof Slime || e instanceof Skeleton);
+        this._frameCache.enemies = entities.filter(e => e.entityType === 'enemy');
+        this._validateCache();
+        return this._frameCache.enemies;
     }
 
     /**
-     * Get all items in current block
+     * Get all items in current block (cached per frame)
      */
     getItems() {
+        if (this._isCacheValid() && this._frameCache.items !== null) {
+            return this._frameCache.items;
+        }
         const entities = this.getCurrentEntities();
-        return entities.filter(e => e instanceof Item);
+        this._frameCache.items = entities.filter(e => e.entityType === 'item');
+        this._validateCache();
+        return this._frameCache.items;
     }
 
     /**
-     * Get all bonfires in current block
+     * Get all bonfires in current block (cached per frame)
      */
     getBonfires() {
+        if (this._isCacheValid() && this._frameCache.bonfires !== null) {
+            return this._frameCache.bonfires;
+        }
         const entities = this.getCurrentEntities();
-        return entities.filter(e => e instanceof Bonfire);
+        this._frameCache.bonfires = entities.filter(e => e.entityType === 'bonfire');
+        this._validateCache();
+        return this._frameCache.bonfires;
     }
 
     /**
-     * Get all NPCs in the current block
+     * Get all NPCs in the current block (cached per frame)
      */
     getNpcs() {
+        if (this._isCacheValid() && this._frameCache.npcs !== null) {
+            return this._frameCache.npcs;
+        }
         const entities = this.getCurrentEntities();
-        return entities.filter(e => e instanceof NPC);
+        this._frameCache.npcs = entities.filter(e => e.entityType === 'npc');
+        this._validateCache();
+        return this._frameCache.npcs;
     }
 
     /**

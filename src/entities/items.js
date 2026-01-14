@@ -8,6 +8,13 @@ class Item {
         this.y = y;
         this.width = 32;
         this.height = 32;
+
+        // Entity type flag for fast filtering (avoids instanceof)
+        this.entityType = 'item';
+
+        // Cached rect for collision detection (avoids object allocation)
+        this._rect = { x: 0, y: 0, width: 0, height: 0 };
+
         this.name = "Generic Item";
         this.description = "An item in the game world";
         this.collected = false;
@@ -26,12 +33,11 @@ class Item {
     }
 
     getRect() {
-        return {
-            x: this.x,
-            y: this.y + this.bobOffset,
-            width: this.width,
-            height: this.height
-        };
+        this._rect.x = this.x;
+        this._rect.y = this.y + this.bobOffset;
+        this._rect.width = this.width;
+        this._rect.height = this.height;
+        return this._rect;
     }
 
     update(player = null) {
@@ -266,12 +272,11 @@ class HealthPotion extends Item {
         const offsetX = (this.sprite.width - this.width) / 2;
         const offsetY = (this.sprite.height - this.height) / 2;
 
-        return {
-            x: this.x - offsetX + (this.sprite.width - rotatedWidth) / 2,
-            y: this.y + this.bobOffset - offsetY + (this.sprite.height - rotatedHeight) / 2,
-            width: rotatedWidth,
-            height: rotatedHeight
-        };
+        this._rect.x = this.x - offsetX + (this.sprite.width - rotatedWidth) / 2;
+        this._rect.y = this.y + this.bobOffset - offsetY + (this.sprite.height - rotatedHeight) / 2;
+        this._rect.width = rotatedWidth;
+        this._rect.height = rotatedHeight;
+        return this._rect;
     }
 }
 
@@ -462,14 +467,17 @@ class AncientScroll extends Item {
 
     getRect() {
         if (this.collected) {
-            return { x: 0, y: 0, width: 0, height: 0 };
+            this._rect.x = 0;
+            this._rect.y = 0;
+            this._rect.width = 0;
+            this._rect.height = 0;
+        } else {
+            this._rect.x = this.x;
+            this._rect.y = this.y + this.bobOffset;
+            this._rect.width = this.width;
+            this._rect.height = this.height;
         }
-        return {
-            x: this.x,
-            y: this.y + this.bobOffset,
-            width: this.width,
-            height: this.height
-        };
+        return this._rect;
     }
 }
 
@@ -677,21 +685,23 @@ class DragonHeart extends Item {
 
     getRect() {
         if (this.collected) {
-            return { x: 0, y: 0, width: 0, height: 0 };
+            this._rect.x = 0;
+            this._rect.y = 0;
+            this._rect.width = 0;
+            this._rect.height = 0;
+        } else {
+            // Calculate rect based on current beat size (matching Python)
+            const scaledWidth = Math.floor(this.width * this.beatSize);
+            const scaledHeight = Math.floor(this.height * this.beatSize);
+            const xOffset = (scaledWidth - this.width) / 2;
+            const yOffset = (scaledHeight - this.height) / 2;
+
+            this._rect.x = this.x - xOffset;
+            this._rect.y = this.y + this.bobOffset - yOffset;
+            this._rect.width = scaledWidth;
+            this._rect.height = scaledHeight;
         }
-
-        // Calculate rect based on current beat size (matching Python)
-        const scaledWidth = Math.floor(this.width * this.beatSize);
-        const scaledHeight = Math.floor(this.height * this.beatSize);
-        const xOffset = (scaledWidth - this.width) / 2;
-        const yOffset = (scaledHeight - this.height) / 2;
-
-        return {
-            x: this.x - xOffset,
-            y: this.y + this.bobOffset - yOffset,
-            width: scaledWidth,
-            height: scaledHeight
-        };
+        return this._rect;
     }
 }
 

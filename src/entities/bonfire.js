@@ -9,6 +9,12 @@ class Bonfire {
         this.width = 48;
         this.height = 48;
 
+        // Entity type flag for fast filtering (avoids instanceof)
+        this.entityType = 'bonfire';
+
+        // Cached rect for collision detection (avoids object allocation)
+        this._rect = { x: 0, y: 0, width: 0, height: 0 };
+
         // Bonfire is an obstacle - player cannot walk through it
         this.isObstacle = true;
 
@@ -81,12 +87,11 @@ class Bonfire {
     }
 
     getRect() {
-        return {
-            x: this.x,
-            y: this.y,
-            width: this.width,
-            height: this.height
-        };
+        this._rect.x = this.x;
+        this._rect.y = this.y;
+        this._rect.width = this.width;
+        this._rect.height = this.height;
+        return this._rect;
     }
 
     setBlockCoordinates(x, y) {

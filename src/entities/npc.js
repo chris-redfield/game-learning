@@ -13,6 +13,12 @@ class NPC {
         this.baseSpeed = 2;
         this.game = game;
 
+        // Entity type flag for fast filtering (avoids instanceof)
+        this.entityType = 'npc';
+
+        // Cached rect for collision detection (avoids object allocation)
+        this._rect = { x: 0, y: 0, width: 0, height: 0 };
+
         // NPC is an obstacle (player can't walk through)
         this.isObstacle = true;
 
@@ -167,12 +173,11 @@ class NPC {
     }
 
     getRect() {
-        return {
-            x: this.x,
-            y: this.y,
-            width: this.width,
-            height: this.height
-        };
+        this._rect.x = this.x;
+        this._rect.y = this.y;
+        this._rect.width = this.width;
+        this._rect.height = this.height;
+        return this._rect;
     }
 
     startMoving() {

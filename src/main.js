@@ -22,8 +22,31 @@ const gameState = {
     projectiles: [], // Active projectiles (firebolt, etc.)
     transitioning: false,
     transitionCallback: null,
-    lastFireboltTime: 0 // Cooldown tracking
+    lastFireboltTime: 0, // Cooldown tracking
+    // Reusable array for depth sorting (avoids allocation every frame)
+    _renderables: []
 };
+
+/**
+ * Insertion sort - O(n) for nearly-sorted arrays
+ * Since entities move slightly each frame, the array is almost always nearly sorted
+ */
+function insertionSortByDepth(arr) {
+    for (let i = 1; i < arr.length; i++) {
+        const current = arr[i];
+        const currentDepth = current.y + (current.height || 0);
+        let j = i - 1;
+
+        while (j >= 0) {
+            const compareDepth = arr[j].y + (arr[j].height || 0);
+            if (compareDepth <= currentDepth) break;
+            arr[j + 1] = arr[j];
+            j--;
+        }
+        arr[j + 1] = current;
+    }
+    return arr;
+}
 
 // Initialize game
 async function init() {
@@ -181,6 +204,11 @@ function restartGame() {
 
 // Game update logic
 function updateGame(dt) {
+    // Invalidate world query cache at start of frame
+    if (gameState.world) {
+        gameState.world.beginFrame();
+    }
+
     // Don't update during transitions
     if (gameState.transitioning) {
         return;
@@ -473,18 +501,23 @@ function renderGame(ctx) {
     // Get all entities in current block
     const entities = world.getCurrentEntities();
 
-    // Combine entities with player and souls for depth sorting
-    const allRenderables = [...entities, ...gameState.souls];
+    // Reuse array and use insertion sort (O(n) for nearly-sorted data)
+    const allRenderables = gameState._renderables;
+    allRenderables.length = 0; // Clear without reallocating
+
+    // Add all entities without creating new arrays
+    for (let i = 0; i < entities.length; i++) {
+        allRenderables.push(entities[i]);
+    }
+    for (let i = 0; i < gameState.souls.length; i++) {
+        allRenderables.push(gameState.souls[i]);
+    }
     if (player) {
         allRenderables.push(player);
     }
 
-    // Sort by Y position for depth (items lower on screen drawn on top)
-    allRenderables.sort((a, b) => {
-        const ay = a.y + (a.height || 0);
-        const by = b.y + (b.height || 0);
-        return ay - by;
-    });
+    // Insertion sort - O(n) for nearly-sorted data
+    insertionSortByDepth(allRenderables);
 
     // Render stuck blood FIRST (under entities, like ground stains)
     if (window.particleSystem) {
@@ -544,7 +577,8 @@ function renderGame(ctx) {
         const enemies = world.getEnemies();
         gameState.hud.draw(ctx, world, {
             entities: enemies,
-            showEnemyDebug: game.showDebug
+            showEnemyDebug: game.showDebug,
+            perfMetrics: game.showDebug ? game.getPerfMetrics() : null
         });
     }
 
@@ -849,3 +883,5 @@ function rectsOverlap(rect1, rect2) {
 
 // Start the game when page loads
 window.addEventListener('load', init);
+
+

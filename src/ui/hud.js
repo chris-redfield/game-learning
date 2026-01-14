@@ -305,6 +305,47 @@ class HUD {
     }
 
     /**
+     * Display performance metrics (when debug mode is on)
+     */
+    displayPerfMetrics(ctx, perfMetrics) {
+        if (!perfMetrics) return;
+
+        const x = this.screenWidth - 200;
+        let y = 50;
+        const lineHeight = 18;
+
+        ctx.font = '14px monospace';
+
+        // Background box
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(x - 10, y - 15, 200, 95);
+
+        // Title
+        ctx.fillStyle = 'rgb(255, 255, 0)';
+        ctx.fillText('PERFORMANCE', x, y);
+        y += lineHeight + 5;
+
+        // FPS
+        const fpsColor = perfMetrics.fps >= 55 ? 'rgb(0, 255, 0)' :
+                         perfMetrics.fps >= 30 ? 'rgb(255, 255, 0)' : 'rgb(255, 0, 0)';
+        ctx.fillStyle = fpsColor;
+        ctx.fillText(`FPS: ${perfMetrics.fps}`, x, y);
+        y += lineHeight;
+
+        // Frame time
+        ctx.fillStyle = 'rgb(200, 200, 200)';
+        ctx.fillText(`Frame:  ${perfMetrics.frameTime} ms`, x, y);
+        y += lineHeight;
+
+        // Update time
+        ctx.fillText(`Update: ${perfMetrics.updateTime} ms`, x, y);
+        y += lineHeight;
+
+        // Render time
+        ctx.fillText(`Render: ${perfMetrics.renderTime} ms`, x, y);
+    }
+
+    /**
      * Draw all HUD elements
      */
     draw(ctx, world, options = {}) {
@@ -313,7 +354,8 @@ class HUD {
             transitionDirection = null,
             transitionInProgress = false,
             entities = [],
-            showEnemyDebug = false
+            showEnemyDebug = false,
+            perfMetrics = null
         } = options;
 
         // Draw status bars
@@ -330,6 +372,11 @@ class HUD {
 
         // Display controls
         this.displayControls(ctx, showEnemyDebug);
+
+        // Display performance metrics when debug mode is on
+        if (showEnemyDebug && perfMetrics) {
+            this.displayPerfMetrics(ctx, perfMetrics);
+        }
 
         // Enemy debug info in upper right removed - info now shown above each enemy
 

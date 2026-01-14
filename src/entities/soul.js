@@ -45,6 +45,9 @@ class Soul {
 
         // Debug flag
         this.debugShowRadius = false;
+
+        // Cached rect for collision detection (avoids object allocation)
+        this._rect = { x: 0, y: 0, width: 0, height: 0 };
     }
 
     update(player) {
@@ -171,7 +174,11 @@ class Soul {
     }
 
     getRect() {
-        return { x: this.x, y: this.y, width: this.width, height: this.height };
+        this._rect.x = this.x;
+        this._rect.y = this.y;
+        this._rect.width = this.width;
+        this._rect.height = this.height;
+        return this._rect;
     }
 
     isCollectible() {

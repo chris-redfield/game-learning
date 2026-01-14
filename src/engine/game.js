@@ -32,6 +32,19 @@ class Game {
         this.fpsTime = 0;
         this.fpsUpdateInterval = 500; // Update FPS display every 500ms
 
+        // Performance metrics
+        this.perfMetrics = {
+            frameTime: 0,
+            updateTime: 0,
+            renderTime: 0,
+            // Rolling averages
+            avgFrameTime: 0,
+            avgUpdateTime: 0,
+            avgRenderTime: 0,
+            samples: [],
+            maxSamples: 60 // 1 second of data at 60fps
+        };
+
         // Game state
         this.running = false;
         this.paused = false;
@@ -189,6 +202,7 @@ class Game {
         this.showDebug = this.input.isKeyDown('debug');
 
         // Fixed timestep for physics/logic
+        const updateStart = performance.now();
         this.accumulator += this.deltaTime;
         while (this.accumulator >= this.frameTime) {
             if (!this.paused) {
@@ -196,9 +210,15 @@ class Game {
             }
             this.accumulator -= this.frameTime;
         }
+        this.perfMetrics.updateTime = performance.now() - updateStart;
 
         // Render
+        const renderStart = performance.now();
         this.render();
+        this.perfMetrics.renderTime = performance.now() - renderStart;
+
+        // Update performance metrics
+        this.updatePerfMetrics();
 
         // Clear per-frame input state
         this.input.clearFrameState();
@@ -302,6 +322,42 @@ class Game {
         if (fpsElement) {
             fpsElement.textContent = `FPS: ${this.fps}`;
         }
+    }
+
+    updatePerfMetrics() {
+        const sample = {
+            frame: this.deltaTime,
+            update: this.perfMetrics.updateTime,
+            render: this.perfMetrics.renderTime
+        };
+
+        this.perfMetrics.samples.push(sample);
+        if (this.perfMetrics.samples.length > this.perfMetrics.maxSamples) {
+            this.perfMetrics.samples.shift();
+        }
+
+        // Calculate rolling averages
+        if (this.perfMetrics.samples.length > 0) {
+            let totalFrame = 0, totalUpdate = 0, totalRender = 0;
+            for (const s of this.perfMetrics.samples) {
+                totalFrame += s.frame;
+                totalUpdate += s.update;
+                totalRender += s.render;
+            }
+            const count = this.perfMetrics.samples.length;
+            this.perfMetrics.avgFrameTime = totalFrame / count;
+            this.perfMetrics.avgUpdateTime = totalUpdate / count;
+            this.perfMetrics.avgRenderTime = totalRender / count;
+        }
+    }
+
+    getPerfMetrics() {
+        return {
+            fps: this.fps,
+            frameTime: this.perfMetrics.avgFrameTime.toFixed(2),
+            updateTime: this.perfMetrics.avgUpdateTime.toFixed(2),
+            renderTime: this.perfMetrics.avgRenderTime.toFixed(2)
+        };
     }
 
     // Utility methods

@@ -8,6 +8,13 @@ class Grass {
         this.y = y;
         this.width = 32;
         this.height = 32;
+
+        // Entity type flag for fast filtering (avoids instanceof)
+        this.entityType = 'environment';
+
+        // Cached rect for collision detection (avoids object allocation)
+        this._rect = { x: 0, y: 0, width: 0, height: 0 };
+
         this.isObstacle = true; // Grass/bushes block movement
 
         // Randomly select bush sprite
@@ -16,12 +23,11 @@ class Grass {
     }
 
     getRect() {
-        return {
-            x: this.x,
-            y: this.y,
-            width: this.width,
-            height: this.height
-        };
+        this._rect.x = this.x;
+        this._rect.y = this.y;
+        this._rect.width = this.width;
+        this._rect.height = this.height;
+        return this._rect;
     }
 
     update(dt, game) {
@@ -58,6 +64,13 @@ class Rock {
         this.y = y;
         this.width = 32;
         this.height = 32;
+
+        // Entity type flag for fast filtering (avoids instanceof)
+        this.entityType = 'environment';
+
+        // Cached rect for collision detection (avoids object allocation)
+        this._rect = { x: 0, y: 0, width: 0, height: 0 };
+
         this.isObstacle = true; // Rocks block movement
 
         // Randomly select rock sprite
@@ -66,12 +79,11 @@ class Rock {
     }
 
     getRect() {
-        return {
-            x: this.x,
-            y: this.y,
-            width: this.width,
-            height: this.height
-        };
+        this._rect.x = this.x;
+        this._rect.y = this.y;
+        this._rect.width = this.width;
+        this._rect.height = this.height;
+        return this._rect;
     }
 
     update(dt, game) {

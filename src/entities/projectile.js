@@ -37,6 +37,9 @@ class Projectile {
 
         this.width = 8;
         this.height = 8;
+
+        // Cached rect for collision detection (avoids object allocation)
+        this._rect = { x: 0, y: 0, width: 0, height: 0 };
     }
 
     update(currentTime, enemies, obstacles = []) {
@@ -79,12 +82,11 @@ class Projectile {
     }
 
     getRect() {
-        return {
-            x: this.x - this.width / 2,
-            y: this.y - this.height / 2,
-            width: this.width,
-            height: this.height
-        };
+        this._rect.x = this.x - this.width / 2;
+        this._rect.y = this.y - this.height / 2;
+        this._rect.width = this.width;
+        this._rect.height = this.height;
+        return this._rect;
     }
 
     rectsOverlap(a, b) {
@@ -154,12 +156,11 @@ class Firebolt extends Projectile {
     }
 
     getRect() {
-        return {
-            x: this.x - this.boltSize,
-            y: this.y - this.boltSize,
-            width: this.width,
-            height: this.height
-        };
+        this._rect.x = this.x - this.boltSize;
+        this._rect.y = this.y - this.boltSize;
+        this._rect.width = this.width;
+        this._rect.height = this.height;
+        return this._rect;
     }
 
     update(currentTime, enemies, obstacles = []) {

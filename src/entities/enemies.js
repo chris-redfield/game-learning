@@ -135,6 +135,12 @@ class Enemy {
         this.speed = speed;
         this.baseSpeed = speed;
 
+        // Entity type flag for fast filtering (avoids instanceof)
+        this.entityType = 'enemy';
+
+        // Cached rect for collision detection (avoids object allocation)
+        this._rect = { x: 0, y: 0, width: 0, height: 0 };
+
         // State
         this.state = 'idle';
         this.direction = Math.random() < 0.5 ? 'left' : 'right';
@@ -499,9 +505,17 @@ class Enemy {
 
     getRect() {
         if (this.state === 'dying') {
-            return { x: 0, y: 0, width: 0, height: 0 };
+            this._rect.x = 0;
+            this._rect.y = 0;
+            this._rect.width = 0;
+            this._rect.height = 0;
+        } else {
+            this._rect.x = this.x;
+            this._rect.y = this.y;
+            this._rect.width = this.width;
+            this._rect.height = this.height;
         }
-        return { x: this.x, y: this.y, width: this.width, height: this.height };
+        return this._rect;
     }
 
     getXpValue() {
